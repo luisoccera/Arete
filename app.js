@@ -1,9 +1,17 @@
 "use strict";
 
 const STORAGE_KEY = "arete_data_v1";
-const TOOTH_LAYOUT = {
-  upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
-  lower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+const DENTITION_LAYOUTS = {
+  adult: {
+    label: "Denticion adulta",
+    upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
+    lower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
+  },
+  child: {
+    label: "Denticion infantil",
+    upper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
+    lower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
+  }
 };
 
 const ODONTO_ZONES = [
@@ -44,9 +52,12 @@ const el = {
   newDiseaseColor: document.getElementById("newDiseaseColor"),
   addDiseaseBtn: document.getElementById("addDiseaseBtn"),
   diseaseCatalog: document.getElementById("diseaseCatalog"),
-  upperTeethRow: document.getElementById("upperTeethRow"),
-  lowerTeethRow: document.getElementById("lowerTeethRow"),
+  upperJawArc: document.getElementById("upperJawArc"),
+  lowerJawArc: document.getElementById("lowerJawArc"),
   zoneList: document.getElementById("zoneList"),
+  dentitionLabel: document.getElementById("dentitionLabel"),
+  dentitionSwitchButtons: Array.from(document.querySelectorAll("[data-dentition]")),
+  clearOdontogramBtn: document.getElementById("clearOdontogramBtn"),
   toothStatusSelect: document.getElementById("toothStatusSelect"),
   statusLegend: document.getElementById("statusLegend"),
   newStatusName: document.getElementById("newStatusName"),
@@ -92,10 +103,15 @@ function bindEvents() {
   el.searchInput.addEventListener("input", renderPatientTable);
   el.addDiseaseBtn.addEventListener("click", addDisease);
   el.addStatusBtn.addEventListener("click", addToothStatus);
+  el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
 
   el.toothStatusSelect.addEventListener("change", () => {
     selectedStatusId = el.toothStatusSelect.value || "none";
-    setFeedback(selectedStatusId === "none" ? "Modo borrador: limpiar marcas." : "Estado activo actualizado.");
+    setFeedback(
+      selectedStatusId === "none"
+        ? "Modo limpiar activo: al hacer clic se borran todos los colores de la pieza."
+        : "Estado activo actualizado. Haz clic en dientes o zonas para agregar/quitar color."
+    );
   });
 
   el.patientForm.addEventListener("submit", (event) => {
@@ -148,6 +164,43 @@ function bindEvents() {
       removeToothStatus(removeBtn.getAttribute("data-remove-status-id"));
     }
   });
+
+  el.zoneList.addEventListener("click", (event) => {
+    const zoneBtn = event.target.closest("[data-zone-id]");
+    if (!zoneBtn) {
+      return;
+    }
+    applyOdontoMark("zones", zoneBtn.getAttribute("data-zone-id"));
+  });
+
+  el.upperJawArc.addEventListener("click", (event) => {
+    handleToothNodeClick(event);
+  });
+
+  el.lowerJawArc.addEventListener("click", (event) => {
+    handleToothNodeClick(event);
+  });
+
+  for (const button of el.dentitionSwitchButtons) {
+    button.addEventListener("click", () => {
+      const mode = button.getAttribute("data-dentition");
+      if (!isValidDentitionMode(mode) || draftPatient.odontogramMode === mode) {
+        return;
+      }
+      draftPatient.odontogramMode = mode;
+      renderDentitionSwitch();
+      renderOdontogram();
+      setFeedback(`Visualizando ${DENTITION_LAYOUTS[mode].label.toLowerCase()}.`);
+    });
+  }
+}
+
+function handleToothNodeClick(event) {
+  const toothBtn = event.target.closest("[data-tooth-id]");
+  if (!toothBtn) {
+    return;
+  }
+  applyOdontoMark("teeth", toothBtn.getAttribute("data-tooth-id"));
 }
 
 function createBaseState() {
@@ -178,6 +231,7 @@ function createEmptyPatient() {
     hasCaries: "",
     otherConditions: "",
     diseaseIds: [],
+    odontogramMode: "adult",
     odontogram: {
       teeth: {},
       zones: {}
@@ -264,6 +318,8 @@ function normalizePatient(rawPatient) {
     ? patient.diseaseIds.filter((id) => typeof id === "string")
     : [];
 
+  patient.odontogramMode = isValidDentitionMode(patient.odontogramMode) ? patient.odontogramMode : "adult";
+
   patient.odontogram = {
     teeth: normalizeMarks(patient.odontogram?.teeth),
     zones: normalizeMarks(patient.odontogram?.zones)
@@ -279,11 +335,38 @@ function normalizeMarks(rawMarks) {
 
   const marks = {};
   for (const [key, value] of Object.entries(rawMarks)) {
-    if (typeof value === "string" && value.trim()) {
-      marks[String(key)] = value;
+    const list = normalizeMarkList(value);
+    if (list.length > 0) {
+      marks[String(key)] = list;
     }
   }
   return marks;
+}
+
+function normalizeMarkList(value) {
+  if (typeof value === "string") {
+    const v = value.trim();
+    return v ? [v] : [];
+  }
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (typeof item !== "string") {
+      continue;
+    }
+    const v = item.trim();
+    if (!v || seen.has(v)) {
+      continue;
+    }
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
 }
 
 function loadState() {
@@ -305,6 +388,7 @@ function persistState() {
 
 function renderAll() {
   renderStatusSelect();
+  renderDentitionSwitch();
   renderDiseaseChecklist();
   renderDiseaseCatalog();
   renderStatusCatalog();
@@ -425,7 +509,7 @@ function renderDiseaseCatalog() {
 function renderStatusSelect() {
   const previous = selectedStatusId;
   const options = [
-    "<option value=\"none\">Limpiar / Sin marca</option>",
+    "<option value=\"none\">Limpiar pieza / zona</option>",
     ...state.toothStatuses.map((status) => `<option value="${status.id}">${escapeHtml(status.name)}</option>`)
   ];
 
@@ -456,73 +540,131 @@ function renderStatusCatalog() {
     .join("");
 }
 
+function renderDentitionSwitch() {
+  for (const button of el.dentitionSwitchButtons) {
+    const mode = button.getAttribute("data-dentition");
+    button.classList.toggle("is-active", mode === draftPatient.odontogramMode);
+  }
+}
+
 function renderOdontogram() {
-  renderToothRow(el.upperTeethRow, TOOTH_LAYOUT.upper, "teeth");
-  renderToothRow(el.lowerTeethRow, TOOTH_LAYOUT.lower, "teeth");
+  const mode = getCurrentDentitionMode();
+  const layout = DENTITION_LAYOUTS[mode];
+  el.dentitionLabel.textContent = layout.label;
+
+  renderJawArc(el.upperJawArc, layout.upper, "upper", mode);
+  renderJawArc(el.lowerJawArc, layout.lower, "lower", mode);
 
   el.zoneList.innerHTML = ODONTO_ZONES.map((zone) => {
-    const statusId = draftPatient.odontogram.zones[zone.id];
-    const status = getStatusById(statusId);
-    const color = status ? status.color : "transparent";
-    const title = status ? `${zone.name}: ${status.name}` : `${zone.name}: sin marca`;
+    const statusIds = getMarkIds("zones", zone.id);
+    const colors = statusIds
+      .map((statusId) => getStatusById(statusId)?.color)
+      .filter(Boolean);
+
+    const colorStyle = buildMultiColorBackground(colors);
+    const label = statusIds.length > 0
+      ? statusIds.map((id) => getStatusById(id)?.name).filter(Boolean).join(", ")
+      : "sin marca";
+
     return `
-      <button type="button" class="zone-btn" data-zone-id="${zone.id}" style="--mark-color:${color}" title="${escapeHtml(title)}">
+      <button type="button" class="zone-btn" data-zone-id="${zone.id}" style="--mark-color:${colorStyle}" title="${escapeHtml(zone.name)}: ${escapeHtml(label)}">
         <span>${escapeHtml(zone.name)}</span>
       </button>
     `;
   }).join("");
-
-  const zoneButtons = el.zoneList.querySelectorAll("[data-zone-id]");
-  zoneButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const zoneId = btn.getAttribute("data-zone-id");
-      applyOdontoMark("zones", zoneId);
-    });
-  });
 }
 
-function renderToothRow(container, toothNumbers, bucket) {
-  container.innerHTML = toothNumbers
-    .map((toothNumber) => {
-      const key = String(toothNumber);
-      const statusId = draftPatient.odontogram[bucket][key];
-      const status = getStatusById(statusId);
-      const color = status ? status.color : "transparent";
-      const label = status ? status.name : "Sin marca";
-      return `
-        <button
-          type="button"
-          class="tooth ${status ? "marked" : ""}"
-          data-tooth-id="${key}"
-          style="--mark-color:${color}"
-          title="Diente ${key}: ${escapeHtml(label)}"
-        >
-          <span class="tooth-number">${key}</span>
-          <span class="tooth-label">${escapeHtml(label)}</span>
-        </button>
-      `;
-    })
-    .join("");
+function renderJawArc(container, toothNumbers, arcPosition, mode) {
+  const total = toothNumbers.length;
+  const isAdult = mode === "adult";
+  const size = isAdult ? 40 : 46;
 
-  const toothButtons = container.querySelectorAll("[data-tooth-id]");
-  toothButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const toothId = btn.getAttribute("data-tooth-id");
-      applyOdontoMark(bucket, toothId);
-    });
+  const centerX = 380;
+  const centerY = isAdult ? 232 : 236;
+  const radiusX = isAdult ? 280 : 238;
+  const radiusY = isAdult ? 150 : 130;
+
+  const startDeg = arcPosition === "upper" ? 200 : 20;
+  const endDeg = arcPosition === "upper" ? -20 : 160;
+
+  const pieces = toothNumbers.map((toothNumber, index) => {
+    const t = total === 1 ? 0.5 : index / (total - 1);
+    const degrees = startDeg + (endDeg - startDeg) * t;
+    const radians = degrees * (Math.PI / 180);
+
+    const x = centerX + radiusX * Math.cos(radians);
+    const y = centerY + radiusY * Math.sin(radians);
+
+    const toothId = String(toothNumber);
+    const statusIds = getMarkIds("teeth", toothId);
+    const previewIds = statusIds.slice(0, 16);
+    const overflowCount = Math.max(0, statusIds.length - previewIds.length);
+
+    const chips = previewIds
+      .map((statusId) => {
+        const status = getStatusById(statusId);
+        if (!status) {
+          return "";
+        }
+        return `<span class="tooth-color-chip" style="background:${status.color}" title="${escapeHtml(status.name)}"></span>`;
+      })
+      .join("");
+
+    const titleText = statusIds.length > 0
+      ? statusIds.map((id) => getStatusById(id)?.name).filter(Boolean).join(", ")
+      : "Sin marcas";
+
+    return `
+      <button
+        type="button"
+        class="tooth-node ${mode === "child" ? "child" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
+        data-tooth-id="${toothId}"
+        title="Diente ${toothId}: ${escapeHtml(titleText)}"
+        style="left:${Math.round(x - size / 2)}px; top:${Math.round(y - (size + 14) / 2)}px;"
+      >
+        <span class="tooth-id">${toothId}</span>
+        <span class="tooth-kind">${escapeHtml(getToothKindLabel(toothNumber, mode))}</span>
+        <span class="tooth-color-grid">${chips}</span>
+        ${overflowCount > 0 ? `<span class="tooth-more">+${overflowCount}</span>` : ""}
+      </button>
+    `;
   });
+
+  container.innerHTML = pieces.join("");
 }
 
 function applyOdontoMark(bucket, key) {
   ensureDraftOdontogram();
 
+  const current = getMarkIds(bucket, key);
+
   if (selectedStatusId === "none") {
+    if (current.length === 0) {
+      setFeedback("La pieza ya estaba limpia.");
+      return;
+    }
     delete draftPatient.odontogram[bucket][key];
-    setFeedback("Marca removida en borrador. Guarda para confirmar.");
+    setFeedback(`Se limpiaron todas las marcas de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
+    renderOdontogram();
+    return;
+  }
+
+  const statusName = getStatusById(selectedStatusId)?.name || "estado";
+  const next = current.slice();
+  const existingIndex = next.indexOf(selectedStatusId);
+
+  if (existingIndex >= 0) {
+    next.splice(existingIndex, 1);
+    if (next.length === 0) {
+      delete draftPatient.odontogram[bucket][key];
+    } else {
+      draftPatient.odontogram[bucket][key] = next;
+    }
+    setFeedback(`Estado ${statusName} removido de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
   } else {
-    draftPatient.odontogram[bucket][key] = selectedStatusId;
-    const statusName = getStatusById(selectedStatusId)?.name || "estado";
-    setFeedback(`Marcado en borrador: ${statusName}. Guarda para confirmar.`);
+    next.push(selectedStatusId);
+    draftPatient.odontogram[bucket][key] = next;
+    setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores en filas.`);
   }
 
   renderOdontogram();
@@ -532,8 +674,35 @@ function ensureDraftOdontogram() {
   if (!draftPatient.odontogram || typeof draftPatient.odontogram !== "object") {
     draftPatient.odontogram = { teeth: {}, zones: {} };
   }
-  draftPatient.odontogram.teeth = draftPatient.odontogram.teeth || {};
-  draftPatient.odontogram.zones = draftPatient.odontogram.zones || {};
+  draftPatient.odontogram.teeth = normalizeMarks(draftPatient.odontogram.teeth);
+  draftPatient.odontogram.zones = normalizeMarks(draftPatient.odontogram.zones);
+}
+
+function getMarkIds(bucket, key) {
+  const marks = draftPatient.odontogram?.[bucket];
+  if (!marks || typeof marks !== "object") {
+    return [];
+  }
+  return normalizeMarkList(marks[key]);
+}
+
+function clearDraftOdontogram() {
+  ensureDraftOdontogram();
+  const hasMarks = Object.keys(draftPatient.odontogram.teeth).length > 0 || Object.keys(draftPatient.odontogram.zones).length > 0;
+  if (!hasMarks) {
+    setFeedback("El odontograma ya esta limpio.");
+    return;
+  }
+
+  const approved = window.confirm("Se limpiaran todas las marcas del odontograma en este borrador. Continuar?");
+  if (!approved) {
+    return;
+  }
+
+  draftPatient.odontogram.teeth = {};
+  draftPatient.odontogram.zones = {};
+  renderOdontogram();
+  setFeedback("Odontograma del borrador limpiado.");
 }
 
 function openPatient(id) {
@@ -544,9 +713,11 @@ function openPatient(id) {
 
   editingPatientId = id;
   draftPatient = deepClone(found);
+  draftPatient = normalizePatient(draftPatient);
   hydrateFormFromDraft();
   setFormTitle();
   renderPatientTable();
+  renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
   setFeedback(`Editando expediente de ${found.name}.`);
@@ -558,6 +729,7 @@ function startNewPatient(showMessage) {
   hydrateFormFromDraft();
   setFormTitle();
   renderPatientTable();
+  renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
 
@@ -568,6 +740,7 @@ function startNewPatient(showMessage) {
 
 function savePatient() {
   syncDraftFromForm();
+  ensureDraftOdontogram();
 
   if (!draftPatient.name) {
     setFeedback("El nombre del paciente es obligatorio.", "error");
@@ -596,6 +769,7 @@ function savePatient() {
   editingPatientId = normalized.id;
   draftPatient = deepClone(normalized);
   renderPatientTable();
+  renderDentitionSwitch();
   setFormTitle();
   setFeedback(`Paciente ${normalized.name} guardado correctamente.`);
 }
@@ -746,15 +920,18 @@ function clearStatusFromMarks(marks, statusId) {
   }
 
   for (const key of Object.keys(marks)) {
-    if (marks[key] === statusId) {
+    const filtered = normalizeMarkList(marks[key]).filter((id) => id !== statusId);
+    if (filtered.length === 0) {
       delete marks[key];
+    } else {
+      marks[key] = filtered;
     }
   }
 }
 
 function exportData() {
   const payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     data: state
   };
@@ -899,6 +1076,85 @@ function formatDate(dateString) {
     return "-";
   }
   return date.toLocaleDateString("es-MX");
+}
+
+function getCurrentDentitionMode() {
+  return isValidDentitionMode(draftPatient.odontogramMode) ? draftPatient.odontogramMode : "adult";
+}
+
+function isValidDentitionMode(mode) {
+  return mode === "adult" || mode === "child";
+}
+
+function getToothKindLabel(toothNumber, mode) {
+  const n = Number(toothNumber);
+  const unit = Number.isFinite(n) ? n % 10 : 0;
+
+  if (mode === "child") {
+    if (unit === 1) {
+      return "Inc. central";
+    }
+    if (unit === 2) {
+      return "Inc. lateral";
+    }
+    if (unit === 3) {
+      return "Canino";
+    }
+    if (unit === 4) {
+      return "1er molar";
+    }
+    if (unit === 5) {
+      return "2do molar";
+    }
+    return "Temporal";
+  }
+
+  if (unit === 1) {
+    return "Inc. central";
+  }
+  if (unit === 2) {
+    return "Inc. lateral";
+  }
+  if (unit === 3) {
+    return "Canino";
+  }
+  if (unit === 4) {
+    return "1er premolar";
+  }
+  if (unit === 5) {
+    return "2do premolar";
+  }
+  if (unit === 6) {
+    return "1er molar";
+  }
+  if (unit === 7) {
+    return "2do molar";
+  }
+  if (unit === 8) {
+    return "3er molar";
+  }
+  return "Pieza";
+}
+
+function buildMultiColorBackground(colors) {
+  const filtered = colors.filter((color) => typeof color === "string" && color.trim());
+  if (filtered.length === 0) {
+    return "transparent";
+  }
+  if (filtered.length === 1) {
+    return filtered[0];
+  }
+
+  const stop = 100 / filtered.length;
+  const gradientStops = filtered
+    .map((color, index) => {
+      const start = (index * stop).toFixed(2);
+      const end = ((index + 1) * stop).toFixed(2);
+      return `${color} ${start}%, ${color} ${end}%`;
+    })
+    .join(", ");
+
+  return `linear-gradient(90deg, ${gradientStops})`;
 }
 
 function stringOrEmpty(value) {

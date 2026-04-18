@@ -185,38 +185,39 @@
       </section>
 
       <section class="panel panel-odontogram">
-        <div class="panel-header">
+        <div class="panel-header panel-header-odonto">
           <div>
             <h2>Odontograma</h2>
-            <p class="panel-subtitle">Selecciona un estado y haz clic en cada diente o zona para aplicar color.</p>
+            <p class="panel-subtitle">Cada diente puede tener multiples colores/estados al mismo tiempo.</p>
           </div>
-          <div class="status-picker">
-            <label for="toothStatusSelect">Estado activo</label>
-            <select id="toothStatusSelect"></select>
+          <div class="odonto-toolbar">
+            <div class="dentition-switch" role="group" aria-label="Tipo de denticion">
+              <button type="button" class="dentition-btn is-active" data-dentition="adult">Adulto</button>
+              <button type="button" class="dentition-btn" data-dentition="child">Nino</button>
+            </div>
+
+            <div class="status-picker">
+              <label for="toothStatusSelect">Estado activo</label>
+              <select id="toothStatusSelect"></select>
+            </div>
+
+            <button type="button" id="clearOdontogramBtn" class="btn btn-ghost">Limpiar odontograma</button>
           </div>
         </div>
 
         <div class="odontogram-shell">
-          <section>
-            <h3 class="group-title">Maxilar superior</h3>
-            <div class="row-labels">
-              <span>Derecho</span>
-              <span>Izquierdo</span>
+          <section class="jaw-section">
+            <div class="jaw-canvas">
+              <div class="jaw-backdrop">
+                <div class="jaw-mouth-shape"></div>
+                <div class="jaw-center-label" id="dentitionLabel">Denticion adulta</div>
+                <div id="upperJawArc" class="jaw-arc jaw-arc-upper"></div>
+                <div id="lowerJawArc" class="jaw-arc jaw-arc-lower"></div>
+              </div>
             </div>
-            <div class="odonto-scroll">
-              <div id="upperTeethRow" class="teeth-grid"></div>
-            </div>
-          </section>
-
-          <section>
-            <h3 class="group-title">Mandibula inferior</h3>
-            <div class="row-labels">
-              <span>Derecho</span>
-              <span>Izquierdo</span>
-            </div>
-            <div class="odonto-scroll">
-              <div id="lowerTeethRow" class="teeth-grid"></div>
-            </div>
+            <p class="jaw-help">
+              Haz clic sobre una pieza para agregar/quitar el color seleccionado. En modo <strong>Limpiar</strong> se borra toda la pieza.
+            </p>
           </section>
 
           <section>
@@ -227,7 +228,7 @@
 
         <section class="card">
           <h3>Leyenda de estados para dientes</h3>
-          <p class="card-help">Puedes crear tus propios colores para senalar caries, fracturas, ausencias, etc.</p>
+          <p class="card-help">Puedes crear todas las etiquetas de color que necesites (caries, fractura, endodoncia, etc.).</p>
           <div id="statusLegend" class="catalog"></div>
 
           <div class="inline-controls">

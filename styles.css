@@ -1,15 +1,9 @@
 :root {
   --bg-0: #061624;
   --bg-1: #0c2a3f;
-  --panel: #0f2133cc;
   --panel-border: #66d9ef2e;
   --text-main: #e7f3fb;
   --text-soft: #a7c5d8;
-  --accent: #2dd4bf;
-  --accent-strong: #0ea5e9;
-  --warn: #f59e0b;
-  --danger: #ef4444;
-  --ok: #10b981;
   --ink: #0d1b2a;
 }
 
@@ -410,10 +404,45 @@ tbody tr.active {
   cursor: pointer;
 }
 
+.panel-header-odonto {
+  align-items: flex-start;
+}
+
+.odonto-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.dentition-switch {
+  border: 1px solid #2f5d77;
+  border-radius: 11px;
+  background: #0b2437;
+  padding: 0.2rem;
+  display: inline-flex;
+  gap: 0.2rem;
+}
+
+.dentition-btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.48rem 0.72rem;
+  background: transparent;
+  color: #b8d8eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dentition-btn.is-active {
+  color: #04202f;
+  background: linear-gradient(125deg, #56e6d2, #7dd3fc);
+}
+
 .status-picker {
   display: grid;
   gap: 0.3rem;
-  min-width: 220px;
+  min-width: 230px;
 }
 
 .status-picker label {
@@ -429,7 +458,155 @@ tbody tr.active {
   padding: 0.75rem;
   background: #0a1d2de8;
   display: grid;
-  gap: 0.72rem;
+  gap: 0.9rem;
+}
+
+.jaw-section {
+  border: 1px solid #2a4f66;
+  border-radius: 12px;
+  padding: 0.65rem;
+  background: radial-gradient(circle at 50% 45%, #11344a, #071a2a);
+}
+
+.jaw-canvas {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 12px;
+}
+
+.jaw-backdrop {
+  position: relative;
+  min-width: 760px;
+  height: 460px;
+  margin: 0 auto;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 35%, #fca5a55c 0%, #fda4af2d 35%, transparent 60%),
+    radial-gradient(circle at 50% 75%, #fca5a53d 0%, #fb71852e 42%, transparent 68%),
+    linear-gradient(180deg, #173e56, #0c2639);
+  border: 1px solid #4f7f9b;
+}
+
+.jaw-mouth-shape {
+  position: absolute;
+  inset: 70px 170px;
+  border-radius: 58% 58% 53% 53% / 62% 62% 45% 45%;
+  border: 7px solid #fca5a57c;
+  background: radial-gradient(circle at 50% 40%, #fef3c7, #fca5a4);
+  opacity: 0.76;
+}
+
+.jaw-center-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: "Sora", "Manrope", sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.88rem;
+  color: #0f172a;
+  background: #f8fafce8;
+  padding: 0.36rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #7ca5bf;
+  box-shadow: 0 7px 16px #0000002a;
+  z-index: 3;
+}
+
+.jaw-arc {
+  position: absolute;
+  inset: 0;
+}
+
+.tooth-node {
+  --tooth-size: 40px;
+  position: absolute;
+  width: var(--tooth-size);
+  min-height: calc(var(--tooth-size) + 26px);
+  border: 2px solid #2f556f;
+  border-radius: 13px;
+  background: linear-gradient(180deg, #e2f3ff, #f8fafc);
+  color: #042235;
+  cursor: pointer;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.14rem;
+  padding: 0.2rem 0.18rem 0.22rem;
+  box-shadow: 0 5px 11px #0000002d;
+  transition: transform 130ms ease, box-shadow 130ms ease;
+  z-index: 4;
+}
+
+.tooth-node:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 14px #0000003d;
+}
+
+.tooth-node.child {
+  --tooth-size: 46px;
+}
+
+.tooth-node .tooth-id {
+  font-size: 0.63rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tooth-node .tooth-kind {
+  font-size: 0.53rem;
+  line-height: 1;
+  color: #2f4454;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.tooth-color-grid {
+  margin-top: 0.1rem;
+  width: 100%;
+  min-height: 12px;
+  max-height: 30px;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  padding-right: 1px;
+}
+
+.tooth-color-chip {
+  width: 100%;
+  height: 6px;
+  border-radius: 2px;
+  border: 1px solid #1f293780;
+}
+
+.tooth-node.has-marks {
+  border-color: #06b6d4;
+}
+
+.tooth-more {
+  position: absolute;
+  right: -6px;
+  top: -7px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid #082f49;
+  background: #06b6d4;
+  color: #042235;
+  font-size: 0.58rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jaw-help {
+  margin: 0.55rem 0 0;
+  font-size: 0.8rem;
+  color: #a5cbe2;
 }
 
 .group-title {
@@ -438,79 +615,6 @@ tbody tr.active {
   color: #b6d8ec;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.row-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.33rem;
-  font-size: 0.74rem;
-  color: #82b8d3;
-}
-
-.odonto-scroll {
-  overflow-x: auto;
-  border: 1px solid #2d526c;
-  border-radius: 10px;
-  padding: 0.4rem;
-  background: #081726;
-}
-
-.teeth-grid {
-  min-width: 710px;
-  display: grid;
-  grid-template-columns: repeat(16, minmax(42px, 1fr));
-  gap: 0.38rem;
-}
-
-.tooth {
-  border: 1px solid #405e73;
-  border-radius: 10px;
-  background: linear-gradient(160deg, #10283b, #10273a);
-  padding: 0.33rem 0.2rem;
-  display: grid;
-  gap: 0.17rem;
-  place-items: center;
-  text-align: center;
-  font-size: 0.68rem;
-  color: #dcf0ff;
-  cursor: pointer;
-  position: relative;
-  min-height: 50px;
-}
-
-.tooth::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border-radius: 7px;
-  background: var(--mark-color, transparent);
-  opacity: 0.7;
-  transition: opacity 160ms ease;
-  z-index: 0;
-}
-
-.tooth:hover::after {
-  opacity: 0.9;
-}
-
-.tooth > span {
-  position: relative;
-  z-index: 1;
-}
-
-.tooth-number {
-  font-weight: 800;
-  letter-spacing: 0.02em;
-}
-
-.tooth-label {
-  font-size: 0.57rem;
-  line-height: 1.1;
-}
-
-.tooth.marked {
-  border-color: #c5f5ff;
 }
 
 .zone-grid {
@@ -524,7 +628,7 @@ tbody tr.active {
   border-radius: 9px;
   background: #0d2335;
   color: #d9efff;
-  min-height: 44px;
+  min-height: 46px;
   font-weight: 700;
   cursor: pointer;
   position: relative;
@@ -536,7 +640,7 @@ tbody tr.active {
   inset: 6px;
   border-radius: 6px;
   background: var(--mark-color, transparent);
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .zone-btn span {
@@ -611,13 +715,23 @@ tbody tr.active {
     grid-template-columns: 1fr;
   }
 
+  .odonto-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .status-picker {
     width: 100%;
     min-width: 0;
   }
 
-  .teeth-grid {
-    min-width: 690px;
+  .jaw-backdrop {
+    min-width: 660px;
+    height: 430px;
+  }
+
+  .jaw-mouth-shape {
+    inset: 72px 150px;
   }
 }
 
@@ -628,6 +742,11 @@ tbody tr.active {
 
   .hero {
     padding: 1.15rem;
+  }
+
+  .jaw-backdrop {
+    min-width: 700px;
+    height: 440px;
   }
 }
 
@@ -653,7 +772,7 @@ tbody tr.active {
 
   .panel-patients {
     grid-area: patients;
-    min-height: 950px;
+    min-height: 980px;
   }
 
   .panel-form {

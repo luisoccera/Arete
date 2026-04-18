@@ -50,7 +50,10 @@ const el = {
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
   searchInput: document.getElementById("searchInput"),
+  upcomingCount: document.getElementById("upcomingCount"),
+  upcomingList: document.getElementById("upcomingList"),
   savePatientBtn: document.getElementById("savePatientBtn"),
+  deleteCurrentPatientBtn: document.getElementById("deleteCurrentPatientBtn"),
   formTitle: document.getElementById("formTitle"),
   patientForm: document.getElementById("patientForm"),
   patientRows: document.getElementById("patientRows"),
@@ -70,6 +73,11 @@ const el = {
   newStatusName: document.getElementById("newStatusName"),
   newStatusColor: document.getElementById("newStatusColor"),
   addStatusBtn: document.getElementById("addStatusBtn"),
+  addClinicalNoteBtn: document.getElementById("addClinicalNoteBtn"),
+  clinicalNoteDate: document.getElementById("clinicalNoteDate"),
+  clinicalNoteTitle: document.getElementById("clinicalNoteTitle"),
+  clinicalNoteText: document.getElementById("clinicalNoteText"),
+  patientHistoryList: document.getElementById("patientHistoryList"),
   feedbackMessage: document.getElementById("feedbackMessage"),
   patientName: document.getElementById("patientName"),
   patientAge: document.getElementById("patientAge"),
@@ -92,7 +100,7 @@ const el = {
 let state = loadState();
 let draftPatient = createEmptyPatient();
 let editingPatientId = null;
-let selectedStatusId = "none";
+let selectedStatusId = "";
 
 init();
 
@@ -105,11 +113,19 @@ function init() {
 function bindEvents() {
   el.newPatientBtn.addEventListener("click", () => startNewPatient(true));
   el.savePatientBtn.addEventListener("click", savePatient);
+  el.deleteCurrentPatientBtn.addEventListener("click", () => {
+    if (!editingPatientId) {
+      setFeedback("Primero abre un paciente para poder eliminarlo.", "error");
+      return;
+    }
+    deletePatient(editingPatientId);
+  });
   el.exportBtn.addEventListener("click", exportData);
   el.importFile.addEventListener("change", importData);
   el.searchInput.addEventListener("input", renderPatientTable);
   el.addDiseaseBtn.addEventListener("click", addDisease);
   el.addStatusBtn.addEventListener("click", addToothStatus);
+  el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
   el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
 
   el.toothStatusSelect.addEventListener("change", () => {
@@ -158,6 +174,14 @@ function bindEvents() {
     }
   });
 
+  el.upcomingList.addEventListener("click", (event) => {
+    const openBtn = event.target.closest("[data-open-id]");
+    if (!openBtn) {
+      return;
+    }
+    openPatient(openBtn.getAttribute("data-open-id"));
+  });
+
   el.diseaseCatalog.addEventListener("click", (event) => {
     const removeBtn = event.target.closest("[data-remove-disease-id]");
     if (removeBtn) {
@@ -170,6 +194,14 @@ function bindEvents() {
     if (removeBtn) {
       removeToothStatus(removeBtn.getAttribute("data-remove-status-id"));
     }
+  });
+
+  el.patientHistoryList.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest("[data-remove-history-id]");
+    if (!removeBtn) {
+      return;
+    }
+    removeHistoryEntry(removeBtn.getAttribute("data-remove-history-id"));
   });
 
   el.zoneList.addEventListener("click", (event) => {
@@ -243,6 +275,7 @@ function createEmptyPatient() {
       teeth: {},
       zones: {}
     },
+    historyEntries: [],
     createdAt: "",
     updatedAt: ""
   };
@@ -331,8 +364,39 @@ function normalizePatient(rawPatient) {
     teeth: normalizeMarks(patient.odontogram?.teeth),
     zones: normalizeMarks(patient.odontogram?.zones)
   };
+  patient.historyEntries = normalizeHistoryEntries(
+    patient.historyEntries || patient.clinicalHistory || patient.odontogramHistory
+  );
 
   return patient;
+}
+
+function normalizeHistoryEntries(rawEntries) {
+  if (!Array.isArray(rawEntries)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const entry of rawEntries) {
+    const title = stringOrEmpty(entry?.title);
+    const description = stringOrEmpty(entry?.description);
+    const createdAt = stringOrEmpty(entry?.createdAt);
+
+    if (!title && !description) {
+      continue;
+    }
+
+    normalized.push({
+      id: stringOrEmpty(entry?.id) || generateId("hist"),
+      type: stringOrEmpty(entry?.type) || "clinical-note",
+      title: title || "Registro clinico",
+      description,
+      createdAt: isValidDate(createdAt) ? createdAt : new Date().toISOString()
+    });
+  }
+
+  normalized.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return normalized;
 }
 
 function normalizeMarks(rawMarks) {
@@ -401,6 +465,9 @@ function renderAll() {
   renderStatusCatalog();
   renderOdontogram();
   renderPatientTable();
+  renderUpcomingAppointments();
+  renderPatientHistory();
+  updateDeleteCurrentButtonState();
   setFormTitle();
 }
 
@@ -469,6 +536,39 @@ function renderPatientTable() {
     .join("");
 
   el.patientRows.innerHTML = rowsHtml;
+  renderUpcomingAppointments();
+}
+
+function renderUpcomingAppointments() {
+  const today = getTodayInputDate();
+  const upcoming = state.patients
+    .filter((patient) => !!patient.consultationDate && patient.consultationDate >= today)
+    .sort((a, b) => {
+      if (a.consultationDate === b.consultationDate) {
+        return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+      }
+      return a.consultationDate.localeCompare(b.consultationDate);
+    })
+    .slice(0, 10);
+
+  el.upcomingCount.textContent = String(upcoming.length);
+
+  if (upcoming.length === 0) {
+    el.upcomingList.innerHTML = "<div class=\"history-empty\">No hay citas proximas registradas.</div>";
+    return;
+  }
+
+  el.upcomingList.innerHTML = upcoming
+    .map((patient) => `
+      <div class="upcoming-item">
+        <div class="upcoming-main">
+          <span class="upcoming-name">${escapeHtml(patient.name || "Sin nombre")}</span>
+          <span class="upcoming-meta">${formatDate(patient.consultationDate)} | ${escapeHtml(patient.phone || "-")} | ${escapeHtml(patient.dentistName || "Sin dentista")}</span>
+        </div>
+        <button type="button" class="table-btn" data-open-id="${patient.id}">Abrir</button>
+      </div>
+    `)
+    .join("");
 }
 
 function renderDiseaseChecklist() {
@@ -521,8 +621,16 @@ function renderStatusSelect() {
   ];
 
   el.toothStatusSelect.innerHTML = options.join("");
-  const exists = previous === "none" || state.toothStatuses.some((status) => status.id === previous);
-  selectedStatusId = exists ? previous : "none";
+  const exists = state.toothStatuses.some((status) => status.id === previous);
+  if (exists) {
+    selectedStatusId = previous;
+  } else if (previous === "none") {
+    selectedStatusId = "none";
+  } else if (state.toothStatuses.length > 0) {
+    selectedStatusId = state.toothStatuses[0].id;
+  } else {
+    selectedStatusId = "none";
+  }
   el.toothStatusSelect.value = selectedStatusId;
 }
 
@@ -545,6 +653,38 @@ function renderStatusCatalog() {
       `
     )
     .join("");
+}
+
+function renderPatientHistory() {
+  const entries = Array.isArray(draftPatient.historyEntries) ? draftPatient.historyEntries : [];
+  if (entries.length === 0) {
+    el.patientHistoryList.innerHTML = "<div class=\"history-empty\">Aun no hay historial guardado para este paciente.</div>";
+    return;
+  }
+
+  const sorted = entries
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  el.patientHistoryList.innerHTML = sorted
+    .map((entry) => `
+      <article class="history-item">
+        <div class="history-head">
+          <span class="history-type">${escapeHtml(getHistoryTypeLabel(entry.type))}</span>
+          <span class="history-date">${escapeHtml(formatDateTime(entry.createdAt))}</span>
+        </div>
+        <div class="history-title">${escapeHtml(entry.title || "Registro clinico")}</div>
+        <div class="history-body">${escapeHtml(entry.description || "")}</div>
+        <div class="history-actions">
+          <button type="button" class="catalog-btn" data-remove-history-id="${entry.id}">Eliminar registro</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function updateDeleteCurrentButtonState() {
+  el.deleteCurrentPatientBtn.disabled = !editingPatientId;
 }
 
 function renderDentitionSwitch() {
@@ -574,7 +714,7 @@ function renderOdontogram() {
       : "sin marca";
 
     return `
-      <button type="button" class="zone-btn" data-zone-id="${zone.id}" style="--mark-color:${colorStyle}" title="${escapeHtml(zone.name)}: ${escapeHtml(label)}">
+      <button type="button" class="zone-btn ${statusIds.length > 0 ? "has-marks" : ""}" data-zone-id="${zone.id}" style="--mark-color:${colorStyle}" title="${escapeHtml(zone.name)}: ${escapeHtml(label)}">
         <span>${escapeHtml(zone.name)}</span>
       </button>
     `;
@@ -678,14 +818,26 @@ function applyOdontoMark(bucket, key) {
   ensureDraftOdontogram();
 
   const current = getMarkIds(bucket, key);
+  const targetLabel = getOdontoTargetLabel(bucket, key);
 
   if (selectedStatusId === "none") {
     if (current.length === 0) {
       setFeedback("La pieza ya estaba limpia.");
       return;
     }
+    const previousStatuses = current
+      .map((statusId) => getStatusById(statusId)?.name)
+      .filter(Boolean)
+      .join(", ");
     delete draftPatient.odontogram[bucket][key];
+    addHistoryEntry({
+      type: "odontogram-change",
+      title: `Limpieza de ${targetLabel}`,
+      description: `Se limpiaron todas las marcas de ${targetLabel}. Estados previos: ${previousStatuses || "sin detalle"}.`
+    });
+    persistDraftPatientIfEditing();
     setFeedback(`Se limpiaron todas las marcas de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
+    renderPatientHistory();
     renderOdontogram();
     return;
   }
@@ -701,13 +853,25 @@ function applyOdontoMark(bucket, key) {
     } else {
       draftPatient.odontogram[bucket][key] = next;
     }
+    addHistoryEntry({
+      type: "odontogram-change",
+      title: `Estado removido en ${targetLabel}`,
+      description: `Se removio "${statusName}" de ${targetLabel}.`
+    });
     setFeedback(`Estado ${statusName} removido de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
   } else {
     next.push(selectedStatusId);
     draftPatient.odontogram[bucket][key] = next;
+    addHistoryEntry({
+      type: "odontogram-change",
+      title: `Estado agregado en ${targetLabel}`,
+      description: `Se agrego "${statusName}" en ${targetLabel}.`
+    });
     setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores en filas.`);
   }
 
+  persistDraftPatientIfEditing();
+  renderPatientHistory();
   renderOdontogram();
 }
 
@@ -729,7 +893,9 @@ function getMarkIds(bucket, key) {
 
 function clearDraftOdontogram() {
   ensureDraftOdontogram();
-  const hasMarks = Object.keys(draftPatient.odontogram.teeth).length > 0 || Object.keys(draftPatient.odontogram.zones).length > 0;
+  const toothCount = Object.keys(draftPatient.odontogram.teeth).length;
+  const zoneCount = Object.keys(draftPatient.odontogram.zones).length;
+  const hasMarks = toothCount > 0 || zoneCount > 0;
   if (!hasMarks) {
     setFeedback("El odontograma ya esta limpio.");
     return;
@@ -742,6 +908,13 @@ function clearDraftOdontogram() {
 
   draftPatient.odontogram.teeth = {};
   draftPatient.odontogram.zones = {};
+  addHistoryEntry({
+    type: "odontogram-change",
+    title: "Limpieza total de odontograma",
+    description: `Se limpiaron ${toothCount} pieza(s) y ${zoneCount} zona(s) del odontograma.`
+  });
+  persistDraftPatientIfEditing();
+  renderPatientHistory();
   renderOdontogram();
   setFeedback("Odontograma del borrador limpiado.");
 }
@@ -758,9 +931,13 @@ function openPatient(id) {
   hydrateFormFromDraft();
   setFormTitle();
   renderPatientTable();
+  renderUpcomingAppointments();
   renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
+  renderPatientHistory();
+  resetClinicalNoteInputs();
+  updateDeleteCurrentButtonState();
   setFeedback(`Editando expediente de ${found.name}.`);
 }
 
@@ -770,9 +947,13 @@ function startNewPatient(showMessage) {
   hydrateFormFromDraft();
   setFormTitle();
   renderPatientTable();
+  renderUpcomingAppointments();
   renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
+  renderPatientHistory();
+  resetClinicalNoteInputs();
+  updateDeleteCurrentButtonState();
 
   if (showMessage) {
     setFeedback("Formulario listo para un nuevo paciente.");
@@ -809,8 +990,12 @@ function savePatient() {
   persistState();
   editingPatientId = normalized.id;
   draftPatient = deepClone(normalized);
+  draftPatient = normalizePatient(draftPatient);
   renderPatientTable();
+  renderUpcomingAppointments();
   renderDentitionSwitch();
+  renderPatientHistory();
+  updateDeleteCurrentButtonState();
   setFormTitle();
   setFeedback(`Paciente ${normalized.name} guardado correctamente.`);
 }
@@ -833,7 +1018,78 @@ function deletePatient(id) {
     startNewPatient(false);
   }
   renderPatientTable();
+  renderUpcomingAppointments();
+  renderPatientHistory();
+  updateDeleteCurrentButtonState();
   setFeedback(`Paciente ${patient.name} eliminado.`);
+}
+
+function addClinicalNote() {
+  const rawTitle = stringOrEmpty(el.clinicalNoteTitle.value);
+  const rawText = stringOrEmpty(el.clinicalNoteText.value);
+  if (!rawTitle && !rawText) {
+    setFeedback("Escribe un titulo o una nota clinica antes de guardar.", "error");
+    return;
+  }
+
+  const noteDate = stringOrEmpty(el.clinicalNoteDate.value);
+  let createdAt = new Date().toISOString();
+  if (noteDate) {
+    const now = new Date();
+    const custom = new Date(noteDate);
+    if (!Number.isNaN(custom.valueOf())) {
+      custom.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
+      createdAt = custom.toISOString();
+    }
+  }
+
+  addHistoryEntry({
+    type: "clinical-note",
+    title: rawTitle || "Nota clinica",
+    description: rawText || "Sin detalle adicional.",
+    createdAt
+  });
+  persistDraftPatientIfEditing();
+  renderPatientHistory();
+  resetClinicalNoteInputs();
+  setFeedback("Nota clinica agregada al historial del paciente.");
+}
+
+function removeHistoryEntry(entryId) {
+  const entries = Array.isArray(draftPatient.historyEntries) ? draftPatient.historyEntries : [];
+  const entry = entries.find((item) => item.id === entryId);
+  if (!entry) {
+    return;
+  }
+
+  const approved = window.confirm("Se eliminara este registro del historial clinico. Deseas continuar?");
+  if (!approved) {
+    return;
+  }
+
+  draftPatient.historyEntries = entries.filter((item) => item.id !== entryId);
+  persistDraftPatientIfEditing();
+  renderPatientHistory();
+  setFeedback("Registro de historial eliminado.");
+}
+
+function persistDraftPatientIfEditing() {
+  if (!editingPatientId || !draftPatient.id) {
+    return;
+  }
+
+  const index = state.patients.findIndex((patient) => patient.id === editingPatientId);
+  if (index < 0) {
+    return;
+  }
+
+  draftPatient.updatedAt = new Date().toISOString();
+  const normalized = normalizePatient(draftPatient);
+  state.patients[index] = normalized;
+  draftPatient = deepClone(normalized);
+  persistState();
+  renderPatientTable();
+  renderUpcomingAppointments();
 }
 
 function addDisease() {
@@ -972,7 +1228,7 @@ function clearStatusFromMarks(marks, statusId) {
 
 function exportData() {
   const payload = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     data: state
   };
@@ -1117,6 +1373,83 @@ function formatDate(dateString) {
     return "-";
   }
   return date.toLocaleDateString("es-MX");
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) {
+    return "-";
+  }
+  const date = new Date(dateString);
+  if (Number.isNaN(date.valueOf())) {
+    return "-";
+  }
+  return date.toLocaleString("es-MX", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
+function getTodayInputDate() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function isValidDate(value) {
+  if (!value) {
+    return false;
+  }
+  const date = new Date(value);
+  return !Number.isNaN(date.valueOf());
+}
+
+function addHistoryEntry(entry) {
+  if (!Array.isArray(draftPatient.historyEntries)) {
+    draftPatient.historyEntries = [];
+  }
+
+  const normalizedEntry = {
+    id: generateId("hist"),
+    type: stringOrEmpty(entry?.type) || "clinical-note",
+    title: stringOrEmpty(entry?.title) || "Registro clinico",
+    description: stringOrEmpty(entry?.description),
+    createdAt: isValidDate(entry?.createdAt) ? entry.createdAt : new Date().toISOString()
+  };
+
+  draftPatient.historyEntries.unshift(normalizedEntry);
+
+  if (draftPatient.historyEntries.length > 900) {
+    draftPatient.historyEntries = draftPatient.historyEntries.slice(0, 900);
+  }
+}
+
+function getHistoryTypeLabel(type) {
+  if (type === "odontogram-change") {
+    return "Odontograma";
+  }
+  if (type === "clinical-note") {
+    return "Nota clinica";
+  }
+  return "Historial";
+}
+
+function getOdontoTargetLabel(bucket, key) {
+  if (bucket === "teeth") {
+    return `pieza ${key}`;
+  }
+  const zone = ODONTO_ZONES.find((entry) => entry.id === key);
+  return zone ? `zona ${zone.name}` : `zona ${key}`;
+}
+
+function resetClinicalNoteInputs() {
+  el.clinicalNoteDate.value = getTodayInputDate();
+  el.clinicalNoteTitle.value = "";
+  el.clinicalNoteText.value = "";
 }
 
 function getCurrentDentitionMode() {

@@ -130,6 +130,7 @@ function bindEvents() {
 
   el.toothStatusSelect.addEventListener("change", () => {
     selectedStatusId = el.toothStatusSelect.value || "none";
+    updateStatusSelectAppearance();
     setFeedback(
       selectedStatusId === "none"
         ? "Modo limpiar activo: al hacer clic se borran todos los colores de la pieza."
@@ -616,8 +617,8 @@ function renderDiseaseCatalog() {
 function renderStatusSelect() {
   const previous = selectedStatusId;
   const options = [
-    "<option value=\"none\">Limpiar pieza / zona</option>",
-    ...state.toothStatuses.map((status) => `<option value="${status.id}">${escapeHtml(status.name)}</option>`)
+    "<option value=\"none\" style=\"font-weight:700;\">○ Limpiar pieza / zona</option>",
+    ...state.toothStatuses.map((status) => `<option value="${status.id}" style="color:${status.color};font-weight:700;">■ ${escapeHtml(status.name)}</option>`)
   ];
 
   el.toothStatusSelect.innerHTML = options.join("");
@@ -632,6 +633,14 @@ function renderStatusSelect() {
     selectedStatusId = "none";
   }
   el.toothStatusSelect.value = selectedStatusId;
+  updateStatusSelectAppearance();
+}
+
+function updateStatusSelectAppearance() {
+  const color = selectedStatusId === "none"
+    ? "transparent"
+    : (getStatusById(selectedStatusId)?.color || "transparent");
+  el.toothStatusSelect.style.setProperty("--status-color", color);
 }
 
 function renderStatusCatalog() {

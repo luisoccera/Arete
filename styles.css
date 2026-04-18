@@ -582,6 +582,19 @@ tbody tr.active {
   letter-spacing: 0.05em;
 }
 
+.status-picker select {
+  --status-color: transparent;
+  padding-left: 2rem;
+  background-image:
+    radial-gradient(circle at 14px 50%, var(--status-color) 0 6px, transparent 7px),
+    linear-gradient(#0a1b2af2, #0a1b2af2);
+  background-repeat: no-repeat;
+}
+
+.status-picker select option {
+  font-weight: 700;
+}
+
 .odontogram-shell {
   border: 1px solid #2c4d64;
   border-radius: 12px;
@@ -681,31 +694,33 @@ tbody tr.active {
   --tooth-w: 42px;
   --tooth-h: 48px;
   position: absolute;
-  width: max(var(--tooth-w), 56px);
-  min-height: calc(var(--tooth-h) + 34px);
+  width: var(--tooth-w);
+  height: var(--tooth-h);
   border: 0;
   border-radius: 14px;
   background: transparent;
   color: #042235;
   cursor: pointer;
-  display: grid;
-  align-content: start;
-  justify-items: center;
-  gap: 0.12rem;
+  display: block;
   padding: 0;
+  overflow: visible;
   transition: transform 130ms ease, box-shadow 130ms ease;
   z-index: 5;
 }
 
 .tooth-node:hover {
   transform: translateY(-1px);
+  z-index: 6;
 }
 
 .tooth-art {
-  width: var(--tooth-w);
-  height: var(--tooth-h);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   display: block;
   filter: drop-shadow(0 3px 4px #0000003d);
+  pointer-events: none;
 }
 
 .tooth-svg {
@@ -724,25 +739,39 @@ tbody tr.active {
 }
 
 .tooth-node .tooth-id {
-  margin-top: -0.1rem;
+  position: absolute;
+  left: 50%;
+  top: calc(var(--tooth-h) + 1px);
+  transform: translateX(-50%);
   font-size: 0.6rem;
   font-weight: 800;
   line-height: 1;
   color: #e5f3ff;
   text-shadow: 0 1px 2px #00000092;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .tooth-node .tooth-kind {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--tooth-h) + 10px);
+  transform: translateX(-50%);
   font-size: 0.5rem;
   line-height: 1;
   color: #d5edff;
   text-transform: uppercase;
   letter-spacing: 0.01em;
   text-shadow: 0 1px 2px #0000008f;
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 .tooth-color-grid {
-  margin-top: 0.08rem;
+  position: absolute;
+  left: 50%;
+  top: calc(var(--tooth-h) + 18px);
+  transform: translateX(-50%);
   width: 56px;
   min-height: 10px;
   max-height: 42px;
@@ -751,6 +780,7 @@ tbody tr.active {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   padding: 0 1px;
+  pointer-events: none;
 }
 
 .tooth-color-chip {
@@ -779,6 +809,7 @@ tbody tr.active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .jaw-help {

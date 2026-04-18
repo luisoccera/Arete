@@ -62,6 +62,7 @@ const el = {
   newDiseaseColor: document.getElementById("newDiseaseColor"),
   addDiseaseBtn: document.getElementById("addDiseaseBtn"),
   diseaseCatalog: document.getElementById("diseaseCatalog"),
+  jawBackdrop: document.getElementById("jawBackdrop"),
   upperJawArc: document.getElementById("upperJawArc"),
   lowerJawArc: document.getElementById("lowerJawArc"),
   zoneList: document.getElementById("zoneList"),
@@ -130,7 +131,6 @@ function bindEvents() {
 
   el.toothStatusSelect.addEventListener("change", () => {
     selectedStatusId = el.toothStatusSelect.value || "none";
-    updateStatusSelectAppearance();
     setFeedback(
       selectedStatusId === "none"
         ? "Modo limpiar activo: al hacer clic se borran todos los colores de la pieza."
@@ -213,11 +213,7 @@ function bindEvents() {
     applyOdontoMark("zones", zoneBtn.getAttribute("data-zone-id"));
   });
 
-  el.upperJawArc.addEventListener("click", (event) => {
-    handleToothNodeClick(event);
-  });
-
-  el.lowerJawArc.addEventListener("click", (event) => {
+  el.jawBackdrop.addEventListener("click", (event) => {
     handleToothNodeClick(event);
   });
 
@@ -392,12 +388,34 @@ function normalizeHistoryEntries(rawEntries) {
       type: stringOrEmpty(entry?.type) || "clinical-note",
       title: title || "Registro clinico",
       description,
-      createdAt: isValidDate(createdAt) ? createdAt : new Date().toISOString()
+      createdAt: isValidDate(createdAt) ? createdAt : new Date().toISOString(),
+      statusIds: normalizeHistoryStatusIds(entry?.statusIds)
     });
   }
 
   normalized.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return normalized;
+}
+
+function normalizeHistoryStatusIds(rawStatusIds) {
+  if (!Array.isArray(rawStatusIds)) {
+    return [];
+  }
+
+  const out = [];
+  const seen = new Set();
+  for (const statusId of rawStatusIds) {
+    if (typeof statusId !== "string") {
+      continue;
+    }
+    const clean = statusId.trim();
+    if (!clean || seen.has(clean)) {
+      continue;
+    }
+    seen.add(clean);
+    out.push(clean);
+  }
+  return out;
 }
 
 function normalizeMarks(rawMarks) {
@@ -617,8 +635,8 @@ function renderDiseaseCatalog() {
 function renderStatusSelect() {
   const previous = selectedStatusId;
   const options = [
-    "<option value=\"none\" style=\"font-weight:700;\">○ Limpiar pieza / zona</option>",
-    ...state.toothStatuses.map((status) => `<option value="${status.id}" style="color:${status.color};font-weight:700;">■ ${escapeHtml(status.name)}</option>`)
+    "<option value=\"none\">Limpiar pieza / zona</option>",
+    ...state.toothStatuses.map((status) => `<option value="${status.id}">${escapeHtml(status.name)}</option>`)
   ];
 
   el.toothStatusSelect.innerHTML = options.join("");
@@ -633,14 +651,6 @@ function renderStatusSelect() {
     selectedStatusId = "none";
   }
   el.toothStatusSelect.value = selectedStatusId;
-  updateStatusSelectAppearance();
-}
-
-function updateStatusSelectAppearance() {
-  const color = selectedStatusId === "none"
-    ? "transparent"
-    : (getStatusById(selectedStatusId)?.color || "transparent");
-  el.toothStatusSelect.style.setProperty("--status-color", color);
 }
 
 function renderStatusCatalog() {
@@ -676,20 +686,52 @@ function renderPatientHistory() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   el.patientHistoryList.innerHTML = sorted
-    .map((entry) => `
+    .map((entry) => {
+      const statusBadges = renderHistoryStatusBadges(entry.statusIds);
+      return `
       <article class="history-item">
         <div class="history-head">
           <span class="history-type">${escapeHtml(getHistoryTypeLabel(entry.type))}</span>
           <span class="history-date">${escapeHtml(formatDateTime(entry.createdAt))}</span>
         </div>
+        ${statusBadges}
         <div class="history-title">${escapeHtml(entry.title || "Registro clinico")}</div>
         <div class="history-body">${escapeHtml(entry.description || "")}</div>
         <div class="history-actions">
           <button type="button" class="catalog-btn" data-remove-history-id="${entry.id}">Eliminar registro</button>
         </div>
       </article>
-    `)
+    `;
+    })
     .join("");
+}
+
+function renderHistoryStatusBadges(statusIds) {
+  const list = normalizeHistoryStatusIds(statusIds);
+  if (list.length === 0) {
+    return "";
+  }
+
+  const chips = list
+    .map((statusId) => {
+      const status = getStatusById(statusId);
+      if (!status) {
+        return "";
+      }
+      return `
+        <span class="history-status-chip">
+          <span class="tag-color" style="background:${status.color}"></span>
+          <span>${escapeHtml(status.name)}</span>
+        </span>
+      `;
+    })
+    .join("");
+
+  if (!chips.trim()) {
+    return "";
+  }
+
+  return `<div class="history-status-row">${chips}</div>`;
 }
 
 function updateDeleteCurrentButtonState() {
@@ -842,7 +884,8 @@ function applyOdontoMark(bucket, key) {
     addHistoryEntry({
       type: "odontogram-change",
       title: `Limpieza de ${targetLabel}`,
-      description: `Se limpiaron todas las marcas de ${targetLabel}. Estados previos: ${previousStatuses || "sin detalle"}.`
+      description: `Se limpiaron todas las marcas de ${targetLabel}. Estados previos: ${previousStatuses || "sin detalle"}.`,
+      statusIds: current
     });
     persistDraftPatientIfEditing();
     setFeedback(`Se limpiaron todas las marcas de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
@@ -865,7 +908,8 @@ function applyOdontoMark(bucket, key) {
     addHistoryEntry({
       type: "odontogram-change",
       title: `Estado removido en ${targetLabel}`,
-      description: `Se removio "${statusName}" de ${targetLabel}.`
+      description: `Se removio "${statusName}" de ${targetLabel}.`,
+      statusIds: [selectedStatusId]
     });
     setFeedback(`Estado ${statusName} removido de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
   } else {
@@ -874,7 +918,8 @@ function applyOdontoMark(bucket, key) {
     addHistoryEntry({
       type: "odontogram-change",
       title: `Estado agregado en ${targetLabel}`,
-      description: `Se agrego "${statusName}" en ${targetLabel}.`
+      description: `Se agrego "${statusName}" en ${targetLabel}.`,
+      statusIds: [selectedStatusId]
     });
     setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores en filas.`);
   }
@@ -904,6 +949,7 @@ function clearDraftOdontogram() {
   ensureDraftOdontogram();
   const toothCount = Object.keys(draftPatient.odontogram.teeth).length;
   const zoneCount = Object.keys(draftPatient.odontogram.zones).length;
+  const statusIds = collectOdontogramStatusIds(draftPatient.odontogram);
   const hasMarks = toothCount > 0 || zoneCount > 0;
   if (!hasMarks) {
     setFeedback("El odontograma ya esta limpio.");
@@ -920,12 +966,29 @@ function clearDraftOdontogram() {
   addHistoryEntry({
     type: "odontogram-change",
     title: "Limpieza total de odontograma",
-    description: `Se limpiaron ${toothCount} pieza(s) y ${zoneCount} zona(s) del odontograma.`
+    description: `Se limpiaron ${toothCount} pieza(s) y ${zoneCount} zona(s) del odontograma.`,
+    statusIds
   });
   persistDraftPatientIfEditing();
   renderPatientHistory();
   renderOdontogram();
   setFeedback("Odontograma del borrador limpiado.");
+}
+
+function collectOdontogramStatusIds(odontogram) {
+  const set = new Set();
+  const buckets = [odontogram?.teeth, odontogram?.zones];
+  for (const marks of buckets) {
+    if (!marks || typeof marks !== "object") {
+      continue;
+    }
+    for (const value of Object.values(marks)) {
+      for (const statusId of normalizeMarkList(value)) {
+        set.add(statusId);
+      }
+    }
+  }
+  return Array.from(set);
 }
 
 function openPatient(id) {
@@ -1427,7 +1490,8 @@ function addHistoryEntry(entry) {
     type: stringOrEmpty(entry?.type) || "clinical-note",
     title: stringOrEmpty(entry?.title) || "Registro clinico",
     description: stringOrEmpty(entry?.description),
-    createdAt: isValidDate(entry?.createdAt) ? entry.createdAt : new Date().toISOString()
+    createdAt: isValidDate(entry?.createdAt) ? entry.createdAt : new Date().toISOString(),
+    statusIds: normalizeHistoryStatusIds(entry?.statusIds)
   };
 
   draftPatient.historyEntries.unshift(normalizedEntry);

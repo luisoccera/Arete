@@ -402,6 +402,25 @@ tbody tr.active {
   font-size: 0.84rem;
 }
 
+.history-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.36rem;
+}
+
+.history-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  border: 1px solid #34586f;
+  border-radius: 999px;
+  padding: 0.12rem 0.42rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #cae8fb;
+  background: #102a3e;
+}
+
 .history-body {
   color: #cde6f7;
   font-size: 0.81rem;
@@ -582,19 +601,6 @@ tbody tr.active {
   letter-spacing: 0.05em;
 }
 
-.status-picker select {
-  --status-color: transparent;
-  padding-left: 2rem;
-  background-image:
-    radial-gradient(circle at 14px 50%, var(--status-color) 0 6px, transparent 7px),
-    linear-gradient(#0a1b2af2, #0a1b2af2);
-  background-repeat: no-repeat;
-}
-
-.status-picker select option {
-  font-weight: 700;
-}
-
 .odontogram-shell {
   border: 1px solid #2c4d64;
   border-radius: 12px;
@@ -688,6 +694,7 @@ tbody tr.active {
   position: absolute;
   inset: 0;
   z-index: 4;
+  pointer-events: none;
 }
 
 .tooth-node {
@@ -706,6 +713,7 @@ tbody tr.active {
   overflow: visible;
   transition: transform 130ms ease, box-shadow 130ms ease;
   z-index: 5;
+  pointer-events: auto;
 }
 
 .tooth-node:hover {

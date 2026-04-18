@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arete | Gestor Dental</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="bg-shape bg-shape-a"></div>
+  <div class="bg-shape bg-shape-b"></div>
+
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="hero-kicker">Arete | Sistema de Odontologia</p>
+        <h1>Base de pacientes + Odontograma interactivo</h1>
+        <p class="hero-text">
+          Registra expedientes clinicos, clasifica enfermedades por color y marca cada diente o zona de la mandibula.
+        </p>
+      </div>
+      <div class="hero-actions">
+        <button type="button" id="newPatientBtn" class="btn btn-secondary">Nuevo paciente</button>
+        <button type="button" id="exportBtn" class="btn btn-primary">Exportar respaldo</button>
+        <label class="btn btn-ghost" for="importFile">Importar respaldo</label>
+        <input type="file" id="importFile" accept=".json,application/json">
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel panel-patients">
+        <div class="panel-header">
+          <div>
+            <h2>Pacientes registrados</h2>
+            <p class="panel-subtitle">La caja de color junto al nombre indica sus enfermedades.</p>
+          </div>
+          <input id="searchInput" type="search" placeholder="Buscar por nombre, telefono, ubicacion o dentista">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Paciente</th>
+                <th>Consulta</th>
+                <th>Dentista</th>
+                <th>Telefono</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="patientRows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel panel-form">
+        <div class="panel-header">
+          <div>
+            <h2 id="formTitle">Nuevo paciente</h2>
+            <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
+          </div>
+          <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
+        </div>
+
+        <form id="patientForm" novalidate>
+          <div class="form-grid">
+            <label class="field">
+              <span>Nombre completo</span>
+              <input type="text" id="patientName" required>
+            </label>
+
+            <label class="field">
+              <span>Edad</span>
+              <input type="number" id="patientAge" min="0" max="120">
+            </label>
+
+            <label class="field">
+              <span>Sexo</span>
+              <select id="patientSex">
+                <option value="">Seleccionar</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Masculino">Masculino</option>
+                <option value="No especifica">No especifica</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Ubicacion</span>
+              <input type="text" id="patientLocation" placeholder="Ciudad / Direccion">
+            </label>
+
+            <label class="field">
+              <span>Fecha de nacimiento</span>
+              <input type="date" id="birthDate">
+            </label>
+
+            <label class="field">
+              <span>Telefono</span>
+              <input type="tel" id="phone" placeholder="+52 000 000 0000">
+            </label>
+
+            <label class="field">
+              <span>Ocupacion</span>
+              <input type="text" id="occupation">
+            </label>
+
+            <label class="field">
+              <span>Cirujano dentista a cargo</span>
+              <input type="text" id="dentistName">
+            </label>
+
+            <label class="field">
+              <span>Fecha de consulta</span>
+              <input type="date" id="consultationDate">
+            </label>
+
+            <label class="field">
+              <span>Inicio de tratamiento</span>
+              <input type="date" id="treatmentStart">
+            </label>
+          </div>
+
+          <div class="field-group">
+            <label class="field field-full">
+              <span>Medicamentos que toma</span>
+              <textarea id="medications" rows="2" placeholder="Ejemplo: ibuprofeno, anticoagulantes, etc."></textarea>
+            </label>
+
+            <label class="field field-full">
+              <span>Alergias</span>
+              <textarea id="allergies" rows="2" placeholder="Ejemplo: penicilina, latex, anestesicos, etc."></textarea>
+            </label>
+          </div>
+
+          <section class="card">
+            <h3>Higiene bucal</h3>
+            <div class="form-grid">
+              <label class="field">
+                <span>Cepillados por dia</span>
+                <input type="number" id="brushTimes" min="0" max="12">
+              </label>
+
+              <label class="field">
+                <span>Usa hilo dental</span>
+                <select id="flossHabit">
+                  <option value="">Seleccionar</option>
+                  <option value="Si">Si</option>
+                  <option value="No">No</option>
+                  <option value="A veces">A veces</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Tiene caries actualmente</span>
+                <select id="hasCaries">
+                  <option value="">Seleccionar</option>
+                  <option value="Si">Si</option>
+                  <option value="No">No</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Enfermedades del paciente (con color)</h3>
+            <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
+            <div id="diseaseChecklist" class="tag-grid"></div>
+
+            <div class="inline-controls">
+              <input type="text" id="newDiseaseName" placeholder="Nueva enfermedad">
+              <input type="color" id="newDiseaseColor" value="#d97706" aria-label="Color de enfermedad">
+              <button type="button" id="addDiseaseBtn" class="btn btn-secondary">Agregar enfermedad</button>
+            </div>
+
+            <div id="diseaseCatalog" class="catalog"></div>
+          </section>
+
+          <label class="field field-full">
+            <span>Otras enfermedades / observaciones</span>
+            <textarea id="otherConditions" rows="3" placeholder="Describe antecedentes o condiciones adicionales"></textarea>
+          </label>
+        </form>
+      </section>
+
+      <section class="panel panel-odontogram">
+        <div class="panel-header">
+          <div>
+            <h2>Odontograma</h2>
+            <p class="panel-subtitle">Selecciona un estado y haz clic en cada diente o zona para aplicar color.</p>
+          </div>
+          <div class="status-picker">
+            <label for="toothStatusSelect">Estado activo</label>
+            <select id="toothStatusSelect"></select>
+          </div>
+        </div>
+
+        <div class="odontogram-shell">
+          <section>
+            <h3 class="group-title">Maxilar superior</h3>
+            <div class="row-labels">
+              <span>Derecho</span>
+              <span>Izquierdo</span>
+            </div>
+            <div class="odonto-scroll">
+              <div id="upperTeethRow" class="teeth-grid"></div>
+            </div>
+          </section>
+
+          <section>
+            <h3 class="group-title">Mandibula inferior</h3>
+            <div class="row-labels">
+              <span>Derecho</span>
+              <span>Izquierdo</span>
+            </div>
+            <div class="odonto-scroll">
+              <div id="lowerTeethRow" class="teeth-grid"></div>
+            </div>
+          </section>
+
+          <section>
+            <h3 class="group-title">Zonas generales</h3>
+            <div id="zoneList" class="zone-grid"></div>
+          </section>
+        </div>
+
+        <section class="card">
+          <h3>Leyenda de estados para dientes</h3>
+          <p class="card-help">Puedes crear tus propios colores para senalar caries, fracturas, ausencias, etc.</p>
+          <div id="statusLegend" class="catalog"></div>
+
+          <div class="inline-controls">
+            <input type="text" id="newStatusName" placeholder="Nuevo estado dental">
+            <input type="color" id="newStatusColor" value="#ef4444" aria-label="Color de estado">
+            <button type="button" id="addStatusBtn" class="btn btn-secondary">Agregar estado</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p id="feedbackMessage" role="status">Listo para registrar pacientes.</p>
+    </footer>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

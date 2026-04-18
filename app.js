@@ -23,6 +23,13 @@ const ODONTO_ZONES = [
   { id: "paladar", name: "Paladar" }
 ];
 
+const TOOTH_PATHS = {
+  incisor: "M12 15 C12 8 17 4 24 4 C31 4 36 8 36 15 L34 34 C33 41 29 46 24 46 C19 46 15 41 14 34 Z",
+  canine: "M24 3 L31 8 C34 10 36 14 36 19 L34 34 C33 41 29 46 24 46 C19 46 15 41 14 34 L12 19 C12 14 14 10 17 8 Z",
+  premolar: "M10 16 C10 9 15 4 22 4 L26 4 C33 4 38 9 38 16 L36 34 C35 41 30 46 24 46 C18 46 13 41 12 34 Z",
+  molar: "M8 18 C8 10 14 4 22 4 L26 4 C34 4 40 10 40 18 L38 34 C37 41 31 46 24 46 C17 46 11 41 10 34 Z"
+};
+
 const DEFAULT_DISEASES = [
   { id: "dis-hipertension", name: "Hipertension", color: "#f59e0b" },
   { id: "dis-diabetes", name: "Diabetes", color: "#ef4444" },
@@ -577,15 +584,13 @@ function renderOdontogram() {
 function renderJawArc(container, toothNumbers, arcPosition, mode) {
   const total = toothNumbers.length;
   const isAdult = mode === "adult";
-  const size = isAdult ? 40 : 46;
-
   const centerX = 380;
-  const centerY = isAdult ? 232 : 236;
-  const radiusX = isAdult ? 280 : 238;
-  const radiusY = isAdult ? 150 : 130;
+  const centerY = isAdult ? 230 : 236;
+  const radiusX = isAdult ? 292 : 248;
+  const radiusY = isAdult ? 170 : 145;
 
-  const startDeg = arcPosition === "upper" ? 200 : 20;
-  const endDeg = arcPosition === "upper" ? -20 : 160;
+  const startDeg = arcPosition === "upper" ? 200 : 160;
+  const endDeg = arcPosition === "upper" ? 340 : 20;
 
   const pieces = toothNumbers.map((toothNumber, index) => {
     const t = total === 1 ? 0.5 : index / (total - 1);
@@ -597,8 +602,15 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
 
     const toothId = String(toothNumber);
     const statusIds = getMarkIds("teeth", toothId);
-    const previewIds = statusIds.slice(0, 16);
+    const statusColors = statusIds
+      .map((statusId) => getStatusById(statusId)?.color)
+      .filter(Boolean);
+    const previewIds = statusIds.slice(0, 24);
     const overflowCount = Math.max(0, statusIds.length - previewIds.length);
+    const shapeType = getToothShapeType(toothNumber, mode);
+    const dims = getToothDimensions(shapeType, mode);
+    const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
+    const fillConfig = buildToothFill(statusColors, gradientId);
 
     const chips = previewIds
       .map((statusId) => {
@@ -617,11 +629,18 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
     return `
       <button
         type="button"
-        class="tooth-node ${mode === "child" ? "child" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
+        class="tooth-node ${mode === "child" ? "child" : ""} shape-${shapeType} ${statusIds.length > 0 ? "has-marks" : ""}"
         data-tooth-id="${toothId}"
         title="Diente ${toothId}: ${escapeHtml(titleText)}"
-        style="left:${Math.round(x - size / 2)}px; top:${Math.round(y - (size + 14) / 2)}px;"
+        style="left:${Math.round(x - dims.width / 2)}px; top:${Math.round(y - dims.height / 2)}px; --tooth-w:${dims.width}px; --tooth-h:${dims.height}px;"
       >
+        <span class="tooth-art" aria-hidden="true">
+          <svg viewBox="0 0 48 52" class="tooth-svg">
+            ${fillConfig.defs}
+            <path class="tooth-fill-shape" d="${TOOTH_PATHS[shapeType]}" fill="${fillConfig.fill}"></path>
+            <path class="tooth-outline-shape" d="${TOOTH_PATHS[shapeType]}"></path>
+          </svg>
+        </span>
         <span class="tooth-id">${toothId}</span>
         <span class="tooth-kind">${escapeHtml(getToothKindLabel(toothNumber, mode))}</span>
         <span class="tooth-color-grid">${chips}</span>
@@ -631,6 +650,28 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
   });
 
   container.innerHTML = pieces.join("");
+}
+
+function buildToothFill(colors, gradientId) {
+  if (!Array.isArray(colors) || colors.length === 0) {
+    return { defs: "", fill: "#f8fafc" };
+  }
+
+  if (colors.length === 1) {
+    return { defs: "", fill: colors[0] };
+  }
+
+  const step = 100 / colors.length;
+  const stops = colors
+    .map((color, index) => {
+      const start = (index * step).toFixed(2);
+      const end = ((index + 1) * step).toFixed(2);
+      return `<stop offset="${start}%" stop-color="${color}"></stop><stop offset="${end}%" stop-color="${color}"></stop>`;
+    })
+    .join("");
+
+  const defs = `<defs><linearGradient id="${gradientId}" x1="0%" y1="0%" x2="100%" y2="0%">${stops}</linearGradient></defs>`;
+  return { defs, fill: `url(#${gradientId})` };
 }
 
 function applyOdontoMark(bucket, key) {
@@ -1084,6 +1125,37 @@ function getCurrentDentitionMode() {
 
 function isValidDentitionMode(mode) {
   return mode === "adult" || mode === "child";
+}
+
+function getToothShapeType(toothNumber, mode) {
+  const n = Number(toothNumber);
+  const unit = Number.isFinite(n) ? n % 10 : 0;
+
+  if (unit === 1 || unit === 2) {
+    return "incisor";
+  }
+  if (unit === 3) {
+    return "canine";
+  }
+  if (mode === "adult" && (unit === 4 || unit === 5)) {
+    return "premolar";
+  }
+  return "molar";
+}
+
+function getToothDimensions(shapeType, mode) {
+  const scale = mode === "child" ? 1.06 : 1;
+
+  if (shapeType === "incisor") {
+    return { width: Math.round(32 * scale), height: Math.round(45 * scale) };
+  }
+  if (shapeType === "canine") {
+    return { width: Math.round(36 * scale), height: Math.round(47 * scale) };
+  }
+  if (shapeType === "premolar") {
+    return { width: Math.round(40 * scale), height: Math.round(48 * scale) };
+  }
+  return { width: Math.round(44 * scale), height: Math.round(49 * scale) };
 }
 
 function getToothKindLabel(toothNumber, mode) {

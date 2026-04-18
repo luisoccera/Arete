@@ -481,20 +481,46 @@ tbody tr.active {
   height: 460px;
   margin: 0 auto;
   border-radius: 16px;
-  background:
-    radial-gradient(circle at 50% 35%, #fca5a55c 0%, #fda4af2d 35%, transparent 60%),
-    radial-gradient(circle at 50% 75%, #fca5a53d 0%, #fb71852e 42%, transparent 68%),
-    linear-gradient(180deg, #173e56, #0c2639);
+  background: linear-gradient(180deg, #173e56, #0c2639);
   border: 1px solid #4f7f9b;
+  overflow: hidden;
+}
+
+.jaw-backdrop::before,
+.jaw-backdrop::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 83%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle at 50% 48%, #fff7ed 0%, #fed7d7 48%, #fca5a5 95%);
+  border: 4px solid #fda4afcc;
+  box-shadow: 0 10px 28px #02061729;
+}
+
+.jaw-backdrop::before {
+  top: 9%;
+  height: 45%;
+  border-bottom: 0;
+  border-radius: 52% 52% 37% 37% / 74% 74% 26% 26%;
+}
+
+.jaw-backdrop::after {
+  bottom: 9%;
+  height: 45%;
+  border-top: 0;
+  border-radius: 37% 37% 52% 52% / 26% 26% 74% 74%;
 }
 
 .jaw-mouth-shape {
   position: absolute;
-  inset: 70px 170px;
-  border-radius: 58% 58% 53% 53% / 62% 62% 45% 45%;
-  border: 7px solid #fca5a57c;
-  background: radial-gradient(circle at 50% 40%, #fef3c7, #fca5a4);
-  opacity: 0.76;
+  inset: 98px 195px;
+  border-radius: 45% / 50%;
+  border: 5px solid #fb71857a;
+  background:
+    radial-gradient(circle at 50% 28%, #fff7ed 0%, #fbcfe8 55%, #fda4af 100%);
+  opacity: 0.92;
+  z-index: 2;
 }
 
 .jaw-center-label {
@@ -518,78 +544,100 @@ tbody tr.active {
 .jaw-arc {
   position: absolute;
   inset: 0;
+  z-index: 4;
 }
 
 .tooth-node {
-  --tooth-size: 40px;
+  --tooth-w: 42px;
+  --tooth-h: 48px;
   position: absolute;
-  width: var(--tooth-size);
-  min-height: calc(var(--tooth-size) + 26px);
-  border: 2px solid #2f556f;
-  border-radius: 13px;
-  background: linear-gradient(180deg, #e2f3ff, #f8fafc);
+  width: max(var(--tooth-w), 56px);
+  min-height: calc(var(--tooth-h) + 34px);
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
   color: #042235;
   cursor: pointer;
   display: grid;
   align-content: start;
   justify-items: center;
-  gap: 0.14rem;
-  padding: 0.2rem 0.18rem 0.22rem;
-  box-shadow: 0 5px 11px #0000002d;
+  gap: 0.12rem;
+  padding: 0;
   transition: transform 130ms ease, box-shadow 130ms ease;
-  z-index: 4;
+  z-index: 5;
 }
 
 .tooth-node:hover {
   transform: translateY(-1px);
-  box-shadow: 0 8px 14px #0000003d;
 }
 
-.tooth-node.child {
-  --tooth-size: 46px;
+.tooth-art {
+  width: var(--tooth-w);
+  height: var(--tooth-h);
+  display: block;
+  filter: drop-shadow(0 3px 4px #0000003d);
+}
+
+.tooth-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tooth-fill-shape {
+  stroke: none;
+}
+
+.tooth-outline-shape {
+  fill: none;
+  stroke: #1e3a56;
+  stroke-width: 1.6;
 }
 
 .tooth-node .tooth-id {
-  font-size: 0.63rem;
+  margin-top: -0.1rem;
+  font-size: 0.6rem;
   font-weight: 800;
   line-height: 1;
+  color: #e5f3ff;
+  text-shadow: 0 1px 2px #00000092;
 }
 
 .tooth-node .tooth-kind {
-  font-size: 0.53rem;
+  font-size: 0.5rem;
   line-height: 1;
-  color: #2f4454;
+  color: #d5edff;
   text-transform: uppercase;
   letter-spacing: 0.01em;
+  text-shadow: 0 1px 2px #0000008f;
 }
 
 .tooth-color-grid {
-  margin-top: 0.1rem;
-  width: 100%;
-  min-height: 12px;
-  max-height: 30px;
+  margin-top: 0.08rem;
+  width: 56px;
+  min-height: 10px;
+  max-height: 28px;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
-  padding-right: 1px;
+  padding: 0 1px;
 }
 
 .tooth-color-chip {
   width: 100%;
-  height: 6px;
+  height: 5px;
   border-radius: 2px;
   border: 1px solid #1f293780;
 }
 
 .tooth-node.has-marks {
-  border-color: #06b6d4;
+  filter: drop-shadow(0 0 3px #67e8f9a3);
 }
 
 .tooth-more {
   position: absolute;
-  right: -6px;
-  top: -7px;
+  right: -2px;
+  top: 1px;
   min-width: 18px;
   height: 18px;
   border-radius: 999px;

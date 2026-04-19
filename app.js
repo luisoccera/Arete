@@ -69,6 +69,7 @@ const el = {
   dentitionLabel: document.getElementById("dentitionLabel"),
   dentitionSwitchButtons: Array.from(document.querySelectorAll("[data-dentition]")),
   clearOdontogramBtn: document.getElementById("clearOdontogramBtn"),
+  quickAddStatusBtn: document.getElementById("quickAddStatusBtn"),
   toothStatusSelect: document.getElementById("toothStatusSelect"),
   statusLegend: document.getElementById("statusLegend"),
   newStatusName: document.getElementById("newStatusName"),
@@ -128,9 +129,15 @@ function bindEvents() {
   el.addStatusBtn.addEventListener("click", addToothStatus);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
   el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
+  el.quickAddStatusBtn.addEventListener("click", () => {
+    el.newStatusName.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.newStatusName.focus();
+    setFeedback("Escribe la nueva enfermedad/estado y elige su color.");
+  });
 
   el.toothStatusSelect.addEventListener("change", () => {
     selectedStatusId = el.toothStatusSelect.value || "none";
+    updateStatusSelectAppearance();
     setFeedback(
       selectedStatusId === "none"
         ? "Modo limpiar activo: al hacer clic se borran todos los colores de la pieza."
@@ -635,8 +642,10 @@ function renderDiseaseCatalog() {
 function renderStatusSelect() {
   const previous = selectedStatusId;
   const options = [
-    "<option value=\"none\">Limpiar pieza / zona</option>",
-    ...state.toothStatuses.map((status) => `<option value="${status.id}">${escapeHtml(status.name)}</option>`)
+    "<option value=\"none\" style=\"color:#dbeafe;font-weight:700;\">○ Limpiar pieza / zona</option>",
+    ...state.toothStatuses.map(
+      (status) => `<option value="${status.id}" style="color:${status.color};font-weight:700;">■ ${escapeHtml(status.name)}</option>`
+    )
   ];
 
   el.toothStatusSelect.innerHTML = options.join("");
@@ -651,6 +660,16 @@ function renderStatusSelect() {
     selectedStatusId = "none";
   }
   el.toothStatusSelect.value = selectedStatusId;
+  updateStatusSelectAppearance();
+}
+
+function updateStatusSelectAppearance() {
+  if (selectedStatusId === "none") {
+    el.toothStatusSelect.style.color = "#e7f3fb";
+    return;
+  }
+  const color = getStatusById(selectedStatusId)?.color || "#e7f3fb";
+  el.toothStatusSelect.style.color = color;
 }
 
 function renderStatusCatalog() {

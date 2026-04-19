@@ -47,7 +47,6 @@ const DEFAULT_TOOTH_STATUSES = [
 
 const el = {
   newPatientBtn: document.getElementById("newPatientBtn"),
-  openAddPatientBtn: document.getElementById("openAddPatientBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
   viewTabs: Array.from(document.querySelectorAll("[data-view-tab]")),
@@ -56,7 +55,6 @@ const el = {
   upcomingCount: document.getElementById("upcomingCount"),
   upcomingList: document.getElementById("upcomingList"),
   savePatientBtn: document.getElementById("savePatientBtn"),
-  savePatientInlineBtn: document.getElementById("savePatientInlineBtn"),
   deleteCurrentPatientBtn: document.getElementById("deleteCurrentPatientBtn"),
   formTitle: document.getElementById("formTitle"),
   patientForm: document.getElementById("patientForm"),
@@ -135,11 +133,6 @@ function bindEvents() {
     setActiveView("home");
     startNewPatient(true);
   });
-  el.openAddPatientBtn.addEventListener("click", () => {
-    setActiveView("home");
-    startNewPatient(true);
-    el.patientName.focus();
-  });
   for (const button of el.viewTabs) {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
@@ -147,9 +140,6 @@ function bindEvents() {
     });
   }
   el.savePatientBtn.addEventListener("click", savePatient);
-  if (el.savePatientInlineBtn) {
-    el.savePatientInlineBtn.addEventListener("click", savePatient);
-  }
   el.deleteCurrentPatientBtn.addEventListener("click", () => {
     if (!editingPatientId) {
       setFeedback("Primero abre un paciente para poder eliminarlo.", "error");

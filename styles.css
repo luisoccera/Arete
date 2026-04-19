@@ -536,14 +536,6 @@ tbody tr.active {
   gap: 0.65rem;
 }
 
-.consultation-save-field {
-  align-content: end;
-}
-
-.consultation-save-field .btn {
-  width: 100%;
-}
-
 .card {
   border: 1px solid #264560;
   border-radius: 12px;

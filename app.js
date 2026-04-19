@@ -95,6 +95,7 @@ const el = {
   dentistName: document.getElementById("dentistName"),
   allergies: document.getElementById("allergies"),
   consultationDate: document.getElementById("consultationDate"),
+  nextConsultationDate: document.getElementById("nextConsultationDate"),
   treatmentStart: document.getElementById("treatmentStart"),
   appointmentDate: document.getElementById("appointmentDate"),
   appointmentTime: document.getElementById("appointmentTime"),
@@ -325,6 +326,7 @@ function createEmptyPatient() {
     dentistName: "",
     allergies: "",
     consultationDate: "",
+    nextConsultationDate: "",
     treatmentStart: "",
     brushTimes: "",
     flossHabit: "",
@@ -403,6 +405,9 @@ function normalizePatient(rawPatient) {
   patient.dentistName = stringOrEmpty(patient.dentistName);
   patient.allergies = stringOrEmpty(patient.allergies);
   patient.consultationDate = stringOrEmpty(patient.consultationDate);
+  patient.nextConsultationDate = stringOrEmpty(
+    patient.nextConsultationDate || patient.nextConsultation || patient.followUpDate
+  );
   patient.treatmentStart = stringOrEmpty(patient.treatmentStart);
   patient.flossHabit = stringOrEmpty(patient.flossHabit);
   patient.hasCaries = stringOrEmpty(patient.hasCaries);
@@ -746,9 +751,12 @@ function renderPatientTable() {
         })
         .join("");
       const nextAppointment = getNextAppointmentForPatient(patient);
+      const nextConsultationDate = getNextConsultationDateForPatient(patient);
       const consultationText = nextAppointment
         ? `${formatDate(nextAppointment.date)}${nextAppointment.time ? ` ${nextAppointment.time}` : ""}`
-        : formatDate(patient.consultationDate);
+        : nextConsultationDate
+          ? formatDate(nextConsultationDate)
+          : formatDate(patient.consultationDate);
 
       return `
         <tr class="${patient.id === editingPatientId ? "active" : ""}">
@@ -803,6 +811,20 @@ function renderUpcomingAppointments() {
           });
         }
       }
+      continue;
+    }
+
+    const nextConsultationInfo = getAppointmentDateInfo(patient.nextConsultationDate, "");
+    if (nextConsultationInfo && nextConsultationInfo.timestamp >= todayStart) {
+      entries.push({
+        patientId: patient.id,
+        patientName: patient.name || "Sin nombre",
+        date: patient.nextConsultationDate,
+        time: "",
+        dentistName: patient.dentistName || "Sin dentista",
+        reason: "Proxima consulta",
+        sortTimestamp: nextConsultationInfo.timestamp
+      });
       continue;
     }
 
@@ -1728,6 +1750,7 @@ function syncDraftFromForm() {
   draftPatient.dentistName = stringOrEmpty(el.dentistName.value);
   draftPatient.allergies = stringOrEmpty(el.allergies.value);
   draftPatient.consultationDate = stringOrEmpty(el.consultationDate.value);
+  draftPatient.nextConsultationDate = stringOrEmpty(el.nextConsultationDate.value);
   draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
   draftPatient.brushTimes = numberOrEmpty(el.brushTimes.value);
   draftPatient.flossHabit = stringOrEmpty(el.flossHabit.value);
@@ -1752,6 +1775,7 @@ function hydrateFormFromDraft() {
   el.dentistName.value = draftPatient.dentistName || "";
   el.allergies.value = draftPatient.allergies || "";
   el.consultationDate.value = draftPatient.consultationDate || "";
+  el.nextConsultationDate.value = draftPatient.nextConsultationDate || "";
   el.treatmentStart.value = draftPatient.treatmentStart || "";
   el.brushTimes.value = toInputNumber(draftPatient.brushTimes);
   el.flossHabit.value = draftPatient.flossHabit || "";
@@ -1857,6 +1881,19 @@ function getNextAppointmentForPatient(patient) {
     }
   }
   return null;
+}
+
+function getNextConsultationDateForPatient(patient) {
+  const dateValue = stringOrEmpty(patient?.nextConsultationDate);
+  if (!dateValue) {
+    return "";
+  }
+  const info = getAppointmentDateInfo(dateValue, "");
+  if (!info) {
+    return "";
+  }
+  const todayStart = getStartOfToday().getTime();
+  return info.timestamp >= todayStart ? dateValue : "";
 }
 
 function parseDateValue(value) {

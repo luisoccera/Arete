@@ -96,6 +96,11 @@ const el = {
   allergies: document.getElementById("allergies"),
   consultationDate: document.getElementById("consultationDate"),
   treatmentStart: document.getElementById("treatmentStart"),
+  appointmentDate: document.getElementById("appointmentDate"),
+  appointmentTime: document.getElementById("appointmentTime"),
+  appointmentReason: document.getElementById("appointmentReason"),
+  addAppointmentBtn: document.getElementById("addAppointmentBtn"),
+  appointmentList: document.getElementById("appointmentList"),
   brushTimes: document.getElementById("brushTimes"),
   flossHabit: document.getElementById("flossHabit"),
   hasCaries: document.getElementById("hasCaries"),
@@ -107,6 +112,11 @@ let draftPatient = createEmptyPatient();
 let editingPatientId = null;
 let selectedStatusId = "";
 let activeView = "home";
+let storageMode = "local";
+let remotePersistTimer = null;
+let remotePersistInFlight = false;
+let remotePersistPending = false;
+const apiBaseUrl = resolveApiBaseUrl();
 
 init();
 
@@ -115,6 +125,7 @@ function init() {
   setActiveView("home");
   renderAll();
   startNewPatient(false);
+  initializeBackendStorage();
 }
 
 function bindEvents() {
@@ -146,6 +157,7 @@ function bindEvents() {
   el.searchInput.addEventListener("input", renderPatientTable);
   el.addDiseaseBtn.addEventListener("click", addDisease);
   el.addStatusBtn.addEventListener("click", addToothStatus);
+  el.addAppointmentBtn.addEventListener("click", addAppointmentToPatient);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
   el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
   el.quickAddStatusBtn.addEventListener("click", () => {
@@ -231,6 +243,14 @@ function bindEvents() {
     removeHistoryEntry(removeBtn.getAttribute("data-remove-history-id"));
   });
 
+  el.appointmentList.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest("[data-remove-appointment-id]");
+    if (!removeBtn) {
+      return;
+    }
+    removeAppointmentFromPatient(removeBtn.getAttribute("data-remove-appointment-id"));
+  });
+
   el.zoneList.addEventListener("click", (event) => {
     const zoneBtn = event.target.closest("[data-zone-id]");
     if (!zoneBtn) {
@@ -311,6 +331,7 @@ function createEmptyPatient() {
     hasCaries: "",
     otherConditions: "",
     diseaseIds: [],
+    appointments: [],
     odontogramMode: "adult",
     odontogram: {
       teeth: {},
@@ -398,6 +419,7 @@ function normalizePatient(rawPatient) {
   patient.diseaseIds = Array.isArray(patient.diseaseIds)
     ? patient.diseaseIds.filter((id) => typeof id === "string")
     : [];
+  patient.appointments = normalizeAppointments(patient.appointments);
 
   patient.odontogramMode = isValidDentitionMode(patient.odontogramMode) ? patient.odontogramMode : "adult";
 
@@ -410,6 +432,34 @@ function normalizePatient(rawPatient) {
   );
 
   return patient;
+}
+
+function normalizeAppointments(rawAppointments) {
+  if (!Array.isArray(rawAppointments)) {
+    return [];
+  }
+
+  const appointments = [];
+  for (const item of rawAppointments) {
+    const date = stringOrEmpty(item?.date);
+    if (!date) {
+      continue;
+    }
+
+    appointments.push({
+      id: stringOrEmpty(item?.id) || generateId("apt"),
+      date,
+      time: stringOrEmpty(item?.time),
+      reason: stringOrEmpty(item?.reason)
+    });
+  }
+
+  appointments.sort((a, b) => {
+    const aKey = `${a.date} ${a.time || "00:00"}`;
+    const bKey = `${b.date} ${b.time || "00:00"}`;
+    return aKey.localeCompare(bKey);
+  });
+  return appointments;
 }
 
 function normalizeHistoryEntries(rawEntries) {
@@ -518,6 +568,116 @@ function loadState() {
 
 function persistState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (storageMode === "backend") {
+    queueRemotePersist();
+  }
+}
+
+function resolveApiBaseUrl() {
+  const queryApi = stringOrEmpty(new URLSearchParams(window.location.search).get("api"));
+  if (queryApi) {
+    localStorage.setItem("arete_api_base", queryApi);
+    return queryApi.replace(/\/$/, "");
+  }
+
+  const storedApi = stringOrEmpty(localStorage.getItem("arete_api_base"));
+  if (storedApi) {
+    return storedApi.replace(/\/$/, "");
+  }
+
+  if (window.location.protocol === "file:" || window.location.hostname.endsWith("github.io")) {
+    return "";
+  }
+
+  return window.location.origin;
+}
+
+async function initializeBackendStorage() {
+  if (!apiBaseUrl) {
+    return;
+  }
+
+  try {
+    const healthResponse = await apiRequest("/api/health", { method: "GET" }, 3500);
+    if (!healthResponse.ok) {
+      return;
+    }
+
+    storageMode = "backend";
+    const stateResponse = await apiRequest("/api/state", { method: "GET" }, 5000);
+    if (!stateResponse.ok) {
+      setFeedback("Backend detectado, pero no se pudo leer el estado inicial.", "error");
+      return;
+    }
+
+    const payload = await stateResponse.json();
+    state = normalizeState(payload?.data || payload);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderAll();
+    if (!editingPatientId) {
+      startNewPatient(false);
+    }
+    setFeedback("Backend conectado. Datos sincronizados correctamente.");
+  } catch (error) {
+    console.error("Backend no disponible. Continuando en modo local.", error);
+  }
+}
+
+function queueRemotePersist() {
+  remotePersistPending = true;
+  if (remotePersistTimer) {
+    clearTimeout(remotePersistTimer);
+  }
+  remotePersistTimer = window.setTimeout(() => {
+    void flushRemotePersist();
+  }, 180);
+}
+
+async function flushRemotePersist() {
+  if (remotePersistInFlight || !remotePersistPending || storageMode !== "backend") {
+    return;
+  }
+
+  remotePersistPending = false;
+  remotePersistInFlight = true;
+  try {
+    const response = await apiRequest(
+      "/api/state",
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: state })
+      },
+      9000
+    );
+
+    if (!response.ok) {
+      throw new Error(`Backend respondio ${response.status}`);
+    }
+  } catch (error) {
+    console.error("No se pudo guardar en backend.", error);
+    storageMode = "local";
+    setFeedback("Fallo el backend. La app continuo en modo local para no perder cambios.", "error");
+  } finally {
+    remotePersistInFlight = false;
+  }
+
+  if (remotePersistPending) {
+    void flushRemotePersist();
+  }
+}
+
+async function apiRequest(pathname, options, timeoutMs) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs || 5000);
+  try {
+    return await fetch(`${apiBaseUrl}${pathname}`, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function renderAll() {
@@ -527,6 +687,7 @@ function renderAll() {
   renderDiseaseCatalog();
   renderStatusCatalog();
   renderOdontogram();
+  renderAppointmentList();
   renderPatientTable();
   renderUpcomingAppointments();
   renderPatientHistory();
@@ -560,6 +721,7 @@ function renderPatientTable() {
 
   if (patients.length === 0) {
     el.patientRows.innerHTML = "<tr><td colspan=\"5\">No hay pacientes para mostrar.</td></tr>";
+    renderUpcomingAppointments();
     return;
   }
 
@@ -574,6 +736,10 @@ function renderPatientTable() {
           return `<span class="color-box" style="background:${disease.color}" title="${escapeHtml(disease.name)}"></span>`;
         })
         .join("");
+      const nextAppointment = getNextAppointmentForPatient(patient);
+      const consultationText = nextAppointment
+        ? `${formatDate(nextAppointment.date)}${nextAppointment.time ? ` ${nextAppointment.time}` : ""}`
+        : formatDate(patient.consultationDate);
 
       return `
         <tr class="${patient.id === editingPatientId ? "active" : ""}">
@@ -584,7 +750,7 @@ function renderPatientTable() {
               <span class="patient-meta">${escapeHtml(patient.location || "Sin ubicacion")}</span>
             </div>
           </td>
-          <td>${formatDate(patient.consultationDate)}</td>
+          <td>${escapeHtml(consultationText)}</td>
           <td>${escapeHtml(patient.dentistName || "-")}</td>
           <td>${escapeHtml(patient.phone || "-")}</td>
           <td>
@@ -604,16 +770,45 @@ function renderPatientTable() {
 
 function renderUpcomingAppointments() {
   const today = getTodayInputDate();
-  const upcoming = state.patients
-    .filter((patient) => !!patient.consultationDate && patient.consultationDate >= today)
-    .sort((a, b) => {
-      if (a.consultationDate === b.consultationDate) {
-        return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
-      }
-      return a.consultationDate.localeCompare(b.consultationDate);
-    })
-    .slice(0, 10);
+  const entries = [];
 
+  for (const patient of state.patients) {
+    const appointments = normalizeAppointments(patient.appointments);
+    if (appointments.length > 0) {
+      for (const appointment of appointments) {
+        if (appointment.date >= today) {
+          entries.push({
+            patientId: patient.id,
+            patientName: patient.name || "Sin nombre",
+            date: appointment.date,
+            time: appointment.time || "",
+            dentistName: patient.dentistName || "Sin dentista",
+            reason: appointment.reason || "Sin motivo"
+          });
+        }
+      }
+      continue;
+    }
+
+    if (patient.consultationDate && patient.consultationDate >= today) {
+      entries.push({
+        patientId: patient.id,
+        patientName: patient.name || "Sin nombre",
+        date: patient.consultationDate,
+        time: "",
+        dentistName: patient.dentistName || "Sin dentista",
+        reason: "Consulta general"
+      });
+    }
+  }
+
+  entries.sort((a, b) => {
+    const aKey = `${a.date} ${a.time || "00:00"} ${a.patientName}`;
+    const bKey = `${b.date} ${b.time || "00:00"} ${b.patientName}`;
+    return aKey.localeCompare(bKey, "es");
+  });
+
+  const upcoming = entries.slice(0, 40);
   el.upcomingCount.textContent = String(upcoming.length);
 
   if (upcoming.length === 0) {
@@ -622,13 +817,13 @@ function renderUpcomingAppointments() {
   }
 
   el.upcomingList.innerHTML = upcoming
-    .map((patient) => `
+    .map((entry) => `
       <div class="upcoming-item">
         <div class="upcoming-main">
-          <span class="upcoming-name">${escapeHtml(patient.name || "Sin nombre")}</span>
-          <span class="upcoming-meta">${formatDate(patient.consultationDate)} | ${escapeHtml(patient.phone || "-")} | ${escapeHtml(patient.dentistName || "Sin dentista")}</span>
+          <span class="upcoming-name">${escapeHtml(entry.patientName)}</span>
+          <span class="upcoming-meta">${escapeHtml(formatDate(entry.date))}${entry.time ? ` - ${escapeHtml(entry.time)}` : ""} | ${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</span>
         </div>
-        <button type="button" class="table-btn" data-open-id="${patient.id}">Abrir</button>
+        <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
       </div>
     `)
     .join("");
@@ -727,6 +922,30 @@ function renderStatusCatalog() {
         </div>
       `
     )
+    .join("");
+}
+
+function renderAppointmentList() {
+  const appointments = Array.isArray(draftPatient.appointments) ? draftPatient.appointments : [];
+  if (appointments.length === 0) {
+    el.appointmentList.innerHTML = "<div class=\"history-empty\">Este paciente aun no tiene citas agendadas.</div>";
+    return;
+  }
+
+  const sorted = appointments
+    .slice()
+    .sort((a, b) => `${a.date} ${a.time || "00:00"}`.localeCompare(`${b.date} ${b.time || "00:00"}`));
+
+  el.appointmentList.innerHTML = sorted
+    .map((appointment) => `
+      <article class="appointment-item">
+        <div class="appointment-main">
+          <div class="appointment-title">${escapeHtml(formatDate(appointment.date))}${appointment.time ? ` - ${escapeHtml(appointment.time)}` : ""}</div>
+          <div class="appointment-meta">${escapeHtml(appointment.reason || "Sin motivo especificado.")}</div>
+        </div>
+        <button type="button" class="catalog-btn" data-remove-appointment-id="${appointment.id}">Quitar</button>
+      </article>
+    `)
     .join("");
 }
 
@@ -1064,7 +1283,9 @@ function openPatient(id) {
   renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
+  renderAppointmentList();
   renderPatientHistory();
+  resetAppointmentInputs();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
   setFeedback(`Editando expediente de ${found.name}.`);
@@ -1080,7 +1301,9 @@ function startNewPatient(showMessage) {
   renderDentitionSwitch();
   renderDiseaseChecklist();
   renderOdontogram();
+  renderAppointmentList();
   renderPatientHistory();
+  resetAppointmentInputs();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
 
@@ -1123,7 +1346,9 @@ function savePatient() {
   renderPatientTable();
   renderUpcomingAppointments();
   renderDentitionSwitch();
+  renderAppointmentList();
   renderPatientHistory();
+  resetAppointmentInputs();
   updateDeleteCurrentButtonState();
   setFormTitle();
   setFeedback(`Paciente ${normalized.name} guardado correctamente.`);
@@ -1151,6 +1376,57 @@ function deletePatient(id) {
   renderPatientHistory();
   updateDeleteCurrentButtonState();
   setFeedback(`Paciente ${patient.name} eliminado.`);
+}
+
+function addAppointmentToPatient() {
+  const date = stringOrEmpty(el.appointmentDate.value);
+  const time = stringOrEmpty(el.appointmentTime.value);
+  const reason = stringOrEmpty(el.appointmentReason.value);
+
+  if (!date) {
+    setFeedback("Selecciona la fecha para agendar la cita.", "error");
+    el.appointmentDate.focus();
+    return;
+  }
+
+  if (!Array.isArray(draftPatient.appointments)) {
+    draftPatient.appointments = [];
+  }
+
+  draftPatient.appointments.push({
+    id: generateId("apt"),
+    date,
+    time,
+    reason
+  });
+  draftPatient.appointments = normalizeAppointments(draftPatient.appointments);
+  renderAppointmentList();
+  persistDraftPatientIfEditing();
+  setFeedback(`Cita agendada para ${formatDate(date)}${time ? ` a las ${time}` : ""}.`);
+
+  el.appointmentTime.value = "";
+  el.appointmentReason.value = "";
+}
+
+function removeAppointmentFromPatient(appointmentId) {
+  if (!Array.isArray(draftPatient.appointments)) {
+    return;
+  }
+
+  const found = draftPatient.appointments.find((entry) => entry.id === appointmentId);
+  if (!found) {
+    return;
+  }
+
+  const approved = window.confirm("Se eliminara esta cita agendada. Deseas continuar?");
+  if (!approved) {
+    return;
+  }
+
+  draftPatient.appointments = draftPatient.appointments.filter((entry) => entry.id !== appointmentId);
+  renderAppointmentList();
+  persistDraftPatientIfEditing();
+  setFeedback("Cita eliminada del paciente.");
 }
 
 function addClinicalNote() {
@@ -1529,6 +1805,13 @@ function getTodayInputDate() {
   return `${y}-${m}-${d}`;
 }
 
+function getNextAppointmentForPatient(patient) {
+  const today = getTodayInputDate();
+  const appointments = normalizeAppointments(patient?.appointments);
+  const upcoming = appointments.find((appointment) => appointment.date >= today);
+  return upcoming || null;
+}
+
 function isValidDate(value) {
   if (!value) {
     return false;
@@ -1580,6 +1863,12 @@ function resetClinicalNoteInputs() {
   el.clinicalNoteDate.value = getTodayInputDate();
   el.clinicalNoteTitle.value = "";
   el.clinicalNoteText.value = "";
+}
+
+function resetAppointmentInputs() {
+  el.appointmentDate.value = getTodayInputDate();
+  el.appointmentTime.value = "";
+  el.appointmentReason.value = "";
 }
 
 function getCurrentDentitionMode() {

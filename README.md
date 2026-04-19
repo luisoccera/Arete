@@ -1,27 +1,34 @@
-# Arete (MVP)
+# Arete
 
 Aplicacion web para consultorio dental con:
 
 - Registro completo de pacientes.
+- Agenda de citas por paciente.
 - Enfermedades personalizables con color.
 - Cuadros de color al lado del nombre en la base de pacientes.
 - Odontograma interactivo por diente y por zonas.
+- Vistas separadas: Inicio, Registro de pacientes y Citas proximas.
 - Respaldo e importacion de datos en JSON.
+- Backend local para persistencia en archivo.
 
-## Abrir la app
+## Ejecutar con backend (recomendado)
 
-1. Abre el archivo `index.html` en tu navegador.
-2. Tambien puedes servir la carpeta con cualquier servidor estatico local.
+1. Instala Node.js (si aun no lo tienes).
+2. En esta carpeta ejecuta:
+   - `npm start`
+3. Abre:
+   - `http://localhost:3001`
 
-## Flujo sugerido
+El backend guarda los datos en:
 
-1. Crea o ajusta tus enfermedades en la seccion "Enfermedades del paciente (con color)".
-2. Registra paciente con sus datos clinicos.
-3. Elige un "Estado activo" en odontograma y marca dientes o zonas.
-4. Pulsa "Guardar paciente".
-5. Usa "Exportar respaldo" para guardar copia de seguridad.
+- `data/state.json`
+
+## Modo solo frontend
+
+Si abres solo `index.html`, la app funciona en modo local (localStorage).
 
 ## Notas
 
 - Los datos se guardan en `localStorage` del navegador bajo la llave `arete_data_v1`.
+- Si el backend esta disponible, la app sincroniza contra `/api/state`.
 - Si cambias de navegador/equipo, importa un respaldo JSON para recuperar datos.

@@ -1,0 +1,9 @@
+﻿{
+  "version": 1,
+  "updatedAt": "",
+  "data": {
+    "patients": [],
+    "diseases": [],
+    "toothStatuses": []
+  }
+}

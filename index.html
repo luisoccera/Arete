@@ -132,6 +132,29 @@
               </div>
 
               <section class="card">
+                <div class="card-title-row">
+                  <h3>Agenda de citas del paciente</h3>
+                  <button type="button" id="addAppointmentBtn" class="btn btn-secondary">Agendar cita</button>
+                </div>
+                <p class="card-help">Programa todas las citas necesarias de este paciente y elimina las que ya no apliquen.</p>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Fecha de cita</span>
+                    <input type="date" id="appointmentDate">
+                  </label>
+                  <label class="field">
+                    <span>Hora</span>
+                    <input type="time" id="appointmentTime">
+                  </label>
+                </div>
+                <label class="field field-full">
+                  <span>Motivo de la cita</span>
+                  <input type="text" id="appointmentReason" placeholder="Ejemplo: profilaxis, control de ortodoncia, operatoria">
+                </label>
+                <div id="appointmentList" class="appointment-list"></div>
+              </section>
+
+              <section class="card">
                 <h3>Higiene bucal</h3>
                 <div class="form-grid">
                   <label class="field">

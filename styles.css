@@ -477,6 +477,38 @@ tbody tr.active {
   font-size: 0.8rem;
 }
 
+.appointment-list {
+  margin-top: 0.65rem;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.appointment-item {
+  border: 1px solid #2f546d;
+  border-radius: 10px;
+  padding: 0.48rem 0.56rem;
+  background: #0f2538;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.appointment-main {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.appointment-title {
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.appointment-meta {
+  color: #a8c8da;
+  font-size: 0.76rem;
+}
+
 .form-grid {
   display: grid;
   gap: 0.65rem;

@@ -172,9 +172,10 @@ body {
 
 .form-actions {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.5rem;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .panel-subtitle {
@@ -1011,10 +1012,13 @@ tbody tr.active {
 
   .form-actions {
     width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
   }
 
   .form-actions .btn {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .form-grid {

@@ -957,13 +957,59 @@ tbody tr.active {
     min-width: 0;
   }
 
+  .odonto-toolbar .btn {
+    width: 100%;
+  }
+
+  .jaw-section {
+    padding: 0.5rem;
+  }
+
   .jaw-backdrop {
-    min-width: 660px;
-    height: 430px;
+    min-width: 860px;
+    height: 500px;
   }
 
   .jaw-mouth-shape {
-    inset: 72px 150px;
+    inset: 92px 220px;
+  }
+
+  .tooth-node .tooth-kind {
+    display: none;
+  }
+
+  .tooth-node .tooth-id {
+    top: calc(var(--tooth-h) + 2px);
+    font-size: 0.55rem;
+  }
+
+  .tooth-color-grid {
+    width: 8px;
+    top: 3px;
+    max-height: calc(var(--tooth-h) - 6px);
+  }
+
+  .tooth-color-chip {
+    height: 5px;
+  }
+
+  .tooth-more {
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.54rem;
+  }
+
+  .jaw-help {
+    font-size: 0.74rem;
+  }
+
+  .zone-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .zone-btn {
+    min-height: 40px;
+    font-size: 0.74rem;
   }
 }
 

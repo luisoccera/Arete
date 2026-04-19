@@ -961,17 +961,33 @@ tbody tr.active {
     width: 100%;
   }
 
+  .panel-odontogram {
+    overflow: hidden;
+  }
+
   .jaw-section {
     padding: 0.5rem;
   }
 
+  .jaw-canvas {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.35rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .jaw-backdrop {
-    min-width: 860px;
-    height: 500px;
+    min-width: 980px;
+    height: 520px;
   }
 
   .jaw-mouth-shape {
-    inset: 92px 220px;
+    inset: 112px 245px;
+  }
+
+  .jaw-center-label {
+    font-size: 0.74rem;
+    padding: 0.26rem 0.62rem;
   }
 
   .tooth-node .tooth-kind {
@@ -979,28 +995,31 @@ tbody tr.active {
   }
 
   .tooth-node .tooth-id {
-    top: calc(var(--tooth-h) + 2px);
-    font-size: 0.55rem;
+    display: none;
   }
 
   .tooth-color-grid {
-    width: 8px;
-    top: 3px;
-    max-height: calc(var(--tooth-h) - 6px);
+    width: 7px;
+    top: 2px;
+    max-height: calc(var(--tooth-h) - 4px);
   }
 
   .tooth-color-chip {
-    height: 5px;
+    height: 4px;
   }
 
   .tooth-more {
-    min-width: 16px;
-    height: 16px;
-    font-size: 0.54rem;
+    display: none;
   }
 
   .jaw-help {
-    font-size: 0.74rem;
+    font-size: 0.72rem;
+  }
+
+  .jaw-help::after {
+    content: " Desliza horizontalmente para ver toda la arcada.";
+    color: #8ec9ea;
+    font-weight: 600;
   }
 
   .zone-grid {

@@ -455,9 +455,18 @@ function normalizeAppointments(rawAppointments) {
   }
 
   appointments.sort((a, b) => {
-    const aKey = `${a.date} ${a.time || "00:00"}`;
-    const bKey = `${b.date} ${b.time || "00:00"}`;
-    return aKey.localeCompare(bKey);
+    const aTs = getAppointmentTimestamp(a.date, a.time);
+    const bTs = getAppointmentTimestamp(b.date, b.time);
+    if (aTs === null && bTs === null) {
+      return 0;
+    }
+    if (aTs === null) {
+      return 1;
+    }
+    if (bTs === null) {
+      return -1;
+    }
+    return aTs - bTs;
   });
   return appointments;
 }
@@ -769,43 +778,53 @@ function renderPatientTable() {
 }
 
 function renderUpcomingAppointments() {
-  const today = getTodayInputDate();
+  const now = Date.now();
+  const todayStart = getStartOfToday().getTime();
   const entries = [];
 
   for (const patient of state.patients) {
     const appointments = normalizeAppointments(patient.appointments);
     if (appointments.length > 0) {
       for (const appointment of appointments) {
-        if (appointment.date >= today) {
+        const info = getAppointmentDateInfo(appointment.date, appointment.time);
+        if (!info) {
+          continue;
+        }
+        const threshold = info.hasTime ? now : todayStart;
+        if (info.timestamp >= threshold) {
           entries.push({
             patientId: patient.id,
             patientName: patient.name || "Sin nombre",
             date: appointment.date,
             time: appointment.time || "",
             dentistName: patient.dentistName || "Sin dentista",
-            reason: appointment.reason || "Sin motivo"
+            reason: appointment.reason || "Sin motivo",
+            sortTimestamp: info.timestamp
           });
         }
       }
       continue;
     }
 
-    if (patient.consultationDate && patient.consultationDate >= today) {
+    const consultationInfo = getAppointmentDateInfo(patient.consultationDate, "");
+    if (consultationInfo && consultationInfo.timestamp >= todayStart) {
       entries.push({
         patientId: patient.id,
         patientName: patient.name || "Sin nombre",
         date: patient.consultationDate,
         time: "",
         dentistName: patient.dentistName || "Sin dentista",
-        reason: "Consulta general"
+        reason: "Consulta general",
+        sortTimestamp: consultationInfo.timestamp
       });
     }
   }
 
   entries.sort((a, b) => {
-    const aKey = `${a.date} ${a.time || "00:00"} ${a.patientName}`;
-    const bKey = `${b.date} ${b.time || "00:00"} ${b.patientName}`;
-    return aKey.localeCompare(bKey, "es");
+    if (a.sortTimestamp !== b.sortTimestamp) {
+      return a.sortTimestamp - b.sortTimestamp;
+    }
+    return a.patientName.localeCompare(b.patientName, "es", { sensitivity: "base" });
   });
 
   const upcoming = entries.slice(0, 40);
@@ -934,7 +953,20 @@ function renderAppointmentList() {
 
   const sorted = appointments
     .slice()
-    .sort((a, b) => `${a.date} ${a.time || "00:00"}`.localeCompare(`${b.date} ${b.time || "00:00"}`));
+    .sort((a, b) => {
+      const aTs = getAppointmentTimestamp(a.date, a.time);
+      const bTs = getAppointmentTimestamp(b.date, b.time);
+      if (aTs === null && bTs === null) {
+        return 0;
+      }
+      if (aTs === null) {
+        return 1;
+      }
+      if (bTs === null) {
+        return -1;
+      }
+      return aTs - bTs;
+    });
 
   el.appointmentList.innerHTML = sorted
     .map((appointment) => `
@@ -1773,8 +1805,8 @@ function formatDate(dateString) {
   if (!dateString) {
     return "-";
   }
-  const date = new Date(dateString);
-  if (Number.isNaN(date.valueOf())) {
+  const date = parseDateValue(dateString);
+  if (!date) {
     return "-";
   }
   return date.toLocaleDateString("es-MX");
@@ -1805,11 +1837,124 @@ function getTodayInputDate() {
   return `${y}-${m}-${d}`;
 }
 
+function getStartOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
 function getNextAppointmentForPatient(patient) {
-  const today = getTodayInputDate();
   const appointments = normalizeAppointments(patient?.appointments);
-  const upcoming = appointments.find((appointment) => appointment.date >= today);
-  return upcoming || null;
+  const now = Date.now();
+  const todayStart = getStartOfToday().getTime();
+  for (const appointment of appointments) {
+    const info = getAppointmentDateInfo(appointment.date, appointment.time);
+    if (!info) {
+      continue;
+    }
+    const threshold = info.hasTime ? now : todayStart;
+    if (info.timestamp >= threshold) {
+      return appointment;
+    }
+  }
+  return null;
+}
+
+function parseDateValue(value) {
+  const raw = stringOrEmpty(value);
+  if (!raw) {
+    return null;
+  }
+
+  const text = raw.trim();
+
+  const isoMatch = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:$|[T\s].*)/);
+  if (isoMatch) {
+    return buildLocalDate(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+  }
+
+  const latinMatch = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:$|[T\s].*)/);
+  if (latinMatch) {
+    return buildLocalDate(Number(latinMatch[3]), Number(latinMatch[2]), Number(latinMatch[1]));
+  }
+
+  const parsed = new Date(text);
+  if (Number.isNaN(parsed.valueOf())) {
+    return null;
+  }
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+}
+
+function buildLocalDate(year, month, day) {
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+function parseTimeParts(value) {
+  const raw = stringOrEmpty(value);
+  if (!raw) {
+    return { hours: 0, minutes: 0, hasTime: false };
+  }
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) {
+    return { hours: 0, minutes: 0, hasTime: false };
+  }
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return { hours: 0, minutes: 0, hasTime: false };
+  }
+  return { hours, minutes, hasTime: true };
+}
+
+function getAppointmentDateInfo(dateValue, timeValue) {
+  const date = parseDateValue(dateValue);
+  if (!date) {
+    return null;
+  }
+
+  const time = parseTimeParts(timeValue);
+  const dateTime = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    time.hours,
+    time.minutes,
+    0,
+    0
+  );
+
+  return {
+    timestamp: dateTime.getTime(),
+    hasTime: time.hasTime
+  };
+}
+
+function getAppointmentTimestamp(dateValue, timeValue) {
+  const info = getAppointmentDateInfo(dateValue, timeValue);
+  return info ? info.timestamp : null;
 }
 
 function isValidDate(value) {

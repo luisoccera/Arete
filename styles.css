@@ -109,7 +109,44 @@ body {
   justify-content: flex-end;
 }
 
-.layout {
+.view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.view-tab {
+  border: 1px solid #345b72;
+  background: #0f273a;
+  color: #d5efff;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.view-tab.is-active {
+  color: #012131;
+  border-color: #67e8f9;
+  background: linear-gradient(125deg, #67e8f9, #2dd4bf);
+}
+
+.views-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.view-section {
+  display: none;
+  gap: 1rem;
+}
+
+.view-section.is-active {
+  display: grid;
+}
+
+.home-grid {
   display: grid;
   gap: 1rem;
 }
@@ -907,6 +944,15 @@ tbody tr.active {
     margin-top: 0.7rem;
   }
 
+  .view-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .view-tab {
+    width: 100%;
+  }
+
   .hero {
     flex-direction: column;
     align-items: flex-start;
@@ -1033,7 +1079,7 @@ tbody tr.active {
 }
 
 @media (min-width: 768px) and (max-width: 991.98px) {
-  .layout {
+  .home-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1048,35 +1094,15 @@ tbody tr.active {
 }
 
 @media (min-width: 992px) and (max-width: 1199.98px) {
-  .layout {
+  .home-grid {
     grid-template-columns: 1fr 1fr;
     align-items: start;
-  }
-
-  .panel-patients {
-    grid-column: 1 / -1;
   }
 }
 
 @media (min-width: 1200px) {
-  .layout {
-    grid-template-columns: 1.08fr 1fr;
-    grid-template-areas:
-      "patients form"
-      "patients odontogram";
+  .home-grid {
+    grid-template-columns: 1fr 1fr;
     align-items: start;
-  }
-
-  .panel-patients {
-    grid-area: patients;
-    min-height: 980px;
-  }
-
-  .panel-form {
-    grid-area: form;
-  }
-
-  .panel-odontogram {
-    grid-area: odontogram;
   }
 }

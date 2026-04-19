@@ -47,8 +47,11 @@ const DEFAULT_TOOTH_STATUSES = [
 
 const el = {
   newPatientBtn: document.getElementById("newPatientBtn"),
+  openAddPatientBtn: document.getElementById("openAddPatientBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
+  viewTabs: Array.from(document.querySelectorAll("[data-view-tab]")),
+  viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
   searchInput: document.getElementById("searchInput"),
   upcomingCount: document.getElementById("upcomingCount"),
   upcomingList: document.getElementById("upcomingList"),
@@ -103,17 +106,33 @@ let state = loadState();
 let draftPatient = createEmptyPatient();
 let editingPatientId = null;
 let selectedStatusId = "";
+let activeView = "home";
 
 init();
 
 function init() {
   bindEvents();
+  setActiveView("home");
   renderAll();
   startNewPatient(false);
 }
 
 function bindEvents() {
-  el.newPatientBtn.addEventListener("click", () => startNewPatient(true));
+  el.newPatientBtn.addEventListener("click", () => {
+    setActiveView("home");
+    startNewPatient(true);
+  });
+  el.openAddPatientBtn.addEventListener("click", () => {
+    setActiveView("home");
+    startNewPatient(true);
+    el.patientName.focus();
+  });
+  for (const button of el.viewTabs) {
+    button.addEventListener("click", () => {
+      const targetView = button.getAttribute("data-view-tab");
+      setActiveView(targetView);
+    });
+  }
   el.savePatientBtn.addEventListener("click", savePatient);
   el.deleteCurrentPatientBtn.addEventListener("click", () => {
     if (!editingPatientId) {
@@ -235,6 +254,24 @@ function bindEvents() {
       renderOdontogram();
       setFeedback(`Visualizando ${DENTITION_LAYOUTS[mode].label.toLowerCase()}.`);
     });
+  }
+}
+
+function setActiveView(view) {
+  const validViews = new Set(["home", "registry", "upcoming"]);
+  const nextView = validViews.has(view) ? view : "home";
+  activeView = nextView;
+
+  for (const button of el.viewTabs) {
+    const isActive = button.getAttribute("data-view-tab") === nextView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  for (const section of el.viewSections) {
+    const isActive = section.getAttribute("data-view-section") === nextView;
+    section.classList.toggle("is-active", isActive);
+    section.hidden = !isActive;
   }
 }
 
@@ -1016,6 +1053,7 @@ function openPatient(id) {
     return;
   }
 
+  setActiveView("home");
   editingPatientId = id;
   draftPatient = deepClone(found);
   draftPatient = normalizePatient(draftPatient);

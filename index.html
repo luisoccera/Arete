@@ -30,256 +30,281 @@
       </div>
     </header>
 
-    <main class="layout">
-      <section class="panel panel-patients">
-        <div class="panel-header">
-          <div>
-            <h2>Pacientes registrados</h2>
-            <p class="panel-subtitle">La caja de color junto al nombre indica sus enfermedades.</p>
+    <nav class="view-tabs" aria-label="Navegacion principal">
+      <button type="button" class="view-tab is-active" data-view-tab="home">Inicio</button>
+      <button type="button" class="view-tab" data-view-tab="registry">Registro de pacientes</button>
+      <button type="button" class="view-tab" data-view-tab="upcoming">Citas proximas</button>
+    </nav>
+
+    <main class="views-shell">
+      <section class="view-section is-active" data-view-section="home">
+        <section class="panel panel-home">
+          <div class="panel-header">
+            <div>
+              <h2>Inicio</h2>
+              <p class="panel-subtitle">Desde aqui puedes abrir el formulario para agregar o editar pacientes.</p>
+            </div>
+            <button type="button" id="openAddPatientBtn" class="btn btn-primary">Abrir agregar paciente</button>
           </div>
-          <input id="searchInput" type="search" placeholder="Buscar por nombre, telefono, ubicacion o dentista">
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Paciente</th>
-                <th>Consulta</th>
-                <th>Dentista</th>
-                <th>Telefono</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="patientRows"></tbody>
-          </table>
+        </section>
+
+        <div class="home-grid">
+          <section class="panel panel-form">
+            <div class="panel-header">
+              <div>
+                <h2 id="formTitle">Nuevo paciente</h2>
+                <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
+              </div>
+              <div class="form-actions">
+                <button type="button" id="deleteCurrentPatientBtn" class="btn btn-danger" disabled>Eliminar paciente</button>
+                <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
+              </div>
+            </div>
+
+            <form id="patientForm" novalidate>
+              <div class="form-grid">
+                <label class="field">
+                  <span>Nombre completo</span>
+                  <input type="text" id="patientName" required>
+                </label>
+
+                <label class="field">
+                  <span>Edad</span>
+                  <input type="number" id="patientAge" min="0" max="120">
+                </label>
+
+                <label class="field">
+                  <span>Sexo</span>
+                  <select id="patientSex">
+                    <option value="">Seleccionar</option>
+                    <option value="Femenino">Femenino</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="No especifica">No especifica</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Ubicacion</span>
+                  <input type="text" id="patientLocation" placeholder="Ciudad / Direccion">
+                </label>
+
+                <label class="field">
+                  <span>Fecha de nacimiento</span>
+                  <input type="date" id="birthDate">
+                </label>
+
+                <label class="field">
+                  <span>Telefono</span>
+                  <input type="tel" id="phone" placeholder="+52 000 000 0000">
+                </label>
+
+                <label class="field">
+                  <span>Ocupacion</span>
+                  <input type="text" id="occupation">
+                </label>
+
+                <label class="field">
+                  <span>Cirujano dentista a cargo</span>
+                  <input type="text" id="dentistName">
+                </label>
+
+                <label class="field">
+                  <span>Fecha de consulta</span>
+                  <input type="date" id="consultationDate">
+                </label>
+
+                <label class="field">
+                  <span>Inicio de tratamiento</span>
+                  <input type="date" id="treatmentStart">
+                </label>
+              </div>
+
+              <div class="field-group">
+                <label class="field field-full">
+                  <span>Medicamentos que toma</span>
+                  <textarea id="medications" rows="2" placeholder="Ejemplo: ibuprofeno, anticoagulantes, etc."></textarea>
+                </label>
+
+                <label class="field field-full">
+                  <span>Alergias</span>
+                  <textarea id="allergies" rows="2" placeholder="Ejemplo: penicilina, latex, anestesicos, etc."></textarea>
+                </label>
+              </div>
+
+              <section class="card">
+                <h3>Higiene bucal</h3>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Cepillados por dia</span>
+                    <input type="number" id="brushTimes" min="0" max="12">
+                  </label>
+
+                  <label class="field">
+                    <span>Usa hilo dental</span>
+                    <select id="flossHabit">
+                      <option value="">Seleccionar</option>
+                      <option value="Si">Si</option>
+                      <option value="No">No</option>
+                      <option value="A veces">A veces</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Tiene caries actualmente</span>
+                    <select id="hasCaries">
+                      <option value="">Seleccionar</option>
+                      <option value="Si">Si</option>
+                      <option value="No">No</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+
+              <section class="card">
+                <h3>Enfermedades del paciente (con color)</h3>
+                <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
+                <div id="diseaseChecklist" class="tag-grid"></div>
+
+                <div class="inline-controls">
+                  <input type="text" id="newDiseaseName" placeholder="Nueva enfermedad">
+                  <input type="color" id="newDiseaseColor" value="#d97706" aria-label="Color de enfermedad">
+                  <button type="button" id="addDiseaseBtn" class="btn btn-secondary">Agregar enfermedad</button>
+                </div>
+
+                <div id="diseaseCatalog" class="catalog"></div>
+              </section>
+
+              <label class="field field-full">
+                <span>Otras enfermedades / observaciones</span>
+                <textarea id="otherConditions" rows="3" placeholder="Describe antecedentes o condiciones adicionales"></textarea>
+              </label>
+            </form>
+          </section>
+
+          <section class="panel panel-odontogram">
+            <div class="panel-header panel-header-odonto">
+              <div>
+                <h2>Odontograma</h2>
+                <p class="panel-subtitle">Cada diente puede tener multiples colores/estados al mismo tiempo.</p>
+              </div>
+              <div class="odonto-toolbar">
+                <div class="dentition-switch" role="group" aria-label="Tipo de denticion">
+                  <button type="button" class="dentition-btn is-active" data-dentition="adult">Adulto</button>
+                  <button type="button" class="dentition-btn" data-dentition="child">Nino</button>
+                </div>
+
+                <div class="status-picker">
+                  <label for="toothStatusSelect">Estado activo</label>
+                  <select id="toothStatusSelect"></select>
+                </div>
+
+                <button type="button" id="quickAddStatusBtn" class="btn btn-secondary">Nueva enfermedad/estado</button>
+                <button type="button" id="clearOdontogramBtn" class="btn btn-ghost">Limpiar odontograma</button>
+              </div>
+            </div>
+
+            <div class="odontogram-shell">
+              <section class="jaw-section">
+                <div class="jaw-canvas">
+                  <div class="jaw-backdrop" id="jawBackdrop">
+                    <div class="jaw-mouth-shape"></div>
+                    <div class="jaw-center-label" id="dentitionLabel">Denticion adulta</div>
+                    <div id="upperJawArc" class="jaw-arc jaw-arc-upper"></div>
+                    <div id="lowerJawArc" class="jaw-arc jaw-arc-lower"></div>
+                  </div>
+                </div>
+                <p class="jaw-help">
+                  Haz clic sobre una pieza para agregar/quitar el color seleccionado. En modo <strong>Limpiar</strong> se borra toda la pieza.
+                </p>
+              </section>
+
+              <section>
+                <h3 class="group-title">Zonas generales</h3>
+                <div id="zoneList" class="zone-grid"></div>
+              </section>
+            </div>
+
+            <section class="card">
+              <h3>Leyenda de estados para dientes</h3>
+              <p class="card-help">Puedes crear todas las etiquetas de color que necesites (caries, fractura, endodoncia, etc.).</p>
+              <div id="statusLegend" class="catalog"></div>
+
+              <div class="inline-controls">
+                <input type="text" id="newStatusName" placeholder="Nuevo estado dental">
+                <input type="color" id="newStatusColor" value="#ef4444" aria-label="Color de estado">
+                <button type="button" id="addStatusBtn" class="btn btn-secondary">Agregar estado</button>
+              </div>
+            </section>
+          </section>
         </div>
 
-        <section class="card upcoming-card">
+        <section class="panel panel-history">
           <div class="card-title-row">
-            <h3>Citas mas proximas</h3>
+            <h3>Historial clinico del paciente</h3>
+            <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
+          </div>
+          <p class="card-help">Puedes guardar notas clinicas y tambien ver el historial automatico de cambios de color en la boca.</p>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Fecha de nota</span>
+              <input type="date" id="clinicalNoteDate">
+            </label>
+
+            <label class="field">
+              <span>Titulo de la nota</span>
+              <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
+            </label>
+          </div>
+
+          <label class="field field-full">
+            <span>Nota clinica</span>
+            <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clinico del paciente"></textarea>
+          </label>
+
+          <div id="patientHistoryList" class="history-list"></div>
+        </section>
+      </section>
+
+      <section class="view-section" data-view-section="registry">
+        <section class="panel panel-patients">
+          <div class="panel-header">
+            <div>
+              <h2>Registro de pacientes</h2>
+              <p class="panel-subtitle">Consulta, busca, abre y elimina pacientes registrados.</p>
+            </div>
+            <input id="searchInput" type="search" placeholder="Buscar por nombre, telefono, ubicacion o dentista">
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Paciente</th>
+                  <th>Consulta</th>
+                  <th>Dentista</th>
+                  <th>Telefono</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="patientRows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="view-section" data-view-section="upcoming">
+        <section class="panel panel-upcoming">
+          <div class="panel-header">
+            <div>
+              <h2>Citas proximas</h2>
+              <p class="panel-subtitle">Pacientes con fecha de consulta programada desde hoy.</p>
+            </div>
             <span id="upcomingCount" class="badge-count">0</span>
           </div>
-          <p class="card-help">Pacientes con fecha de consulta de hoy en adelante.</p>
           <div id="upcomingList" class="upcoming-list"></div>
         </section>
       </section>
-
-      <section class="panel panel-form">
-        <div class="panel-header">
-          <div>
-            <h2 id="formTitle">Nuevo paciente</h2>
-            <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
-          </div>
-          <div class="form-actions">
-            <button type="button" id="deleteCurrentPatientBtn" class="btn btn-danger" disabled>Eliminar paciente</button>
-            <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
-          </div>
-        </div>
-
-        <form id="patientForm" novalidate>
-          <div class="form-grid">
-            <label class="field">
-              <span>Nombre completo</span>
-              <input type="text" id="patientName" required>
-            </label>
-
-            <label class="field">
-              <span>Edad</span>
-              <input type="number" id="patientAge" min="0" max="120">
-            </label>
-
-            <label class="field">
-              <span>Sexo</span>
-              <select id="patientSex">
-                <option value="">Seleccionar</option>
-                <option value="Femenino">Femenino</option>
-                <option value="Masculino">Masculino</option>
-                <option value="No especifica">No especifica</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>Ubicacion</span>
-              <input type="text" id="patientLocation" placeholder="Ciudad / Direccion">
-            </label>
-
-            <label class="field">
-              <span>Fecha de nacimiento</span>
-              <input type="date" id="birthDate">
-            </label>
-
-            <label class="field">
-              <span>Telefono</span>
-              <input type="tel" id="phone" placeholder="+52 000 000 0000">
-            </label>
-
-            <label class="field">
-              <span>Ocupacion</span>
-              <input type="text" id="occupation">
-            </label>
-
-            <label class="field">
-              <span>Cirujano dentista a cargo</span>
-              <input type="text" id="dentistName">
-            </label>
-
-            <label class="field">
-              <span>Fecha de consulta</span>
-              <input type="date" id="consultationDate">
-            </label>
-
-            <label class="field">
-              <span>Inicio de tratamiento</span>
-              <input type="date" id="treatmentStart">
-            </label>
-          </div>
-
-          <div class="field-group">
-            <label class="field field-full">
-              <span>Medicamentos que toma</span>
-              <textarea id="medications" rows="2" placeholder="Ejemplo: ibuprofeno, anticoagulantes, etc."></textarea>
-            </label>
-
-            <label class="field field-full">
-              <span>Alergias</span>
-              <textarea id="allergies" rows="2" placeholder="Ejemplo: penicilina, latex, anestesicos, etc."></textarea>
-            </label>
-          </div>
-
-          <section class="card">
-            <h3>Higiene bucal</h3>
-            <div class="form-grid">
-              <label class="field">
-                <span>Cepillados por dia</span>
-                <input type="number" id="brushTimes" min="0" max="12">
-              </label>
-
-              <label class="field">
-                <span>Usa hilo dental</span>
-                <select id="flossHabit">
-                  <option value="">Seleccionar</option>
-                  <option value="Si">Si</option>
-                  <option value="No">No</option>
-                  <option value="A veces">A veces</option>
-                </select>
-              </label>
-
-              <label class="field">
-                <span>Tiene caries actualmente</span>
-                <select id="hasCaries">
-                  <option value="">Seleccionar</option>
-                  <option value="Si">Si</option>
-                  <option value="No">No</option>
-                </select>
-              </label>
-            </div>
-          </section>
-
-          <section class="card">
-            <h3>Enfermedades del paciente (con color)</h3>
-            <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
-            <div id="diseaseChecklist" class="tag-grid"></div>
-
-            <div class="inline-controls">
-              <input type="text" id="newDiseaseName" placeholder="Nueva enfermedad">
-              <input type="color" id="newDiseaseColor" value="#d97706" aria-label="Color de enfermedad">
-              <button type="button" id="addDiseaseBtn" class="btn btn-secondary">Agregar enfermedad</button>
-            </div>
-
-            <div id="diseaseCatalog" class="catalog"></div>
-          </section>
-
-          <label class="field field-full">
-            <span>Otras enfermedades / observaciones</span>
-            <textarea id="otherConditions" rows="3" placeholder="Describe antecedentes o condiciones adicionales"></textarea>
-          </label>
-        </form>
-      </section>
-
-      <section class="panel panel-odontogram">
-        <div class="panel-header panel-header-odonto">
-          <div>
-            <h2>Odontograma</h2>
-            <p class="panel-subtitle">Cada diente puede tener multiples colores/estados al mismo tiempo.</p>
-          </div>
-          <div class="odonto-toolbar">
-            <div class="dentition-switch" role="group" aria-label="Tipo de denticion">
-              <button type="button" class="dentition-btn is-active" data-dentition="adult">Adulto</button>
-              <button type="button" class="dentition-btn" data-dentition="child">Nino</button>
-            </div>
-
-            <div class="status-picker">
-              <label for="toothStatusSelect">Estado activo</label>
-              <select id="toothStatusSelect"></select>
-            </div>
-
-            <button type="button" id="quickAddStatusBtn" class="btn btn-secondary">Nueva enfermedad/estado</button>
-
-            <button type="button" id="clearOdontogramBtn" class="btn btn-ghost">Limpiar odontograma</button>
-          </div>
-        </div>
-
-        <div class="odontogram-shell">
-          <section class="jaw-section">
-            <div class="jaw-canvas">
-              <div class="jaw-backdrop" id="jawBackdrop">
-                <div class="jaw-mouth-shape"></div>
-                <div class="jaw-center-label" id="dentitionLabel">Denticion adulta</div>
-                <div id="upperJawArc" class="jaw-arc jaw-arc-upper"></div>
-                <div id="lowerJawArc" class="jaw-arc jaw-arc-lower"></div>
-              </div>
-            </div>
-            <p class="jaw-help">
-              Haz clic sobre una pieza para agregar/quitar el color seleccionado. En modo <strong>Limpiar</strong> se borra toda la pieza.
-            </p>
-          </section>
-
-          <section>
-            <h3 class="group-title">Zonas generales</h3>
-            <div id="zoneList" class="zone-grid"></div>
-          </section>
-        </div>
-
-        <section class="card">
-          <h3>Leyenda de estados para dientes</h3>
-          <p class="card-help">Puedes crear todas las etiquetas de color que necesites (caries, fractura, endodoncia, etc.).</p>
-          <div id="statusLegend" class="catalog"></div>
-
-          <div class="inline-controls">
-            <input type="text" id="newStatusName" placeholder="Nuevo estado dental">
-            <input type="color" id="newStatusColor" value="#ef4444" aria-label="Color de estado">
-            <button type="button" id="addStatusBtn" class="btn btn-secondary">Agregar estado</button>
-          </div>
-        </section>
-      </section>
     </main>
-
-    <section class="panel panel-history">
-      <div class="card-title-row">
-        <h3>Historial clinico del paciente</h3>
-        <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
-      </div>
-      <p class="card-help">Puedes guardar notas clinicas y tambien ver el historial automatico de cambios de color en la boca.</p>
-
-      <div class="form-grid">
-        <label class="field">
-          <span>Fecha de nota</span>
-          <input type="date" id="clinicalNoteDate">
-        </label>
-
-        <label class="field">
-          <span>Titulo de la nota</span>
-          <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
-        </label>
-      </div>
-
-      <label class="field field-full">
-        <span>Nota clinica</span>
-        <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clinico del paciente"></textarea>
-      </label>
-
-      <div id="patientHistoryList" class="history-list"></div>
-    </section>
 
     <footer class="app-footer">
       <p id="feedbackMessage" role="status">Listo para registrar pacientes.</p>

@@ -780,20 +780,20 @@ tbody tr.active {
   left: 50%;
   top: calc(var(--tooth-h) + 18px);
   transform: translateX(-50%);
-  width: 56px;
-  min-height: 10px;
-  max-height: 42px;
+  width: 14px;
+  min-height: 0;
+  max-height: 56px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
-  padding: 0 1px;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 0;
   pointer-events: none;
 }
 
 .tooth-color-chip {
   width: 100%;
-  height: 5px;
+  height: 8px;
   border-radius: 2px;
   border: 1px solid #1f293780;
 }

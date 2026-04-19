@@ -251,35 +251,35 @@
             <button type="button" id="addStatusBtn" class="btn btn-secondary">Agregar estado</button>
           </div>
         </section>
-
-        <section class="card">
-          <div class="card-title-row">
-            <h3>Historial clinico del paciente</h3>
-            <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
-          </div>
-          <p class="card-help">Puedes guardar notas clinicas y tambien ver el historial automatico de cambios de color en la boca.</p>
-
-          <div class="form-grid">
-            <label class="field">
-              <span>Fecha de nota</span>
-              <input type="date" id="clinicalNoteDate">
-            </label>
-
-            <label class="field">
-              <span>Titulo de la nota</span>
-              <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
-            </label>
-          </div>
-
-          <label class="field field-full">
-            <span>Nota clinica</span>
-            <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clinico del paciente"></textarea>
-          </label>
-
-          <div id="patientHistoryList" class="history-list"></div>
-        </section>
       </section>
     </main>
+
+    <section class="panel panel-history">
+      <div class="card-title-row">
+        <h3>Historial clinico del paciente</h3>
+        <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
+      </div>
+      <p class="card-help">Puedes guardar notas clinicas y tambien ver el historial automatico de cambios de color en la boca.</p>
+
+      <div class="form-grid">
+        <label class="field">
+          <span>Fecha de nota</span>
+          <input type="date" id="clinicalNoteDate">
+        </label>
+
+        <label class="field">
+          <span>Titulo de la nota</span>
+          <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
+        </label>
+      </div>
+
+      <label class="field field-full">
+        <span>Nota clinica</span>
+        <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clinico del paciente"></textarea>
+      </label>
+
+      <div id="patientHistoryList" class="history-list"></div>
+    </section>
 
     <footer class="app-footer">
       <p id="feedbackMessage" role="status">Listo para registrar pacientes.</p>

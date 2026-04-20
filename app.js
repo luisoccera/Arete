@@ -1241,6 +1241,8 @@ function renderOdontogram() {
   if (el.dentitionStandardHint) {
     el.dentitionStandardHint.textContent = layout.commonHint || "";
   }
+  el.jawBackdrop.classList.toggle("is-adult", mode === "adult");
+  el.jawBackdrop.classList.toggle("is-child", mode === "child");
 
   renderJawArc(el.upperJawArc, layout.upper, "upper", mode);
   renderJawArc(el.lowerJawArc, layout.lower, "lower", mode);
@@ -1265,24 +1267,11 @@ function renderOdontogram() {
 }
 
 function renderJawArc(container, toothNumbers, arcPosition, mode) {
-  const total = toothNumbers.length;
-  const isAdult = mode === "adult";
-  const centerX = 380;
-  const centerY = isAdult ? 230 : 236;
-  const radiusX = isAdult ? 292 : 248;
-  const radiusY = isAdult ? 170 : 145;
+  const splitIndex = Math.floor(toothNumbers.length / 2);
+  const rightQuadrant = toothNumbers.slice(0, splitIndex);
+  const leftQuadrant = toothNumbers.slice(splitIndex);
 
-  const startDeg = arcPosition === "upper" ? 200 : 160;
-  const endDeg = arcPosition === "upper" ? 340 : 20;
-
-  const pieces = toothNumbers.map((toothNumber, index) => {
-    const t = total === 1 ? 0.5 : index / (total - 1);
-    const degrees = startDeg + (endDeg - startDeg) * t;
-    const radians = degrees * (Math.PI / 180);
-
-    const x = centerX + radiusX * Math.cos(radians);
-    const y = centerY + radiusY * Math.sin(radians);
-
+  const renderToothNode = (toothNumber) => {
     const toothId = String(toothNumber);
     const statusIds = getMarkIds("teeth", toothId);
     const statusColors = statusIds
@@ -1312,10 +1301,10 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
     return `
       <button
         type="button"
-        class="tooth-node ${mode === "child" ? "child" : ""} shape-${shapeType} ${statusIds.length > 0 ? "has-marks" : ""}"
+        class="tooth-node ${mode === "child" ? "child" : ""} jaw-${arcPosition} shape-${shapeType} ${statusIds.length > 0 ? "has-marks" : ""}"
         data-tooth-id="${toothId}"
         title="Diente ${toothId}: ${escapeHtml(titleText)}"
-        style="left:${Math.round(x - dims.width / 2)}px; top:${Math.round(y - dims.height / 2)}px; --tooth-w:${dims.width}px; --tooth-h:${dims.height}px;"
+        style="--tooth-w:${dims.width}px; --tooth-h:${dims.height}px;"
       >
         <span class="tooth-art" aria-hidden="true">
           <svg viewBox="0 0 48 52" class="tooth-svg">
@@ -1325,14 +1314,21 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
           </svg>
         </span>
         <span class="tooth-id">${toothId}</span>
-        <span class="tooth-kind">${escapeHtml(getToothKindLabel(toothNumber, mode))}</span>
         <span class="tooth-color-grid">${chips}</span>
         ${overflowCount > 0 ? `<span class="tooth-more">+${overflowCount}</span>` : ""}
       </button>
     `;
-  });
+  };
 
-  container.innerHTML = pieces.join("");
+  container.innerHTML = `
+    <div class="jaw-quadrant jaw-quadrant-right">
+      ${rightQuadrant.map(renderToothNode).join("")}
+    </div>
+    <div class="jaw-divider-vertical" aria-hidden="true"></div>
+    <div class="jaw-quadrant jaw-quadrant-left">
+      ${leftQuadrant.map(renderToothNode).join("")}
+    </div>
+  `;
 }
 
 function buildToothFill(colors, gradientId) {

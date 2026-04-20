@@ -359,6 +359,17 @@ tbody tr.active {
   gap: 0.6rem;
 }
 
+.doc-actions {
+  display: inline-flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.clinical-doc-card {
+  margin-bottom: 0.35rem;
+}
+
 .badge-count {
   border: 1px solid #2c4f69;
   background: #0d2638;
@@ -542,6 +553,24 @@ tbody tr.active {
   border-radius: 12px;
   padding: 0.75rem;
   background: #091a2a99;
+}
+
+#pathologiesCard.focus-flash {
+  border-color: #5eead4;
+  box-shadow: 0 0 0 2px #5eead444;
+  animation: focus-flash 850ms ease-out;
+}
+
+@keyframes focus-flash {
+  0% {
+    box-shadow: 0 0 0 0 #5eead400;
+  }
+  35% {
+    box-shadow: 0 0 0 5px #5eead444;
+  }
+  100% {
+    box-shadow: 0 0 0 0 #5eead400;
+  }
 }
 
 .card h3 {
@@ -1025,6 +1054,12 @@ tbody tr.active {
   .form-actions .btn {
     flex: 1 1 0;
     min-width: 0;
+  }
+
+  .doc-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .form-grid {

@@ -49,8 +49,67 @@ const DEFAULT_TOOTH_STATUSES = [
   { id: "st-sano", name: "Sano", color: "#10b981" }
 ];
 
+const CLINICAL_RECORD_TYPES = [
+  {
+    id: "f1-estomatologica",
+    label: "Formato 1 - Historia clinica estomatologica",
+    focus: ["Interrogatorio general", "Antecedentes", "Exploracion estomatognatica", "Odontograma diagnostico"]
+  },
+  {
+    id: "f2-preventiva",
+    label: "Formato 2 - Estomatologia preventiva",
+    focus: ["Control de higiene", "Indice de placa", "Tecnica de cepillado", "Aplicacion de fluor"]
+  },
+  {
+    id: "f3-operatoria",
+    label: "Formato 3 - Operatoria dental",
+    focus: ["Diagnostico de caries", "Tratamiento restaurador", "Odontograma y evolucion", "Ruta clinica"]
+  },
+  {
+    id: "f4-protesis-fija",
+    label: "Formato 4 - Protesis fija",
+    focus: ["Evaluacion clinica", "Pilares y soporte", "Interpretacion radiografica", "Plan de tratamiento"]
+  },
+  {
+    id: "f5-protesis-removible",
+    label: "Formato 5 - Protesis removible",
+    focus: ["Clasificacion de Kennedy", "Conectores y ganchos", "Area desdentada", "Evolucion de tratamiento"]
+  },
+  {
+    id: "f6-prostodoncia",
+    label: "Formato 6 - Prostodoncia total/parcial",
+    focus: ["Estado del reborde", "Plan protetico", "Pruebas de oclusion", "Entrega y controles"]
+  },
+  {
+    id: "f7-cirugia-bucal",
+    label: "Formato 7 - Cirugia bucal",
+    focus: ["Padecimiento actual", "Exploracion de zona", "Diagnostico y pronostico", "Notas posquirurgicas"]
+  },
+  {
+    id: "f8-periodoncia",
+    label: "Formato 8 - Periodoncia",
+    focus: ["Antecedentes periodontales", "Indice de higiene", "Bolsas y movilidad", "Plan periodontal"]
+  },
+  {
+    id: "f9-endodoncia",
+    label: "Formato 9 - Endodoncia",
+    focus: ["Motivo de consulta", "Pruebas de sensibilidad", "Diagnostico pulpar", "Tratamiento de conductos"]
+  },
+  {
+    id: "f10-ortodoncia",
+    label: "Formato 10 - Ortodoncia y ortopedia maxilar",
+    focus: ["Antecedentes de crecimiento", "Analisis facial y oclusal", "Plan ortodontico", "Consentimiento"]
+  },
+  {
+    id: "f11-odontopediatria",
+    label: "Formato 11 - Odontopediatria",
+    focus: ["Antecedentes pediatricos", "Denticion temporal/mixta", "Prevencion y control", "Seguimiento con tutor"]
+  }
+];
+
 const el = {
   newPatientBtn: document.getElementById("newPatientBtn"),
+  openPathologiesBtn: document.getElementById("openPathologiesBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
   viewTabs: Array.from(document.querySelectorAll("[data-view-tab]")),
@@ -62,6 +121,7 @@ const el = {
   deleteCurrentPatientBtn: document.getElementById("deleteCurrentPatientBtn"),
   formTitle: document.getElementById("formTitle"),
   patientForm: document.getElementById("patientForm"),
+  pathologiesCard: document.getElementById("pathologiesCard"),
   patientRows: document.getElementById("patientRows"),
   diseaseChecklist: document.getElementById("diseaseChecklist"),
   newDiseaseName: document.getElementById("newDiseaseName"),
@@ -83,6 +143,10 @@ const el = {
   newStatusColor: document.getElementById("newStatusColor"),
   addStatusBtn: document.getElementById("addStatusBtn"),
   addClinicalNoteBtn: document.getElementById("addClinicalNoteBtn"),
+  clinicalRecordType: document.getElementById("clinicalRecordType"),
+  clinicalRecordReference: document.getElementById("clinicalRecordReference"),
+  exportClinicalDocBtn: document.getElementById("exportClinicalDocBtn"),
+  printClinicalDocBtn: document.getElementById("printClinicalDocBtn"),
   clinicalNoteDate: document.getElementById("clinicalNoteDate"),
   clinicalNoteTitle: document.getElementById("clinicalNoteTitle"),
   clinicalNoteText: document.getElementById("clinicalNoteText"),
@@ -138,6 +202,7 @@ function bindEvents() {
     setActiveView("home");
     startNewPatient(true);
   });
+  el.openPathologiesBtn.addEventListener("click", focusPathologiesSection);
   for (const button of el.viewTabs) {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
@@ -158,6 +223,8 @@ function bindEvents() {
   el.addDiseaseBtn.addEventListener("click", addDisease);
   el.addStatusBtn.addEventListener("click", addToothStatus);
   el.addAppointmentBtn.addEventListener("click", addAppointmentToPatient);
+  el.exportClinicalDocBtn.addEventListener("click", downloadClinicalDocument);
+  el.printClinicalDocBtn.addEventListener("click", printClinicalDocument);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
   el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
   el.quickAddStatusBtn.addEventListener("click", () => {
@@ -183,6 +250,16 @@ function bindEvents() {
 
   el.patientForm.addEventListener("input", () => {
     syncDraftFromForm();
+  });
+
+  el.clinicalRecordType.addEventListener("change", () => {
+    syncDraftClinicalRecordFields();
+    persistDraftPatientIfEditing();
+  });
+
+  el.clinicalRecordReference.addEventListener("input", () => {
+    syncDraftClinicalRecordFields();
+    persistDraftPatientIfEditing();
   });
 
   el.diseaseChecklist.addEventListener("change", () => {
@@ -324,6 +401,8 @@ function createEmptyPatient() {
     medications: "",
     dentistName: "",
     allergies: "",
+    clinicalRecordType: CLINICAL_RECORD_TYPES[0].id,
+    clinicalRecordReference: "",
     consultationDate: "",
     nextConsultationDate: "",
     treatmentStart: "",
@@ -403,6 +482,12 @@ function normalizePatient(rawPatient) {
   patient.medications = stringOrEmpty(patient.medications);
   patient.dentistName = stringOrEmpty(patient.dentistName);
   patient.allergies = stringOrEmpty(patient.allergies);
+  patient.clinicalRecordType = normalizeClinicalRecordType(
+    patient.clinicalRecordType || patient.recordType || patient.historyType
+  );
+  patient.clinicalRecordReference = stringOrEmpty(
+    patient.clinicalRecordReference || patient.recordReference || patient.folio
+  );
   patient.consultationDate = stringOrEmpty(patient.consultationDate);
   patient.nextConsultationDate = stringOrEmpty(
     patient.nextConsultationDate || patient.nextConsultation || patient.followUpDate
@@ -473,6 +558,15 @@ function normalizeAppointments(rawAppointments) {
     return aTs - bTs;
   });
   return appointments;
+}
+
+function normalizeClinicalRecordType(value) {
+  const candidate = stringOrEmpty(value);
+  if (!candidate) {
+    return CLINICAL_RECORD_TYPES[0].id;
+  }
+  const exists = CLINICAL_RECORD_TYPES.some((type) => type.id === candidate);
+  return exists ? candidate : CLINICAL_RECORD_TYPES[0].id;
 }
 
 function normalizeHistoryEntries(rawEntries) {
@@ -1740,6 +1834,11 @@ function importData(event) {
   reader.readAsText(file, "utf-8");
 }
 
+function syncDraftClinicalRecordFields() {
+  draftPatient.clinicalRecordType = normalizeClinicalRecordType(el.clinicalRecordType.value);
+  draftPatient.clinicalRecordReference = stringOrEmpty(el.clinicalRecordReference.value);
+}
+
 function syncDraftFromForm() {
   draftPatient.name = stringOrEmpty(el.patientName.value);
   draftPatient.age = numberOrEmpty(el.patientAge.value);
@@ -1751,6 +1850,7 @@ function syncDraftFromForm() {
   draftPatient.medications = stringOrEmpty(el.medications.value);
   draftPatient.dentistName = stringOrEmpty(el.dentistName.value);
   draftPatient.allergies = stringOrEmpty(el.allergies.value);
+  syncDraftClinicalRecordFields();
   draftPatient.consultationDate = stringOrEmpty(el.consultationDate.value);
   draftPatient.nextConsultationDate = stringOrEmpty(el.nextConsultationDate.value);
   draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
@@ -1776,6 +1876,8 @@ function hydrateFormFromDraft() {
   el.medications.value = draftPatient.medications || "";
   el.dentistName.value = draftPatient.dentistName || "";
   el.allergies.value = draftPatient.allergies || "";
+  el.clinicalRecordType.value = normalizeClinicalRecordType(draftPatient.clinicalRecordType);
+  el.clinicalRecordReference.value = draftPatient.clinicalRecordReference || "";
   el.consultationDate.value = draftPatient.consultationDate || "";
   el.nextConsultationDate.value = draftPatient.nextConsultationDate || "";
   el.treatmentStart.value = draftPatient.treatmentStart || "";
@@ -1783,6 +1885,306 @@ function hydrateFormFromDraft() {
   el.flossHabit.value = draftPatient.flossHabit || "";
   el.hasCaries.value = draftPatient.hasCaries || "";
   el.otherConditions.value = draftPatient.otherConditions || "";
+}
+
+function focusPathologiesSection() {
+  setActiveView("home");
+  if (!el.pathologiesCard) {
+    return;
+  }
+  el.pathologiesCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.pathologiesCard.classList.remove("focus-flash");
+  void el.pathologiesCard.offsetWidth;
+  el.pathologiesCard.classList.add("focus-flash");
+  window.setTimeout(() => {
+    el.pathologiesCard.classList.remove("focus-flash");
+  }, 1300);
+  setFeedback("Seccion de patologias lista para editar.");
+}
+
+function downloadClinicalDocument() {
+  syncDraftFromForm();
+  ensureDraftOdontogram();
+
+  if (!draftPatient.name) {
+    setFeedback("Primero captura el nombre del paciente para generar el documento.", "error");
+    el.patientName.focus();
+    return;
+  }
+
+  const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
+  const html = buildClinicalDocumentHtml(draftPatient, recordType);
+  const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
+  const link = document.createElement("a");
+  const now = getTodayInputDate();
+  const filenameSafe = sanitizeFileName(draftPatient.name || "paciente");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${filenameSafe}-${recordType.id}-${now}.doc`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+
+  persistDraftPatientIfEditing();
+  setFeedback(`Documento ${recordType.label} generado en .doc.`);
+}
+
+function printClinicalDocument() {
+  syncDraftFromForm();
+  ensureDraftOdontogram();
+
+  if (!draftPatient.name) {
+    setFeedback("Primero captura el nombre del paciente para imprimir el documento.", "error");
+    el.patientName.focus();
+    return;
+  }
+
+  const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
+  const html = buildClinicalDocumentHtml(draftPatient, recordType);
+  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1080,height=820");
+  if (!printWindow) {
+    setFeedback("No se pudo abrir la ventana de impresion. Revisa el bloqueo de ventanas emergentes.", "error");
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  window.setTimeout(() => {
+    try {
+      printWindow.print();
+    } catch (error) {
+      console.error(error);
+    }
+  }, 450);
+
+  persistDraftPatientIfEditing();
+  setFeedback(`Vista de impresion lista para ${recordType.label}.`);
+}
+
+function getClinicalRecordTypeById(id) {
+  return CLINICAL_RECORD_TYPES.find((type) => type.id === id) || CLINICAL_RECORD_TYPES[0];
+}
+
+function buildClinicalDocumentHtml(patientInput, recordType) {
+  const patient = normalizePatient(patientInput);
+  const systemicPathologies = (patient.diseaseIds || [])
+    .map((diseaseId) => getDiseaseById(diseaseId)?.name || "")
+    .filter(Boolean);
+  const toothMarks = summarizeOdontogramEntries(patient.odontogram?.teeth, "pieza");
+  const zoneMarks = summarizeOdontogramEntries(patient.odontogram?.zones, "zona", getZoneNameById);
+  const appointments = normalizeAppointments(patient.appointments).map((entry) => {
+    const dateLabel = formatDate(entry.date);
+    const timeLabel = entry.time ? ` ${entry.time}` : "";
+    const reasonLabel = entry.reason ? ` - ${entry.reason}` : "";
+    return `${dateLabel}${timeLabel}${reasonLabel}`;
+  });
+  const recentNotes = normalizeHistoryEntries(patient.historyEntries)
+    .filter((entry) => entry.type === "clinical-note")
+    .slice(0, 8)
+    .map((entry) => {
+      const title = entry.title || "Nota clinica";
+      const body = entry.description || "Sin detalle adicional.";
+      return `${formatDateTime(entry.createdAt)} | ${title}: ${body}`;
+    });
+
+  const dataRows = [
+    ["Nombre completo", patient.name || "-"],
+    ["Edad", String(patient.age || "-")],
+    ["Sexo", patient.sex || "-"],
+    ["Fecha de nacimiento", formatDate(patient.birthDate)],
+    ["Telefono", patient.phone || "-"],
+    ["Ubicacion", patient.location || "-"],
+    ["Ocupacion", patient.occupation || "-"],
+    ["Cirujano dentista", patient.dentistName || "-"],
+    ["Fecha de consulta", formatDate(patient.consultationDate)],
+    ["Proxima fecha de consulta", formatDate(patient.nextConsultationDate)],
+    ["Inicio de tratamiento", formatDate(patient.treatmentStart)],
+    ["Cepillados por dia", String(patient.brushTimes || "-")],
+    ["Usa hilo dental", patient.flossHabit || "-"],
+    ["Tiene caries", patient.hasCaries || "-"],
+    ["Alergias", patient.allergies || "-"],
+    ["Medicamentos", patient.medications || "-"],
+    ["Otras condiciones", patient.otherConditions || "-"],
+    ["Folio/referencia", patient.clinicalRecordReference || "-"]
+  ];
+
+  const rowsHtml = dataRows
+    .map(
+      ([key, value]) => `
+        <tr>
+          <th>${escapeHtml(key)}</th>
+          <td>${escapeHtml(value)}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  const focusHtml = buildSimpleList(recordType.focus, "Sin campos sugeridos.");
+  const systemicHtml = buildSimpleList(systemicPathologies, "Sin patologias generales seleccionadas.");
+  const toothHtml = buildSimpleList(toothMarks, "Sin marcas en piezas del odontograma.");
+  const zoneHtml = buildSimpleList(zoneMarks, "Sin marcas en zonas generales.");
+  const appointmentsHtml = buildSimpleList(appointments, "Sin citas agendadas.");
+  const notesHtml = buildSimpleList(recentNotes, "Sin notas clinicas registradas.");
+
+  return `
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(recordType.label)}</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: #0f172a;
+      margin: 26px;
+      line-height: 1.45;
+      font-size: 12px;
+    }
+    h1, h2, h3 {
+      margin: 0;
+      color: #0b2f4a;
+    }
+    .doc-head {
+      border: 2px solid #0b2f4a;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #eff6ff;
+    }
+    .doc-head small {
+      display: block;
+      margin-top: 4px;
+      color: #334155;
+    }
+    .section {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      page-break-inside: avoid;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 6px;
+      vertical-align: top;
+    }
+    th {
+      width: 35%;
+      text-align: left;
+      background: #f8fafc;
+    }
+    ul {
+      margin: 6px 0 0;
+      padding-left: 18px;
+    }
+    .signatures {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .line {
+      border-top: 1px solid #334155;
+      padding-top: 5px;
+      min-height: 30px;
+      font-size: 11px;
+    }
+    @media print {
+      body { margin: 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <header class="doc-head">
+    <h1>ARETE - Historia clinica odontologica</h1>
+    <h2>${escapeHtml(recordType.label)}</h2>
+    <small>Generado: ${escapeHtml(new Date().toLocaleString("es-MX"))}</small>
+    <small>Base documental: UV Veracruz - Tipos de historias clinicas por area.</small>
+  </header>
+
+  <section class="section">
+    <h3>Datos capturados del paciente</h3>
+    <table>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="section">
+    <h3>Campos sugeridos para este formato</h3>
+    ${focusHtml}
+  </section>
+
+  <section class="section">
+    <h3>Patologias y odontograma</h3>
+    <p><strong>Patologias generales:</strong></p>
+    ${systemicHtml}
+    <p><strong>Marcas por pieza:</strong></p>
+    ${toothHtml}
+    <p><strong>Marcas por zona:</strong></p>
+    ${zoneHtml}
+  </section>
+
+  <section class="section">
+    <h3>Agenda y seguimiento clinico</h3>
+    <p><strong>Citas agendadas:</strong></p>
+    ${appointmentsHtml}
+    <p><strong>Notas clinicas recientes:</strong></p>
+    ${notesHtml}
+  </section>
+
+  <section class="signatures">
+    <div class="line">Firma del odontologo</div>
+    <div class="line">Firma del paciente o tutor</div>
+  </section>
+</body>
+</html>
+`;
+}
+
+function getZoneNameById(zoneId) {
+  const zone = ODONTO_ZONES.find((entry) => entry.id === zoneId);
+  return zone ? zone.name : zoneId;
+}
+
+function summarizeOdontogramEntries(marks, labelPrefix, keyToText) {
+  if (!marks || typeof marks !== "object") {
+    return [];
+  }
+  const entries = [];
+  for (const key of Object.keys(marks)) {
+    const statusLabels = normalizeMarkList(marks[key])
+      .map((statusId) => getStatusById(statusId)?.name || "")
+      .filter(Boolean);
+    if (statusLabels.length === 0) {
+      continue;
+    }
+    const keyLabel = typeof keyToText === "function" ? keyToText(key) : key;
+    entries.push(`${labelPrefix} ${keyLabel}: ${statusLabels.join(", ")}`);
+  }
+  return entries;
+}
+
+function buildSimpleList(items, emptyText) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return `<ul><li>${escapeHtml(emptyText)}</li></ul>`;
+  }
+  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+}
+
+function sanitizeFileName(value) {
+  return String(value || "archivo")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 80) || "archivo";
 }
 
 function setFormTitle() {

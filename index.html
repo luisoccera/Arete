@@ -55,6 +55,7 @@
                 <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
               </div>
               <div class="form-actions">
+                <button type="button" id="openPathologiesBtn" class="btn btn-secondary">Patologias</button>
                 <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
                 <button type="button" id="deleteCurrentPatientBtn" class="btn btn-danger" disabled>Eliminar paciente</button>
               </div>
@@ -187,7 +188,7 @@
                 </div>
               </section>
 
-              <section class="card">
+              <section class="card" id="pathologiesCard">
                 <h3>Enfermedades del paciente (con color)</h3>
                 <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
                 <div id="diseaseChecklist" class="tag-grid"></div>
@@ -267,6 +268,39 @@
         </div>
 
         <section class="panel panel-history">
+          <section class="card clinical-doc-card">
+            <div class="card-title-row">
+              <h3>Historia clinica imprimible</h3>
+              <div class="doc-actions">
+                <button type="button" id="printClinicalDocBtn" class="btn btn-secondary">Imprimir</button>
+                <button type="button" id="exportClinicalDocBtn" class="btn btn-primary">Descargar .doc</button>
+              </div>
+            </div>
+            <p class="card-help">Selecciona el tipo de historia clinica del documento UV y genera el archivo con los datos capturados.</p>
+            <div class="form-grid">
+              <label class="field">
+                <span>Tipo de historia clinica</span>
+                <select id="clinicalRecordType">
+                  <option value="f1-estomatologica">Formato 1 - Historia clinica estomatologica</option>
+                  <option value="f2-preventiva">Formato 2 - Estomatologia preventiva</option>
+                  <option value="f3-operatoria">Formato 3 - Operatoria dental</option>
+                  <option value="f4-protesis-fija">Formato 4 - Protesis fija</option>
+                  <option value="f5-protesis-removible">Formato 5 - Protesis removible</option>
+                  <option value="f6-prostodoncia">Formato 6 - Prostodoncia total/parcial</option>
+                  <option value="f7-cirugia-bucal">Formato 7 - Cirugia bucal</option>
+                  <option value="f8-periodoncia">Formato 8 - Periodoncia</option>
+                  <option value="f9-endodoncia">Formato 9 - Endodoncia</option>
+                  <option value="f10-ortodoncia">Formato 10 - Ortodoncia y ortopedia maxilar</option>
+                  <option value="f11-odontopediatria">Formato 11 - Odontopediatria</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Folio o referencia (opcional)</span>
+                <input type="text" id="clinicalRecordReference" placeholder="Ejemplo: F-1 / EXP-2026-001">
+              </label>
+            </div>
+          </section>
+
           <div class="card-title-row">
             <h3>Historial clinico del paciente</h3>
             <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>

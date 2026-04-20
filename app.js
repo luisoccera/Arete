@@ -107,6 +107,70 @@ const CLINICAL_RECORD_TYPES = [
   }
 ];
 
+const CLINICAL_FORMAT_START_PAGES = {
+  "f1-estomatologica": 1,
+  "f2-preventiva": 13,
+  "f3-operatoria": 17,
+  "f4-protesis-fija": 21,
+  "f5-protesis-removible": 23,
+  "f6-prostodoncia": 25,
+  "f7-cirugia-bucal": 27,
+  "f8-periodoncia": 31,
+  "f9-endodoncia": 37,
+  "f10-ortodoncia": 41,
+  "f11-odontopediatria": 53
+};
+
+const CLINICAL_FORMAT_ORDER = Object.keys(CLINICAL_FORMAT_START_PAGES);
+
+const CLINICAL_PDF_LABEL_RULES = [
+  { matches: ["apellido paterno"], value: "lastNameFather" },
+  { matches: ["apellido materno"], value: "lastNameMother" },
+  { matches: ["nombre(s)"], value: "firstNames" },
+  { matches: ["nombre del paciente"], value: "fullName", maxPerPage: 2 },
+  { matches: ["nombre completo"], value: "fullName", maxPerPage: 2 },
+  { matches: ["paciente"], value: "fullName", exact: true, maxPerPage: 1, dx: 28 },
+  { matches: ["edad"], value: "ageText", exact: true, maxPerPage: 2 },
+  { matches: ["anos"], value: "ageYears", exact: true, maxPerPage: 2 },
+  { matches: ["meses"], value: "ageMonths", exact: true, maxPerPage: 2 },
+  { matches: ["genero"], value: "sexLabel", exact: true, maxPerPage: 2 },
+  { matches: ["sexo"], value: "sexLabel", exact: true, maxPerPage: 2 },
+  { matches: ["masculino"], mark: (ctx) => ctx.isMale, exact: true, dx: -10, dy: 1, size: 10, maxPerPage: 1 },
+  { matches: ["femenino"], mark: (ctx) => ctx.isFemale, exact: true, dx: -10, dy: 1, size: 10, maxPerPage: 1 },
+  { matches: ["lugar y fecha de nacimiento"], value: "birthPlaceDate", maxWidth: 230, maxLines: 2 },
+  { matches: ["(estado)"], value: "locationShort", maxPerPage: 1 },
+  { matches: ["(ciudad)"], value: "locationShort", maxPerPage: 1 },
+  { matches: ["ocupacion"], value: "occupation", maxPerPage: 2 },
+  { matches: ["escolaridad"], value: "occupationAlt", maxPerPage: 1 },
+  { matches: ["estado civil"], value: "civilStatus", maxPerPage: 1 },
+  { matches: ["domicilio: calle"], value: "location", maxWidth: 220, maxLines: 2 },
+  { matches: ["direccion"], value: "location", maxWidth: 220, maxLines: 2 },
+  { matches: ["domicilio"], value: "location", maxPerPage: 1, maxWidth: 220, maxLines: 2 },
+  { matches: ["colonia"], value: "locationShort", maxPerPage: 1 },
+  { matches: ["estado"], value: "locationShort", exact: true, maxPerPage: 1 },
+  { matches: ["mpio"], value: "locationShort", maxPerPage: 1 },
+  { matches: ["delegacion"], value: "locationShort", maxPerPage: 1 },
+  { matches: ["telefono de oficina"], value: "phone", maxPerPage: 1 },
+  { matches: ["telefono"], value: "phone", maxPerPage: 2 },
+  { matches: ["fecha"], value: "consultDateLabel", maxPerPage: 2 },
+  { matches: ["dia"], value: "consultDay", exact: true, maxPerPage: 2 },
+  { matches: ["mes"], value: "consultMonth", exact: true, maxPerPage: 2 },
+  { matches: ["ano"], value: "consultYear", exact: true, maxPerPage: 2 },
+  { matches: ["nombre del medico familiar"], value: "dentistName", maxPerPage: 1, maxWidth: 200 },
+  { matches: ["nombre del solicitante"], value: "dentistName", maxPerPage: 1, maxWidth: 200 },
+  { matches: ["nombre de doctor"], value: "dentistName", maxPerPage: 1, maxWidth: 200 },
+  { matches: ["diagnostico"], value: "diagnosis", maxWidth: 235, maxLines: 3, maxPerPage: 2 },
+  { matches: ["pronostico"], value: "prognosis", maxWidth: 220, maxLines: 2, maxPerPage: 1 },
+  { matches: ["plan de tratamiento"], value: "treatmentPlan", maxWidth: 240, maxLines: 3, maxPerPage: 2 },
+  { matches: ["motivo de consulta"], value: "consultReason", maxWidth: 220, maxLines: 3, maxPerPage: 1 },
+  { matches: ["padecimiento actual"], value: "consultReason", maxWidth: 220, maxLines: 3, maxPerPage: 1 },
+  { matches: ["medicamentos"], value: "medications", maxWidth: 210, maxLines: 2, maxPerPage: 1 },
+  { matches: ["alergias"], value: "allergies", maxWidth: 210, maxLines: 2, maxPerPage: 2 },
+  { matches: ["antecedentes"], value: "background", maxWidth: 230, maxLines: 3, maxPerPage: 2 },
+  { matches: ["observaciones"], value: "notes", maxWidth: 230, maxLines: 3, maxPerPage: 2 },
+  { matches: ["odontograma"], value: "odontoSummary", maxWidth: 230, maxLines: 2, maxPerPage: 1 }
+];
+
 const el = {
   newPatientBtn: document.getElementById("newPatientBtn"),
   openPathologiesBtn: document.getElementById("openPathologiesBtn"),
@@ -186,6 +250,9 @@ let remotePersistTimer = null;
 let remotePersistInFlight = false;
 let remotePersistPending = false;
 const apiBaseUrl = resolveApiBaseUrl();
+let clientPdfModulesPromise = null;
+let clientTemplateBytesPromise = null;
+let clientTemplateTextPromise = null;
 
 init();
 
@@ -1979,10 +2046,6 @@ function getClinicalRecordTypeById(id) {
 }
 
 async function requestOfficialClinicalPdf() {
-  if (!apiBaseUrl) {
-    throw new Error("Para llenar el PDF oficial debes abrir la app desde el backend (http://localhost:3001).");
-  }
-
   const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
   const payload = {
     formatId: recordType.id,
@@ -1993,31 +2056,418 @@ async function requestOfficialClinicalPdf() {
     }
   };
 
-  const response = await apiRequest(
-    "/api/clinical-pdf",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    },
-    35000
-  );
-
-  if (!response.ok) {
-    let detail = "";
+  let backendError = "";
+  if (apiBaseUrl) {
     try {
-      const data = await response.json();
-      detail = data?.error || data?.detail || "";
+      const response = await apiRequest(
+        "/api/clinical-pdf",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        },
+        35000
+      );
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get("content-disposition") || "";
+        const fileName = extractFilenameFromDisposition(contentDisposition);
+        return { blob, fileName, recordType };
+      }
+
+      let detail = "";
+      try {
+        const data = await response.json();
+        detail = data?.error || data?.detail || "";
+      } catch {
+        detail = await response.text();
+      }
+      backendError = detail || "El backend no pudo generar el PDF oficial.";
     } catch {
-      detail = await response.text();
+      backendError = "No se pudo conectar con el backend para generar el PDF oficial.";
     }
-    throw new Error(detail || "El backend no pudo generar el PDF oficial.");
   }
 
-  const blob = await response.blob();
-  const contentDisposition = response.headers.get("content-disposition") || "";
-  const fileName = extractFilenameFromDisposition(contentDisposition);
-  return { blob, fileName, recordType };
+  try {
+    const localResult = await generateOfficialClinicalPdfInBrowser(payload);
+    return { ...localResult, recordType };
+  } catch (error) {
+    const localMessage = error?.message || "No se pudo generar el PDF en el navegador.";
+    if (backendError) {
+      throw new Error(`${backendError} ${localMessage}`);
+    }
+    throw new Error(localMessage);
+  }
+}
+
+async function generateOfficialClinicalPdfInBrowser(payload) {
+  const { pdfLib, pdfjsLib } = await loadClientPdfModules();
+  const templateBytes = await loadClientTemplateBytes();
+  const textData = await loadClientTemplateTextData(pdfjsLib, templateBytes);
+  const selected = resolveClinicalFormatRange(payload?.formatId, textData.totalPages);
+  const context = buildClinicalPdfContext(payload?.patient, payload?.dictionaries, selected.formatId);
+
+  const sourcePdf = await pdfLib.PDFDocument.load(templateBytes, { ignoreEncryption: true });
+  const targetPdf = await pdfLib.PDFDocument.create();
+  const sourcePageNumbers = [];
+  for (let p = selected.start; p <= selected.end; p += 1) {
+    sourcePageNumbers.push(p);
+  }
+
+  const copiedPages = await targetPdf.copyPages(sourcePdf, sourcePageNumbers.map((p) => p - 1));
+  copiedPages.forEach((page) => targetPdf.addPage(page));
+
+  const font = await targetPdf.embedFont(pdfLib.StandardFonts.Helvetica);
+  copiedPages.forEach((page, idx) => {
+    const sourcePageNo = sourcePageNumbers[idx];
+    const items = textData.pages[sourcePageNo] || [];
+
+    for (const rule of CLINICAL_PDF_LABEL_RULES) {
+      const rawValue = rule.mark ? Boolean(rule.mark(context)) : context[rule.value];
+      const value = rule.mark ? (rawValue ? "X" : "") : String(rawValue || "").trim();
+      if (!value) {
+        continue;
+      }
+
+      let hits = 0;
+      const maxHits = rule.maxPerPage || 1;
+      for (const item of items) {
+        if (!matchClinicalPdfItem(item.norm, rule)) {
+          continue;
+        }
+        drawClinicalPdfRule(page, font, value, item, rule, pdfLib);
+        hits += 1;
+        if (hits >= maxHits) {
+          break;
+        }
+      }
+    }
+  });
+
+  const pdfBytes = await targetPdf.save();
+  const fileName = `${sanitizeFileName(context.fullName || "paciente")}-${selected.formatId}.pdf`;
+  return {
+    blob: new Blob([pdfBytes], { type: "application/pdf" }),
+    fileName
+  };
+}
+
+async function loadClientPdfModules() {
+  if (!clientPdfModulesPromise) {
+    clientPdfModulesPromise = Promise.all([
+      import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm"),
+      import("https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.mjs")
+    ]).then(([pdfLib, pdfjsLib]) => {
+      if (pdfjsLib?.GlobalWorkerOptions) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.mjs";
+      }
+      return { pdfLib, pdfjsLib };
+    }).catch((error) => {
+      clientPdfModulesPromise = null;
+      throw error;
+    });
+  }
+  return clientPdfModulesPromise;
+}
+
+async function loadClientTemplateBytes() {
+  if (!clientTemplateBytesPromise) {
+    const templateUrl = new URL("./data/uv-historias.pdf", window.location.href).toString();
+    clientTemplateBytesPromise = fetch(templateUrl, { cache: "no-store" })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("No se encontro la plantilla UV (data/uv-historias.pdf).");
+        }
+        return response.arrayBuffer();
+      })
+      .then((buffer) => new Uint8Array(buffer))
+      .catch((error) => {
+        clientTemplateBytesPromise = null;
+        throw error;
+      });
+  }
+  return clientTemplateBytesPromise;
+}
+
+async function loadClientTemplateTextData(pdfjsLib, templateBytes) {
+  if (!clientTemplateTextPromise) {
+    clientTemplateTextPromise = (async () => {
+      const doc = await pdfjsLib.getDocument({ data: templateBytes, useSystemFonts: true }).promise;
+      const pages = {};
+      for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
+        const page = await doc.getPage(pageNo);
+        const content = await page.getTextContent();
+        pages[pageNo] = content.items
+          .map((item) => {
+            const raw = String(item?.str || "").trim();
+            if (!raw) {
+              return null;
+            }
+            return {
+              raw,
+              norm: normalizeClinicalPdfText(raw),
+              x: Number(item.transform?.[4] || 0),
+              y: Number(item.transform?.[5] || 0),
+              w: Number(item.width || 0)
+            };
+          })
+          .filter(Boolean);
+      }
+      return { totalPages: doc.numPages, pages };
+    })().catch((error) => {
+      clientTemplateTextPromise = null;
+      throw error;
+    });
+  }
+  return clientTemplateTextPromise;
+}
+
+function resolveClinicalFormatRange(formatId, totalPages) {
+  const safeId = CLINICAL_FORMAT_START_PAGES[formatId] ? formatId : CLINICAL_FORMAT_ORDER[0];
+  const start = CLINICAL_FORMAT_START_PAGES[safeId];
+  const idx = CLINICAL_FORMAT_ORDER.indexOf(safeId);
+  const nextId = CLINICAL_FORMAT_ORDER[idx + 1];
+  const end = nextId ? CLINICAL_FORMAT_START_PAGES[nextId] - 1 : totalPages;
+  return { formatId: safeId, start, end };
+}
+
+function normalizeClinicalPdfText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9()\/\s.-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseDatePartsForClinicalPdf(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return { day: "", month: "", year: "", label: "-" };
+  }
+
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) {
+    return { day: iso[3], month: iso[2], year: iso[1], label: `${iso[3]}/${iso[2]}/${iso[1]}` };
+  }
+
+  const latin = text.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (latin) {
+    const day = latin[1].padStart(2, "0");
+    const month = latin[2].padStart(2, "0");
+    return { day, month, year: latin[3], label: `${day}/${month}/${latin[3]}` };
+  }
+
+  return { day: "", month: "", year: "", label: text };
+}
+
+function splitClinicalFullName(fullName) {
+  const words = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return { firstNames: "", lastNameFather: "", lastNameMother: "" };
+  }
+  if (words.length === 1) {
+    return { firstNames: words[0], lastNameFather: "", lastNameMother: "" };
+  }
+  if (words.length === 2) {
+    return { firstNames: words[0], lastNameFather: words[1], lastNameMother: "" };
+  }
+  return {
+    firstNames: words.slice(0, -2).join(" "),
+    lastNameFather: words[words.length - 2],
+    lastNameMother: words[words.length - 1]
+  };
+}
+
+function truncateClinicalText(value, max) {
+  const text = String(value || "").trim();
+  if (!max || text.length <= max) {
+    return text;
+  }
+  return `${text.slice(0, max - 1)}…`;
+}
+
+function summarizeClinicalList(items, maxItems) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (list.length === 0) {
+    return "";
+  }
+  const shown = list.slice(0, maxItems || list.length);
+  const suffix = list.length > shown.length ? ` (+${list.length - shown.length})` : "";
+  return `${shown.join(", ")}${suffix}`;
+}
+
+function summarizeClinicalOdontogram(patient, statusMap) {
+  const marks = [];
+  const teeth = patient?.odontogram?.teeth || {};
+  const zones = patient?.odontogram?.zones || {};
+
+  for (const key of Object.keys(teeth)) {
+    const ids = Array.isArray(teeth[key]) ? teeth[key] : [];
+    const names = ids.map((id) => statusMap.get(id) || id).filter(Boolean);
+    if (names.length > 0) {
+      marks.push(`Pieza ${key}: ${names.join("/")}`);
+    }
+  }
+  for (const key of Object.keys(zones)) {
+    const ids = Array.isArray(zones[key]) ? zones[key] : [];
+    const names = ids.map((id) => statusMap.get(id) || id).filter(Boolean);
+    if (names.length > 0) {
+      marks.push(`Zona ${key}: ${names.join("/")}`);
+    }
+  }
+
+  return summarizeClinicalList(marks, 4);
+}
+
+function summarizeClinicalNotes(patient) {
+  const entries = Array.isArray(patient?.historyEntries) ? patient.historyEntries : [];
+  const texts = entries
+    .filter((entry) => String(entry?.type || "") === "clinical-note")
+    .slice(0, 3)
+    .map((entry) => {
+      const title = String(entry?.title || "").trim();
+      const body = String(entry?.description || "").trim();
+      return [title, body].filter(Boolean).join(": ");
+    })
+    .filter(Boolean);
+  return summarizeClinicalList(texts, 3);
+}
+
+function buildClinicalPdfContext(patientInput, dictionaries) {
+  const patient = normalizePatient(patientInput || {});
+  const fullName = String(patient.name || "").trim();
+  const nameParts = splitClinicalFullName(fullName);
+  const consultDate = parseDatePartsForClinicalPdf(patient.consultationDate || patient.nextConsultationDate || "");
+  const birthDate = parseDatePartsForClinicalPdf(patient.birthDate || "");
+
+  const diseaseMap = new Map((dictionaries?.diseases || []).map((entry) => [entry.id, entry.name]));
+  const statusMap = new Map((dictionaries?.toothStatuses || []).map((entry) => [entry.id, entry.name]));
+  const diseaseNames = (Array.isArray(patient.diseaseIds) ? patient.diseaseIds : [])
+    .map((id) => diseaseMap.get(id) || "")
+    .filter(Boolean);
+  const diseaseSummary = summarizeClinicalList(diseaseNames, 6);
+  const odontoSummary = summarizeClinicalOdontogram(patient, statusMap);
+  const notes = summarizeClinicalNotes(patient);
+
+  const sexText = String(patient.sex || "").toLowerCase();
+  const isMale = sexText.includes("masc");
+  const isFemale = sexText.includes("fem");
+  const consultationReason = String(patient.otherConditions || "").trim() || String(patient.medications || "").trim();
+  const background = [patient.allergies, patient.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
+
+  return {
+    fullName,
+    firstNames: nameParts.firstNames,
+    lastNameFather: nameParts.lastNameFather,
+    lastNameMother: nameParts.lastNameMother,
+    ageText: String(patient.age || "").trim(),
+    ageYears: String(patient.age || "").trim(),
+    ageMonths: "",
+    sexLabel: String(patient.sex || "").trim(),
+    isMale,
+    isFemale,
+    birthPlaceDate: [String(patient.location || "").trim(), birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
+    location: String(patient.location || "").trim(),
+    locationShort: String(patient.location || "").trim(),
+    occupation: String(patient.occupation || "").trim(),
+    occupationAlt: String(patient.occupation || "").trim(),
+    civilStatus: "No especificado",
+    phone: String(patient.phone || "").trim(),
+    dentistName: String(patient.dentistName || "").trim(),
+    consultDateLabel: consultDate.label,
+    consultDay: consultDate.day,
+    consultMonth: consultDate.month,
+    consultYear: consultDate.year,
+    diagnosis: truncateClinicalText(diseaseSummary || "Sin patologias generales registradas", 180),
+    prognosis: truncateClinicalText(String(patient.otherConditions || "").trim() || "Reservado", 120),
+    treatmentPlan: truncateClinicalText(
+      [String(patient.treatmentStart || "").trim() ? `Inicio: ${patient.treatmentStart}` : "", String(patient.otherConditions || "").trim()]
+        .filter(Boolean)
+        .join(" | ") || "Segun valoracion clinica.",
+      180
+    ),
+    consultReason: truncateClinicalText(consultationReason || "Control clinico", 170),
+    medications: truncateClinicalText(String(patient.medications || "").trim(), 170),
+    allergies: truncateClinicalText(String(patient.allergies || "").trim(), 170),
+    background: truncateClinicalText(background || "Sin antecedentes relevantes.", 180),
+    notes: truncateClinicalText(notes || "Sin observaciones clinicas adicionales.", 170),
+    odontoSummary: truncateClinicalText(odontoSummary || "Sin marcas registradas.", 170)
+  };
+}
+
+function matchClinicalPdfItem(itemNorm, rule) {
+  for (const raw of rule.matches || []) {
+    const token = normalizeClinicalPdfText(raw);
+    if (!token) {
+      continue;
+    }
+    if (rule.exact) {
+      if (itemNorm === token) {
+        return true;
+      }
+    } else if (itemNorm.includes(token)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function wrapClinicalPdfText(font, text, size, maxWidth) {
+  if (!maxWidth) {
+    return [text];
+  }
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  if (words.length === 0) {
+    return [];
+  }
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word;
+    const width = font.widthOfTextAtSize(candidate, size);
+    if (width <= maxWidth || !current) {
+      current = candidate;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  }
+  if (current) {
+    lines.push(current);
+  }
+  return lines;
+}
+
+function drawClinicalPdfRule(page, font, value, item, rule, pdfLib) {
+  const size = rule.size || 7.4;
+  let x = (item.x || 0) + (item.w || 0) + (rule.dx || 6);
+  const y = (item.y || 0) + (rule.dy || -1);
+  const maxWidth = rule.maxWidth || 190;
+  const pageWidth = page.getWidth();
+  if (x > pageWidth - 40) {
+    x = Math.max(40, pageWidth - (maxWidth + 16));
+  }
+
+  const lines = wrapClinicalPdfText(font, String(value || ""), size, rule.maxWidth || 0);
+  const maxLines = rule.maxLines || 2;
+  const lineHeight = rule.lineHeight || size + 1.1;
+  if (!rule.maxWidth) {
+    page.drawText(lines[0] || "", { x, y, size, font, color: pdfLib.rgb(0, 0, 0) });
+    return;
+  }
+
+  lines.slice(0, maxLines).forEach((line, idx) => {
+    page.drawText(line, {
+      x,
+      y: y - idx * lineHeight,
+      size,
+      font,
+      color: pdfLib.rgb(0, 0, 0)
+    });
+  });
 }
 
 function extractFilenameFromDisposition(disposition) {

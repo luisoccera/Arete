@@ -897,6 +897,12 @@ tbody tr.active {
   color: #a5cbe2;
 }
 
+.jaw-standard {
+  margin: 0.2rem 0 0;
+  font-size: 0.76rem;
+  color: #88c3e2;
+}
+
 .group-title {
   margin: 0 0 0.35rem;
   font-size: 0.86rem;
@@ -1096,6 +1102,10 @@ tbody tr.active {
 
   .jaw-help {
     font-size: 0.72rem;
+  }
+
+  .jaw-standard {
+    font-size: 0.68rem;
   }
 
   .jaw-help::after {

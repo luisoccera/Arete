@@ -3,12 +3,16 @@
 const STORAGE_KEY = "arete_data_v1";
 const DENTITION_LAYOUTS = {
   adult: {
-    label: "Denticion adulta",
+    label: "Denticion adulta comun",
+    centerLabel: "Odontograma adulto comun",
+    commonHint: "Formato comun FDI: adulto de 32 piezas.",
     upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
     lower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
   },
   child: {
-    label: "Denticion infantil",
+    label: "Denticion infantil comun",
+    centerLabel: "Odontograma infantil comun",
+    commonHint: "Formato comun FDI: infantil de 20 piezas.",
     upper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
     lower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
   }
@@ -69,6 +73,7 @@ const el = {
   lowerJawArc: document.getElementById("lowerJawArc"),
   zoneList: document.getElementById("zoneList"),
   dentitionLabel: document.getElementById("dentitionLabel"),
+  dentitionStandardHint: document.getElementById("dentitionStandardHint"),
   dentitionSwitchButtons: Array.from(document.querySelectorAll("[data-dentition]")),
   clearOdontogramBtn: document.getElementById("clearOdontogramBtn"),
   quickAddStatusBtn: document.getElementById("quickAddStatusBtn"),
@@ -1071,7 +1076,10 @@ function renderDentitionSwitch() {
 function renderOdontogram() {
   const mode = getCurrentDentitionMode();
   const layout = DENTITION_LAYOUTS[mode];
-  el.dentitionLabel.textContent = layout.label;
+  el.dentitionLabel.textContent = layout.centerLabel || layout.label;
+  if (el.dentitionStandardHint) {
+    el.dentitionStandardHint.textContent = layout.commonHint || "";
+  }
 
   renderJawArc(el.upperJawArc, layout.upper, "upper", mode);
   renderJawArc(el.lowerJawArc, layout.lower, "lower", mode);

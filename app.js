@@ -1902,279 +1902,136 @@ function focusPathologiesSection() {
   setFeedback("Seccion de patologias lista para editar.");
 }
 
-function downloadClinicalDocument() {
+async function downloadClinicalDocument() {
   syncDraftFromForm();
   ensureDraftOdontogram();
 
   if (!draftPatient.name) {
-    setFeedback("Primero captura el nombre del paciente para generar el documento.", "error");
+    setFeedback("Primero captura el nombre del paciente para generar el PDF.", "error");
     el.patientName.focus();
     return;
   }
 
-  const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
-  const html = buildClinicalDocumentHtml(draftPatient, recordType);
-  const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
-  const link = document.createElement("a");
-  const now = getTodayInputDate();
-  const filenameSafe = sanitizeFileName(draftPatient.name || "paciente");
-  link.href = URL.createObjectURL(blob);
-  link.download = `${filenameSafe}-${recordType.id}-${now}.doc`;
-  link.click();
-  URL.revokeObjectURL(link.href);
-
-  persistDraftPatientIfEditing();
-  setFeedback(`Documento ${recordType.label} generado en .doc.`);
+  try {
+    const { blob, fileName, recordType } = await requestOfficialClinicalPdf();
+    const link = document.createElement("a");
+    const objectUrl = URL.createObjectURL(blob);
+    link.href = objectUrl;
+    link.download = fileName || `${sanitizeFileName(draftPatient.name || "paciente")}-${recordType.id}.pdf`;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+    persistDraftPatientIfEditing();
+    setFeedback(`PDF oficial "${recordType.label}" generado correctamente.`);
+  } catch (error) {
+    console.error(error);
+    setFeedback(error.message || "No se pudo generar el PDF oficial.", "error");
+  }
 }
 
-function printClinicalDocument() {
+async function printClinicalDocument() {
   syncDraftFromForm();
   ensureDraftOdontogram();
 
   if (!draftPatient.name) {
-    setFeedback("Primero captura el nombre del paciente para imprimir el documento.", "error");
+    setFeedback("Primero captura el nombre del paciente para imprimir el PDF.", "error");
     el.patientName.focus();
     return;
   }
 
+  let objectUrl = "";
   const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
-  const html = buildClinicalDocumentHtml(draftPatient, recordType);
-  const printWindow = window.open("", "_blank", "noopener,noreferrer,width=1080,height=820");
-  if (!printWindow) {
-    setFeedback("No se pudo abrir la ventana de impresion. Revisa el bloqueo de ventanas emergentes.", "error");
-    return;
-  }
-
-  printWindow.document.open();
-  printWindow.document.write(html);
-  printWindow.document.close();
-  printWindow.focus();
-  window.setTimeout(() => {
-    try {
-      printWindow.print();
-    } catch (error) {
-      console.error(error);
+  try {
+    const result = await requestOfficialClinicalPdf();
+    objectUrl = URL.createObjectURL(result.blob);
+    const printWindow = window.open(objectUrl, "_blank", "noopener,noreferrer");
+    if (!printWindow) {
+      URL.revokeObjectURL(objectUrl);
+      setFeedback("No se pudo abrir la ventana de impresion. Revisa el bloqueo de ventanas emergentes.", "error");
+      return;
     }
-  }, 450);
 
-  persistDraftPatientIfEditing();
-  setFeedback(`Vista de impresion lista para ${recordType.label}.`);
+    window.setTimeout(() => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+      }
+    }, 650);
+
+    persistDraftPatientIfEditing();
+    setFeedback(`PDF oficial de ${recordType.label} abierto para impresion.`);
+  } catch (error) {
+    console.error(error);
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
+    setFeedback(error.message || "No se pudo preparar el PDF para imprimir.", "error");
+  }
 }
 
 function getClinicalRecordTypeById(id) {
   return CLINICAL_RECORD_TYPES.find((type) => type.id === id) || CLINICAL_RECORD_TYPES[0];
 }
 
-function buildClinicalDocumentHtml(patientInput, recordType) {
-  const patient = normalizePatient(patientInput);
-  const systemicPathologies = (patient.diseaseIds || [])
-    .map((diseaseId) => getDiseaseById(diseaseId)?.name || "")
-    .filter(Boolean);
-  const toothMarks = summarizeOdontogramEntries(patient.odontogram?.teeth, "pieza");
-  const zoneMarks = summarizeOdontogramEntries(patient.odontogram?.zones, "zona", getZoneNameById);
-  const appointments = normalizeAppointments(patient.appointments).map((entry) => {
-    const dateLabel = formatDate(entry.date);
-    const timeLabel = entry.time ? ` ${entry.time}` : "";
-    const reasonLabel = entry.reason ? ` - ${entry.reason}` : "";
-    return `${dateLabel}${timeLabel}${reasonLabel}`;
-  });
-  const recentNotes = normalizeHistoryEntries(patient.historyEntries)
-    .filter((entry) => entry.type === "clinical-note")
-    .slice(0, 8)
-    .map((entry) => {
-      const title = entry.title || "Nota clinica";
-      const body = entry.description || "Sin detalle adicional.";
-      return `${formatDateTime(entry.createdAt)} | ${title}: ${body}`;
-    });
+async function requestOfficialClinicalPdf() {
+  if (!apiBaseUrl) {
+    throw new Error("Para llenar el PDF oficial debes abrir la app desde el backend (http://localhost:3001).");
+  }
 
-  const dataRows = [
-    ["Nombre completo", patient.name || "-"],
-    ["Edad", String(patient.age || "-")],
-    ["Sexo", patient.sex || "-"],
-    ["Fecha de nacimiento", formatDate(patient.birthDate)],
-    ["Telefono", patient.phone || "-"],
-    ["Ubicacion", patient.location || "-"],
-    ["Ocupacion", patient.occupation || "-"],
-    ["Cirujano dentista", patient.dentistName || "-"],
-    ["Fecha de consulta", formatDate(patient.consultationDate)],
-    ["Proxima fecha de consulta", formatDate(patient.nextConsultationDate)],
-    ["Inicio de tratamiento", formatDate(patient.treatmentStart)],
-    ["Cepillados por dia", String(patient.brushTimes || "-")],
-    ["Usa hilo dental", patient.flossHabit || "-"],
-    ["Tiene caries", patient.hasCaries || "-"],
-    ["Alergias", patient.allergies || "-"],
-    ["Medicamentos", patient.medications || "-"],
-    ["Otras condiciones", patient.otherConditions || "-"],
-    ["Folio/referencia", patient.clinicalRecordReference || "-"]
-  ];
+  const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
+  const payload = {
+    formatId: recordType.id,
+    patient: normalizePatient(draftPatient),
+    dictionaries: {
+      diseases: Array.isArray(state.diseases) ? state.diseases : [],
+      toothStatuses: Array.isArray(state.toothStatuses) ? state.toothStatuses : []
+    }
+  };
 
-  const rowsHtml = dataRows
-    .map(
-      ([key, value]) => `
-        <tr>
-          <th>${escapeHtml(key)}</th>
-          <td>${escapeHtml(value)}</td>
-        </tr>
-      `
-    )
-    .join("");
+  const response = await apiRequest(
+    "/api/clinical-pdf",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    },
+    35000
+  );
 
-  const focusHtml = buildSimpleList(recordType.focus, "Sin campos sugeridos.");
-  const systemicHtml = buildSimpleList(systemicPathologies, "Sin patologias generales seleccionadas.");
-  const toothHtml = buildSimpleList(toothMarks, "Sin marcas en piezas del odontograma.");
-  const zoneHtml = buildSimpleList(zoneMarks, "Sin marcas en zonas generales.");
-  const appointmentsHtml = buildSimpleList(appointments, "Sin citas agendadas.");
-  const notesHtml = buildSimpleList(recentNotes, "Sin notas clinicas registradas.");
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const data = await response.json();
+      detail = data?.error || data?.detail || "";
+    } catch {
+      detail = await response.text();
+    }
+    throw new Error(detail || "El backend no pudo generar el PDF oficial.");
+  }
 
-  return `
-<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(recordType.label)}</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      color: #0f172a;
-      margin: 26px;
-      line-height: 1.45;
-      font-size: 12px;
-    }
-    h1, h2, h3 {
-      margin: 0;
-      color: #0b2f4a;
-    }
-    .doc-head {
-      border: 2px solid #0b2f4a;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 12px;
-      background: #eff6ff;
-    }
-    .doc-head small {
-      display: block;
-      margin-top: 4px;
-      color: #334155;
-    }
-    .section {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 10px;
-      page-break-inside: avoid;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    th, td {
-      border: 1px solid #cbd5e1;
-      padding: 6px;
-      vertical-align: top;
-    }
-    th {
-      width: 35%;
-      text-align: left;
-      background: #f8fafc;
-    }
-    ul {
-      margin: 6px 0 0;
-      padding-left: 18px;
-    }
-    .signatures {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 18px;
-    }
-    .line {
-      border-top: 1px solid #334155;
-      padding-top: 5px;
-      min-height: 30px;
-      font-size: 11px;
-    }
-    @media print {
-      body { margin: 14mm; }
-    }
-  </style>
-</head>
-<body>
-  <header class="doc-head">
-    <h1>ARETE - Historia clinica odontologica</h1>
-    <h2>${escapeHtml(recordType.label)}</h2>
-    <small>Generado: ${escapeHtml(new Date().toLocaleString("es-MX"))}</small>
-    <small>Base documental: UV Veracruz - Tipos de historias clinicas por area.</small>
-  </header>
-
-  <section class="section">
-    <h3>Datos capturados del paciente</h3>
-    <table>
-      <tbody>
-        ${rowsHtml}
-      </tbody>
-    </table>
-  </section>
-
-  <section class="section">
-    <h3>Campos sugeridos para este formato</h3>
-    ${focusHtml}
-  </section>
-
-  <section class="section">
-    <h3>Patologias y odontograma</h3>
-    <p><strong>Patologias generales:</strong></p>
-    ${systemicHtml}
-    <p><strong>Marcas por pieza:</strong></p>
-    ${toothHtml}
-    <p><strong>Marcas por zona:</strong></p>
-    ${zoneHtml}
-  </section>
-
-  <section class="section">
-    <h3>Agenda y seguimiento clinico</h3>
-    <p><strong>Citas agendadas:</strong></p>
-    ${appointmentsHtml}
-    <p><strong>Notas clinicas recientes:</strong></p>
-    ${notesHtml}
-  </section>
-
-  <section class="signatures">
-    <div class="line">Firma del odontologo</div>
-    <div class="line">Firma del paciente o tutor</div>
-  </section>
-</body>
-</html>
-`;
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") || "";
+  const fileName = extractFilenameFromDisposition(contentDisposition);
+  return { blob, fileName, recordType };
 }
 
-function getZoneNameById(zoneId) {
-  const zone = ODONTO_ZONES.find((entry) => entry.id === zoneId);
-  return zone ? zone.name : zoneId;
-}
-
-function summarizeOdontogramEntries(marks, labelPrefix, keyToText) {
-  if (!marks || typeof marks !== "object") {
-    return [];
-  }
-  const entries = [];
-  for (const key of Object.keys(marks)) {
-    const statusLabels = normalizeMarkList(marks[key])
-      .map((statusId) => getStatusById(statusId)?.name || "")
-      .filter(Boolean);
-    if (statusLabels.length === 0) {
-      continue;
+function extractFilenameFromDisposition(disposition) {
+  const value = String(disposition || "");
+  const utfMatch = value.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utfMatch && utfMatch[1]) {
+    try {
+      return decodeURIComponent(utfMatch[1]).replace(/["']/g, "");
+    } catch {
+      return utfMatch[1].replace(/["']/g, "");
     }
-    const keyLabel = typeof keyToText === "function" ? keyToText(key) : key;
-    entries.push(`${labelPrefix} ${keyLabel}: ${statusLabels.join(", ")}`);
   }
-  return entries;
-}
-
-function buildSimpleList(items, emptyText) {
-  if (!Array.isArray(items) || items.length === 0) {
-    return `<ul><li>${escapeHtml(emptyText)}</li></ul>`;
-  }
-  return `<ul>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
+  const match = value.match(/filename=\"?([^\";]+)\"?/i);
+  return match && match[1] ? match[1].trim() : "";
 }
 
 function sanitizeFileName(value) {

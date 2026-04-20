@@ -4,10 +4,12 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { URL } = require("url");
+const { generateClinicalPdf } = require("./clinical_pdf");
 
 const PORT = Number(process.env.PORT || 3001);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const DATA_FILE = path.join(ROOT_DIR, "data", "state.json");
+const CLINICAL_TEMPLATE_FILE = path.join(ROOT_DIR, "data", "uv-historias.pdf");
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 
 const MIME_TYPES = {
@@ -19,7 +21,8 @@ const MIME_TYPES = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".svg": "image/svg+xml",
-  ".ico": "image/x-icon"
+  ".ico": "image/x-icon",
+  ".pdf": "application/pdf"
 };
 
 function sendJson(res, statusCode, payload) {
@@ -196,6 +199,31 @@ async function handleApi(req, res, pathname) {
       sendJson(res, 200, { ok: true, updatedAt: nextState.updatedAt });
     } catch (error) {
       sendJson(res, 400, { error: "JSON invalido", detail: error.message });
+    }
+    return;
+  }
+
+  if (pathname === "/api/clinical-pdf" && req.method === "POST") {
+    try {
+      const payload = await parseJsonBody(req);
+      const result = await generateClinicalPdf({
+        templatePath: CLINICAL_TEMPLATE_FILE,
+        formatId: payload?.formatId,
+        patient: payload?.patient,
+        dictionaries: payload?.dictionaries
+      });
+
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${result.fileName}"`,
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      });
+      res.end(Buffer.from(result.pdfBytes));
+    } catch (error) {
+      sendJson(res, 400, { error: "No se pudo generar el PDF oficial", detail: error.message });
     }
     return;
   }

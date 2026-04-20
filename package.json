@@ -1,8 +1,12 @@
-﻿{
+{
   "name": "arete-odonto",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "start": "node server/index.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^5.6.205"
   }
 }

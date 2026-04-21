@@ -446,7 +446,6 @@ const el = {
   patientImageList: document.getElementById("patientImageList"),
   brushTimes: document.getElementById("brushTimes"),
   flossHabit: document.getElementById("flossHabit"),
-  hasCaries: document.getElementById("hasCaries"),
   otherConditions: document.getElementById("otherConditions")
 };
 
@@ -2529,7 +2528,6 @@ function syncDraftFromForm() {
   draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
   draftPatient.brushTimes = numberOrEmpty(el.brushTimes.value);
   draftPatient.flossHabit = stringOrEmpty(el.flossHabit.value);
-  draftPatient.hasCaries = stringOrEmpty(el.hasCaries.value);
   draftPatient.otherConditions = stringOrEmpty(el.otherConditions.value);
 
   const diseaseInputs = el.diseaseChecklist.querySelectorAll("input[type=\"checkbox\"]");
@@ -2558,7 +2556,6 @@ function hydrateFormFromDraft() {
   el.treatmentStart.value = draftPatient.treatmentStart || "";
   el.brushTimes.value = toInputNumber(draftPatient.brushTimes);
   el.flossHabit.value = draftPatient.flossHabit || "";
-  el.hasCaries.value = draftPatient.hasCaries || "";
   el.otherConditions.value = draftPatient.otherConditions || "";
   renderClinicalFormatFields();
   renderPatientMedia();

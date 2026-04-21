@@ -76,11 +76,11 @@ const CHILD_TOOTH_RENDER_MAP = {
 };
 
 const DEFAULT_DISEASES = [
-  { id: "dis-hipertension", name: "Hipertension", color: "#f59e0b" },
-  { id: "dis-diabetes", name: "Diabetes", color: "#ef4444" },
   { id: "dis-cardiaca", name: "Enfermedad cardiaca", color: "#0ea5e9" },
   { id: "dis-embarazo", name: "Embarazo", color: "#22c55e" }
 ];
+
+const REMOVED_DISEASE_NAME_TOKENS = new Set(["hipertension", "diabetes"]);
 
 const DEFAULT_TOOTH_STATUSES = [
   { id: "st-caries", name: "Caries", color: "#ef4444" },
@@ -737,11 +737,55 @@ function normalizeState(raw) {
   const diseases = normalizeCatalog(raw?.diseases, "dis", "#d97706", base.diseases);
   const toothStatuses = normalizeCatalog(raw?.toothStatuses, "st", "#ef4444", base.toothStatuses);
   const patients = Array.isArray(raw?.patients) ? raw.patients.map(normalizePatient) : [];
+  const cleaned = removeDeprecatedDiseases(diseases, patients);
 
   return {
-    diseases,
+    diseases: cleaned.diseases,
     toothStatuses,
-    patients
+    patients: cleaned.patients
+  };
+}
+
+function normalizeDiseaseFilterToken(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function removeDeprecatedDiseases(diseases, patients) {
+  const blockedIds = new Set();
+  const filteredDiseases = [];
+
+  for (const disease of Array.isArray(diseases) ? diseases : []) {
+    const token = normalizeDiseaseFilterToken(disease?.name);
+    if (REMOVED_DISEASE_NAME_TOKENS.has(token)) {
+      if (typeof disease?.id === "string" && disease.id.trim()) {
+        blockedIds.add(disease.id.trim());
+      }
+      continue;
+    }
+    filteredDiseases.push(disease);
+  }
+
+  if (blockedIds.size === 0) {
+    return {
+      diseases: filteredDiseases,
+      patients: Array.isArray(patients) ? patients : []
+    };
+  }
+
+  const filteredPatients = (Array.isArray(patients) ? patients : []).map((patient) => ({
+    ...patient,
+    diseaseIds: Array.isArray(patient?.diseaseIds)
+      ? patient.diseaseIds.filter((diseaseId) => !blockedIds.has(diseaseId))
+      : []
+  }));
+
+  return {
+    diseases: filteredDiseases,
+    patients: filteredPatients
   };
 }
 

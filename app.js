@@ -5,14 +5,14 @@ const DENTITION_LAYOUTS = {
   adult: {
     label: "Denticion adulta comun",
     centerLabel: "Odontograma adulto comun",
-    commonHint: "Formato comun FDI: adulto de 32 piezas.",
+    commonHint: "Formato FDI permanente: 32 piezas con morfologia por pieza dental.",
     upper: [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28],
     lower: [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
   },
   child: {
     label: "Denticion infantil comun",
     centerLabel: "Odontograma infantil comun",
-    commonHint: "Formato comun FDI: infantil de 20 piezas.",
+    commonHint: "Formato FDI temporal: 20 piezas (55-65 y 85-75) con morfologia por pieza.",
     upper: [55, 54, 53, 52, 51, 61, 62, 63, 64, 65],
     lower: [85, 84, 83, 82, 81, 71, 72, 73, 74, 75]
   }
@@ -28,10 +28,51 @@ const ODONTO_ZONES = [
 ];
 
 const TOOTH_PATHS = {
-  incisor: "M12 15 C12 8 17 4 24 4 C31 4 36 8 36 15 L34 34 C33 41 29 46 24 46 C19 46 15 41 14 34 Z",
-  canine: "M24 3 L31 8 C34 10 36 14 36 19 L34 34 C33 41 29 46 24 46 C19 46 15 41 14 34 L12 19 C12 14 14 10 17 8 Z",
-  premolar: "M10 16 C10 9 15 4 22 4 L26 4 C33 4 38 9 38 16 L36 34 C35 41 30 46 24 46 C18 46 13 41 12 34 Z",
-  molar: "M8 18 C8 10 14 4 22 4 L26 4 C34 4 40 10 40 18 L38 34 C37 41 31 46 24 46 C17 46 11 41 10 34 Z"
+  "adult-upper-incisor-central": "M14 8 C14 4 17 2 24 2 C31 2 34 4 34 8 C34 14 33 19 32 23 L30 35 C29 43 27 48 24 50 C21 48 19 43 18 35 L16 23 C15 19 14 14 14 8 Z",
+  "adult-upper-incisor-lateral": "M15 9 C15 5 18 3 24 3 C30 3 33 5 33 9 C33 14 32 19 31 24 L29 36 C28 44 26 48 24 49 C22 48 20 44 19 36 L17 24 C16 19 15 14 15 9 Z",
+  "adult-lower-incisor-central": "M18 8 C18 4 20 3 24 3 C28 3 30 4 30 8 C30 13 29 17 28 21 L27 36 C26 45 25 49 24 50 C23 49 22 45 21 36 L20 21 C19 17 18 13 18 8 Z",
+  "adult-lower-incisor-lateral": "M17 8 C17 4 20 2 24 2 C29 2 31 4 31 8 C31 13 30 17 29 21 L28 35 C27 44 25 48 23.5 49 C22 48 20 44 19 35 L18 21 C17 17 17 13 17 8 Z",
+  "adult-upper-canine": "M24 2 L30 7 C33 10 34 14 33 19 L31 28 C30 36 27 44 24 50 C21 44 18 36 17 28 L15 19 C14 14 15 10 18 7 Z",
+  "adult-lower-canine": "M24 2 L29 8 C31 11 31 15 30 20 L28 31 C27 39 25.5 46 24 50 C22.5 46 21 39 20 31 L18 20 C17 15 17 11 19 8 Z",
+  "adult-upper-premolar-1": "M12 10 C12 5 16 3 24 3 C32 3 36 5 36 10 C36 16 34 21 33 26 L31 36 C29 44 27 49 24 50 C21 49 19 44 17 36 L15 26 C14 21 12 16 12 10 Z",
+  "adult-upper-premolar-2": "M13 11 C13 6 17 4 24 4 C31 4 35 6 35 11 C35 16 33 21 32 26 L30 36 C28 44 26 49 24 49 C22 49 20 44 18 36 L16 26 C15 21 13 16 13 11 Z",
+  "adult-lower-premolar-1": "M14 11 C14 6 18 4 24 4 C30 4 34 6 34 11 C34 17 32 22 31 27 L29 36 C27 44 25 49 23.5 50 C22 49 20 44 19 36 L17 27 C16 22 14 17 14 11 Z",
+  "adult-lower-premolar-2": "M15 11 C15 7 18 5 24 5 C30 5 33 7 33 11 C33 17 31 22 30 27 L28 36 C26 44 25 49 24 50 C23 49 22 44 20 36 L18 27 C17 22 15 17 15 11 Z",
+  "adult-upper-molar-1": "M9 12 C9 6 15 3 24 3 C33 3 39 6 39 12 C39 18 37 23 35 28 L33 36 C30 44 27 49 24 50 C21 49 18 44 15 36 L13 28 C11 23 9 18 9 12 Z",
+  "adult-upper-molar-2": "M10 12 C10 7 15 4 24 4 C33 4 38 7 38 12 C38 18 36 23 34 28 L32 36 C29 44 26 49 24 49 C22 49 19 44 16 36 L14 28 C12 23 10 18 10 12 Z",
+  "adult-upper-molar-3": "M12 13 C12 8 16 6 24 6 C32 6 36 8 36 13 C36 18 34 23 32 27 L30 35 C28 42 26 47 24 48 C22 47 20 42 18 35 L16 27 C14 23 12 18 12 13 Z",
+  "adult-lower-molar-1": "M10 11 C10 6 15 3 24 3 C33 3 38 6 38 11 C38 16 36 21 34 25 L32 33 C30 42 27 48 24 50 C21 48 18 42 16 33 L14 25 C12 21 10 16 10 11 Z",
+  "adult-lower-molar-2": "M11 11 C11 7 15 4 24 4 C33 4 37 7 37 11 C37 17 35 22 33 26 L31 34 C29 42 26 48 24 49 C22 48 19 42 17 34 L15 26 C13 22 11 17 11 11 Z",
+  "adult-lower-molar-3": "M13 12 C13 8 17 6 24 6 C31 6 35 8 35 12 C35 17 33 22 31 26 L29 33 C27 40 25 46 24 48 C23 46 21 40 19 33 L17 26 C15 22 13 17 13 12 Z",
+  "child-upper-incisor-central": "M16 9 C16 5 19 3 24 3 C29 3 32 5 32 9 C32 14 31 18 30 22 L28 31 C27 37 26 42 24 46 C22 42 21 37 20 31 L18 22 C17 18 16 14 16 9 Z",
+  "child-upper-incisor-lateral": "M17 10 C17 6 20 4 24 4 C28 4 31 6 31 10 C31 14 30 18 29 22 L27 30 C26 36 25 41 24 44 C23 41 22 36 21 30 L19 22 C18 18 17 14 17 10 Z",
+  "child-lower-incisor-central": "M19 10 C19 6 21 4 24 4 C27 4 29 6 29 10 C29 14 28 18 27 22 L26 31 C25 38 24.5 43 24 46 C23.5 43 23 38 22 31 L21 22 C20 18 19 14 19 10 Z",
+  "child-lower-incisor-lateral": "M18 10 C18 6 21 4 24 4 C28 4 30 6 30 10 C30 14 29 18 28 22 L27 31 C26 38 24.8 43 24 46 C23.2 43 22 38 21 31 L20 22 C19 18 18 14 18 10 Z",
+  "child-upper-canine": "M24 3 L29 8 C31 11 32 15 31 19 L29 27 C28 33 26 40 24 46 C22 40 20 33 19 27 L17 19 C16 15 17 11 19 8 Z",
+  "child-lower-canine": "M24 3 L28 8 C30 11 30 15 29 19 L27 27 C26 34 25 40 24 46 C23 40 22 34 21 27 L19 19 C18 15 18 11 20 8 Z",
+  "child-upper-molar-1": "M12 11 C12 6 16 4 24 4 C32 4 36 6 36 11 C36 16 34 20 33 24 L31 31 C29 38 27 43 24 46 C21 43 19 38 17 31 L15 24 C14 20 12 16 12 11 Z",
+  "child-upper-molar-2": "M11 11 C11 6 16 3 24 3 C32 3 37 6 37 11 C37 16 35 21 34 25 L32 32 C30 39 27.5 44 24 47 C20.5 44 18 39 16 32 L14 25 C13 21 11 16 11 11 Z",
+  "child-lower-molar-1": "M13 11 C13 7 17 4 24 4 C31 4 35 7 35 11 C35 16 33 20 32 24 L30 31 C28 39 26 44 24 47 C22 44 20 39 18 31 L16 24 C15 20 13 16 13 11 Z",
+  "child-lower-molar-2": "M12 11 C12 6 17 3 24 3 C31 3 36 6 36 11 C36 16 34 21 33 25 L31 32 C29 40 26.5 45 24 47 C21.5 45 19 40 17 32 L15 25 C14 21 12 16 12 11 Z"
+};
+
+const ADULT_TOOTH_RENDER_MAP = {
+  1: { upper: { path: "adult-upper-incisor-central", width: 34, height: 52 }, lower: { path: "adult-lower-incisor-central", width: 30, height: 52 } },
+  2: { upper: { path: "adult-upper-incisor-lateral", width: 33, height: 51 }, lower: { path: "adult-lower-incisor-lateral", width: 31, height: 51 } },
+  3: { upper: { path: "adult-upper-canine", width: 36, height: 52 }, lower: { path: "adult-lower-canine", width: 34, height: 52 } },
+  4: { upper: { path: "adult-upper-premolar-1", width: 39, height: 51 }, lower: { path: "adult-lower-premolar-1", width: 37, height: 52 } },
+  5: { upper: { path: "adult-upper-premolar-2", width: 38, height: 50 }, lower: { path: "adult-lower-premolar-2", width: 36, height: 51 } },
+  6: { upper: { path: "adult-upper-molar-1", width: 44, height: 51 }, lower: { path: "adult-lower-molar-1", width: 42, height: 52 } },
+  7: { upper: { path: "adult-upper-molar-2", width: 42, height: 51 }, lower: { path: "adult-lower-molar-2", width: 40, height: 52 } },
+  8: { upper: { path: "adult-upper-molar-3", width: 39, height: 50 }, lower: { path: "adult-lower-molar-3", width: 37, height: 50 } }
+};
+
+const CHILD_TOOTH_RENDER_MAP = {
+  1: { upper: { path: "child-upper-incisor-central", width: 31, height: 45 }, lower: { path: "child-lower-incisor-central", width: 29, height: 46 } },
+  2: { upper: { path: "child-upper-incisor-lateral", width: 30, height: 44 }, lower: { path: "child-lower-incisor-lateral", width: 30, height: 45 } },
+  3: { upper: { path: "child-upper-canine", width: 33, height: 46 }, lower: { path: "child-lower-canine", width: 31, height: 46 } },
+  4: { upper: { path: "child-upper-molar-1", width: 38, height: 45 }, lower: { path: "child-lower-molar-1", width: 37, height: 46 } },
+  5: { upper: { path: "child-upper-molar-2", width: 40, height: 46 }, lower: { path: "child-lower-molar-2", width: 39, height: 47 } }
 };
 
 const DEFAULT_DISEASES = [
@@ -1279,8 +1320,7 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
       .filter(Boolean);
     const previewIds = statusIds.slice(0, 24);
     const overflowCount = Math.max(0, statusIds.length - previewIds.length);
-    const shapeType = getToothShapeType(toothNumber, mode);
-    const dims = getToothDimensions(shapeType, mode);
+    const toothSpec = getToothRenderSpec(toothNumber, mode);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
     const fillConfig = buildToothFill(statusColors, gradientId);
 
@@ -1301,16 +1341,16 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
     return `
       <button
         type="button"
-        class="tooth-node ${mode === "child" ? "child" : ""} jaw-${arcPosition} shape-${shapeType} ${statusIds.length > 0 ? "has-marks" : ""}"
+        class="tooth-node ${mode === "child" ? "child" : ""} jaw-${arcPosition} ${toothSpec.mirror ? "mirror" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
         data-tooth-id="${toothId}"
         title="Diente ${toothId}: ${escapeHtml(titleText)}"
-        style="--tooth-w:${dims.width}px; --tooth-h:${dims.height}px;"
+        style="--tooth-w:${toothSpec.width}px; --tooth-h:${toothSpec.height}px;"
       >
         <span class="tooth-art" aria-hidden="true">
           <svg viewBox="0 0 48 52" class="tooth-svg">
             ${fillConfig.defs}
-            <path class="tooth-fill-shape" d="${TOOTH_PATHS[shapeType]}" fill="${fillConfig.fill}"></path>
-            <path class="tooth-outline-shape" d="${TOOTH_PATHS[shapeType]}"></path>
+            <path class="tooth-fill-shape" d="${TOOTH_PATHS[toothSpec.path]}" fill="${fillConfig.fill}"></path>
+            <path class="tooth-outline-shape" d="${TOOTH_PATHS[toothSpec.path]}"></path>
           </svg>
         </span>
         <span class="tooth-id">${toothId}</span>
@@ -2829,85 +2869,27 @@ function isValidDentitionMode(mode) {
   return mode === "adult" || mode === "child";
 }
 
-function getToothShapeType(toothNumber, mode) {
+function getToothPositionInfo(toothNumber) {
   const n = Number(toothNumber);
+  const quadrant = Number.isFinite(n) ? Math.floor(n / 10) : 0;
   const unit = Number.isFinite(n) ? n % 10 : 0;
-
-  if (unit === 1 || unit === 2) {
-    return "incisor";
-  }
-  if (unit === 3) {
-    return "canine";
-  }
-  if (mode === "adult" && (unit === 4 || unit === 5)) {
-    return "premolar";
-  }
-  return "molar";
+  const isUpper = quadrant === 1 || quadrant === 2 || quadrant === 5 || quadrant === 6;
+  const isLeft = quadrant === 2 || quadrant === 3 || quadrant === 6 || quadrant === 7;
+  return { quadrant, unit, isUpper, isLeft };
 }
 
-function getToothDimensions(shapeType, mode) {
-  const scale = mode === "child" ? 1.06 : 1;
+function getToothRenderSpec(toothNumber, mode) {
+  const info = getToothPositionInfo(toothNumber);
+  const map = mode === "child" ? CHILD_TOOTH_RENDER_MAP : ADULT_TOOTH_RENDER_MAP;
+  const unitSpec = map[info.unit] || map[1];
+  const sideSpec = info.isUpper ? unitSpec.upper : unitSpec.lower;
 
-  if (shapeType === "incisor") {
-    return { width: Math.round(32 * scale), height: Math.round(45 * scale) };
-  }
-  if (shapeType === "canine") {
-    return { width: Math.round(36 * scale), height: Math.round(47 * scale) };
-  }
-  if (shapeType === "premolar") {
-    return { width: Math.round(40 * scale), height: Math.round(48 * scale) };
-  }
-  return { width: Math.round(44 * scale), height: Math.round(49 * scale) };
-}
-
-function getToothKindLabel(toothNumber, mode) {
-  const n = Number(toothNumber);
-  const unit = Number.isFinite(n) ? n % 10 : 0;
-
-  if (mode === "child") {
-    if (unit === 1) {
-      return "Inc. central";
-    }
-    if (unit === 2) {
-      return "Inc. lateral";
-    }
-    if (unit === 3) {
-      return "Canino";
-    }
-    if (unit === 4) {
-      return "1er molar";
-    }
-    if (unit === 5) {
-      return "2do molar";
-    }
-    return "Temporal";
-  }
-
-  if (unit === 1) {
-    return "Inc. central";
-  }
-  if (unit === 2) {
-    return "Inc. lateral";
-  }
-  if (unit === 3) {
-    return "Canino";
-  }
-  if (unit === 4) {
-    return "1er premolar";
-  }
-  if (unit === 5) {
-    return "2do premolar";
-  }
-  if (unit === 6) {
-    return "1er molar";
-  }
-  if (unit === 7) {
-    return "2do molar";
-  }
-  if (unit === 8) {
-    return "3er molar";
-  }
-  return "Pieza";
+  return {
+    path: sideSpec.path,
+    width: sideSpec.width,
+    height: sideSpec.height,
+    mirror: info.isLeft
+  };
 }
 
 function buildMultiColorBackground(colors) {

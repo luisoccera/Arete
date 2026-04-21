@@ -856,6 +856,7 @@ tbody tr.active {
   display: block;
   filter: drop-shadow(0 3px 4px #0000003d);
   pointer-events: none;
+  transform-origin: 50% 50%;
 }
 
 .tooth-svg {
@@ -875,6 +876,14 @@ tbody tr.active {
 
 .tooth-node.jaw-lower .tooth-art {
   transform: rotate(180deg);
+}
+
+.tooth-node.mirror .tooth-art {
+  transform: scaleX(-1);
+}
+
+.tooth-node.jaw-lower.mirror .tooth-art {
+  transform: rotate(180deg) scaleX(-1);
 }
 
 .tooth-node .tooth-id {

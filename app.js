@@ -1001,6 +1001,22 @@ function resolveApiBaseUrl() {
   return window.location.origin;
 }
 
+function resolveStaticAssetUrl(relativePath) {
+  const asset = String(relativePath || "").replace(/^\.?\//, "");
+  if (!asset) {
+    return window.location.href;
+  }
+
+  if (window.location.hostname.endsWith("github.io")) {
+    const parts = String(window.location.pathname || "/").split("/").filter(Boolean);
+    const repoSegment = parts.length > 0 ? parts[0] : "";
+    const basePath = repoSegment ? `/${repoSegment}/` : "/";
+    return `${window.location.origin}${basePath}${asset}`;
+  }
+
+  return new URL(asset, document.baseURI).toString();
+}
+
 async function initializeBackendStorage() {
   if (!apiBaseUrl) {
     return;
@@ -2644,15 +2660,51 @@ async function loadClientPdfModules() {
 
 async function loadClientTemplateBytes() {
   if (!clientTemplateBytesPromise) {
-    const templateUrl = new URL("data/uv-historias.pdf", document.baseURI).toString();
-    clientTemplateBytesPromise = fetch(templateUrl, { cache: "no-store" })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`No se encontro la plantilla UV (${templateUrl}).`);
+    const templateCandidates = Array.from(
+      new Set([
+        resolveStaticAssetUrl("data/uv-historias.pdf"),
+        new URL("data/uv-historias.pdf", document.baseURI).toString(),
+        new URL("./data/uv-historias.pdf", window.location.href).toString()
+      ])
+    );
+
+    clientTemplateBytesPromise = (async () => {
+      let lastError = "";
+      for (const templateUrl of templateCandidates) {
+        try {
+          const response = await fetch(templateUrl, { cache: "no-store" });
+          if (!response.ok) {
+            lastError = `HTTP ${response.status} en ${templateUrl}`;
+            continue;
+          }
+
+          const buffer = await response.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          const isPdf =
+            bytes.length >= 5 &&
+            bytes[0] === 0x25 &&
+            bytes[1] === 0x50 &&
+            bytes[2] === 0x44 &&
+            bytes[3] === 0x46 &&
+            bytes[4] === 0x2d;
+
+          if (!isPdf) {
+            const decoder = new TextDecoder("utf-8", { fatal: false });
+            const preview = decoder.decode(bytes.slice(0, 120)).replace(/\s+/g, " ").trim();
+            lastError = `La URL ${templateUrl} no devolvio un PDF valido. Vista previa: ${preview || "(sin contenido textual)"}`;
+            continue;
+          }
+
+          return bytes;
+        } catch (error) {
+          lastError = `${templateUrl}: ${error?.message || "Error desconocido"}`;
         }
-        return response.arrayBuffer();
-      })
-      .then((buffer) => new Uint8Array(buffer))
+      }
+
+      throw new Error(
+        `No se pudo cargar la plantilla UV para generar el PDF oficial. ${lastError}`
+      );
+    })()
       .catch((error) => {
         clientTemplateBytesPromise = null;
         throw error;

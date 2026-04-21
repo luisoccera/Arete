@@ -338,6 +338,40 @@ const CLINICAL_PDF_LABEL_RULES = [
   { matches: ["odontograma"], value: "odontoSummary", maxWidth: 230, maxLines: 2, maxPerPage: 1 }
 ];
 
+const CLINICAL_IDENTIFICATION_KEYS = new Set([
+  "fullName",
+  "firstNames",
+  "lastNameFather",
+  "lastNameMother",
+  "ageText",
+  "ageYears",
+  "ageMonths",
+  "sexLabel",
+  "birthPlaceDate",
+  "birthDay",
+  "birthMonth",
+  "birthYear",
+  "location",
+  "locationShort",
+  "locationStreet",
+  "locationColony",
+  "locationMunicipality",
+  "locationDelegation",
+  "locationState",
+  "locationCity",
+  "occupation",
+  "occupationAlt",
+  "civilStatus",
+  "phone",
+  "doctorPhone",
+  "dentistName",
+  "consultDateLabel",
+  "consultDay",
+  "consultMonth",
+  "consultYear",
+  "lastMedicalConsult"
+]);
+
 const el = {
   newPatientBtn: document.getElementById("newPatientBtn"),
   openPathologiesBtn: document.getElementById("openPathologiesBtn"),
@@ -2597,8 +2631,16 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
   copiedPages.forEach((page, idx) => {
     const sourcePageNo = sourcePageNumbers[idx];
     const items = textData.pages[sourcePageNo] || [];
+    const isIdentificationPage = sourcePageNo === selected.start;
+
+    if (isIdentificationPage) {
+      drawClinicalIdentificationBlock(page, font, context, pdfLib);
+    }
 
     for (const rule of CLINICAL_PDF_LABEL_RULES) {
+      if (isIdentificationPage && shouldSkipClinicalRuleOnIdentificationPage(rule)) {
+        continue;
+      }
       const rawValue = rule.mark ? Boolean(rule.mark(context)) : context[rule.value];
       const value = rule.mark ? (rawValue ? "X" : "") : String(rawValue || "").trim();
       if (!value) {
@@ -2867,6 +2909,38 @@ function splitClinicalFullName(fullName) {
   };
 }
 
+function parseClinicalLocationParts(locationInput) {
+  const text = String(locationInput || "").trim();
+  if (!text) {
+    return {
+      street: "",
+      colony: "",
+      municipality: "",
+      delegation: "",
+      state: "",
+      city: ""
+    };
+  }
+
+  const tokens = text
+    .split(/[,;|/]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+  const first = tokens[0] || text;
+  const second = tokens[1] || first;
+  const third = tokens[2] || second || first;
+
+  return {
+    street: first,
+    colony: second || first,
+    municipality: second || first,
+    delegation: second || first,
+    state: third || second || first,
+    city: second || first
+  };
+}
+
 function truncateClinicalText(value, max) {
   const text = String(value || "").trim();
   if (!max || text.length <= max) {
@@ -2957,6 +3031,7 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   const nameParts = splitClinicalFullName(fullName);
   const consultDate = parseDatePartsForClinicalPdf(patient.consultationDate || patient.nextConsultationDate || "");
   const birthDate = parseDatePartsForClinicalPdf(patient.birthDate || "");
+  const locationParts = parseClinicalLocationParts(patient.location);
 
   const diseaseMap = new Map((dictionaries?.diseases || []).map((entry) => [entry.id, entry.name]));
   const statusMap = new Map((dictionaries?.toothStatuses || []).map((entry) => [entry.id, entry.name]));
@@ -2987,17 +3062,36 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     isMale,
     isFemale,
     birthPlaceDate: [String(patient.location || "").trim(), birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
+    birthDay: birthDate.day,
+    birthMonth: birthDate.month,
+    birthYear: birthDate.year,
     location: String(patient.location || "").trim(),
     locationShort: String(patient.location || "").trim(),
+    locationStreet: locationParts.street,
+    locationColony: locationParts.colony,
+    locationMunicipality: locationParts.municipality,
+    locationDelegation: locationParts.delegation,
+    locationState: locationParts.state,
+    locationCity: locationParts.city,
     occupation: String(patient.occupation || "").trim(),
     occupationAlt: String(patient.occupation || "").trim(),
     civilStatus: "No especificado",
     phone: String(patient.phone || "").trim(),
+    doctorPhone: String(patient.phone || "").trim(),
     dentistName: String(patient.dentistName || "").trim(),
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
     consultMonth: consultDate.month,
     consultYear: consultDate.year,
+    lastMedicalConsult: truncateClinicalText(
+      [
+        consultDate.label !== "-" ? consultDate.label : "",
+        String(consultationReason || "").trim()
+      ]
+        .filter(Boolean)
+        .join(" - "),
+      180
+    ),
     diagnosis: truncateClinicalText(diseaseSummary || "Sin patologias generales registradas", 180),
     prognosis: truncateClinicalText(String(patient.otherConditions || "").trim() || "Reservado", 120),
     treatmentPlan: truncateClinicalText(
@@ -3086,6 +3180,131 @@ function wrapClinicalPdfText(font, text, size, maxWidth) {
     lines.push(current);
   }
   return lines;
+}
+
+function shrinkClinicalTextToWidth(font, text, size, maxWidth) {
+  const raw = String(text || "").trim();
+  if (!raw || !maxWidth) {
+    return raw;
+  }
+  if (font.widthOfTextAtSize(raw, size) <= maxWidth) {
+    return raw;
+  }
+
+  let base = raw;
+  while (base.length > 1 && font.widthOfTextAtSize(`${base}…`, size) > maxWidth) {
+    base = base.slice(0, -1).trimEnd();
+  }
+  return `${base || raw.slice(0, 1)}…`;
+}
+
+function drawClinicalTextAt(page, font, value, opts, pdfLib) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return;
+  }
+
+  const size = Number(opts?.size || 8);
+  const maxWidth = Number(opts?.maxWidth || 120);
+  const maxLines = Number(opts?.maxLines || 1);
+  const lineHeight = Number(opts?.lineHeight || size + 1.1);
+  const align = String(opts?.align || "left");
+  const x = Number(opts?.x || 0);
+  const y = Number(opts?.y || 0);
+  const color = pdfLib.rgb(0, 0, 0);
+  const safeText = truncateClinicalText(raw, Number(opts?.maxChars || 180));
+
+  const lines = maxLines <= 1
+    ? [shrinkClinicalTextToWidth(font, safeText, size, maxWidth)]
+    : wrapClinicalPdfText(font, safeText, size, maxWidth).slice(0, maxLines);
+
+  lines.forEach((line, idx) => {
+    let drawX = x;
+    const width = font.widthOfTextAtSize(line, size);
+    if (align === "center") {
+      drawX = x + Math.max(0, (maxWidth - width) / 2);
+    } else if (align === "right") {
+      drawX = x + Math.max(0, maxWidth - width);
+    }
+    page.drawText(line, {
+      x: drawX,
+      y: y - idx * lineHeight,
+      size,
+      font,
+      color
+    });
+  });
+}
+
+function drawClinicalMark(page, font, enabled, x, y, size, pdfLib) {
+  if (!enabled) {
+    return;
+  }
+  page.drawText("X", {
+    x,
+    y,
+    size: size || 10,
+    font,
+    color: pdfLib.rgb(0, 0, 0)
+  });
+}
+
+function shouldSkipClinicalRuleOnIdentificationPage(rule) {
+  if (!rule) {
+    return false;
+  }
+  if (rule.mark) {
+    return true;
+  }
+  return CLINICAL_IDENTIFICATION_KEYS.has(String(rule.value || ""));
+}
+
+function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
+  const ageValue = String(context.ageYears || context.ageText || "").trim();
+  const yearsValue = ageValue;
+  const monthsValue = String(context.ageMonths || "").trim();
+  const birthPlace = String(context.locationShort || context.location || "").trim();
+  const consultLabel = String(context.consultDateLabel || "").trim();
+  const lastConsult = String(context.lastMedicalConsult || "").trim();
+
+  drawClinicalTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 }, pdfLib);
+  drawClinicalTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 }, pdfLib);
+  drawClinicalTextAt(page, font, context.lastNameMother, { x: 287, y: 386.1, maxWidth: 86, size: 8.2, maxLines: 1, maxChars: 30 }, pdfLib);
+  drawClinicalTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 }, pdfLib);
+
+  drawClinicalTextAt(page, font, ageValue, { x: 447, y: 397.2, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 5 }, pdfLib);
+  drawClinicalTextAt(page, font, yearsValue, { x: 486, y: 397.2, maxWidth: 24, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, monthsValue, { x: 538, y: 397.2, maxWidth: 32, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+
+  drawClinicalMark(page, font, context.isMale, 250.5, 364.2, 10, pdfLib);
+  drawClinicalMark(page, font, context.isFemale, 377.5, 364.2, 10, pdfLib);
+
+  drawClinicalTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 138, size: 8, maxLines: 1, maxChars: 32 }, pdfLib);
+  drawClinicalTextAt(page, font, context.birthDay, { x: 440, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.birthMonth, { x: 476, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.birthYear, { x: 513, y: 338.2, maxWidth: 34, size: 8, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationState, { x: 264, y: 338.2, maxWidth: 56, size: 8, maxLines: 1, maxChars: 20 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationCity, { x: 357, y: 338.2, maxWidth: 62, size: 8, maxLines: 1, maxChars: 22 }, pdfLib);
+
+  drawClinicalTextAt(page, font, context.occupation, { x: 130, y: 317.2, maxWidth: 134, size: 8.2, maxLines: 1, maxChars: 32 }, pdfLib);
+  drawClinicalTextAt(page, font, context.occupationAlt, { x: 354, y: 317.2, maxWidth: 195, size: 8.2, maxLines: 1, maxChars: 42 }, pdfLib);
+  drawClinicalTextAt(page, font, context.civilStatus, { x: 131, y: 301.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 255, size: 8.2, maxLines: 1, maxChars: 68 }, pdfLib);
+
+  drawClinicalTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 156, size: 8.2, maxLines: 1, maxChars: 34 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationState, { x: 122, y: 269.2, maxWidth: 130, size: 8.2, maxLines: 1, maxChars: 28 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationMunicipality, { x: 236, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 24 }, pdfLib);
+  drawClinicalTextAt(page, font, context.locationDelegation, { x: 429, y: 269.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 }, pdfLib);
+
+  drawClinicalTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
+  drawClinicalTextAt(page, font, context.phone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
+  drawClinicalTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 }, pdfLib);
+  drawClinicalTextAt(page, font, context.doctorPhone || context.phone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
+  drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 }, pdfLib);
+
+  drawClinicalTextAt(page, font, context.consultDay, { x: 473, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.consultMonth, { x: 498, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.consultYear, { x: 526, y: 451.8, maxWidth: 40, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function drawClinicalPdfRule(page, font, value, item, rule, pdfLib) {

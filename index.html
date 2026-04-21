@@ -50,6 +50,7 @@
         <nav class="patient-subtabs" aria-label="Registro del paciente">
           <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
           <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
+          <button type="button" class="patient-subtab" data-patient-tab="pathologies">Patologias</button>
           <button type="button" class="patient-subtab" data-patient-tab="history">Historial clinico</button>
         </nav>
 
@@ -61,7 +62,6 @@
                 <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
               </div>
               <div class="form-actions">
-                <button type="button" id="openPathologiesBtn" class="btn btn-secondary">Patologias</button>
                 <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
                 <button type="button" id="deleteCurrentPatientBtn" class="btn btn-danger" disabled>Eliminar paciente</button>
               </div>
@@ -194,20 +194,6 @@
                 </div>
               </section>
 
-              <section class="card" id="pathologiesCard">
-                <h3>Enfermedades del paciente (con color)</h3>
-                <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
-                <div id="diseaseChecklist" class="tag-grid"></div>
-
-                <div class="inline-controls">
-                  <input type="text" id="newDiseaseName" placeholder="Nueva enfermedad">
-                  <input type="color" id="newDiseaseColor" value="#d97706" aria-label="Color de enfermedad">
-                  <button type="button" id="addDiseaseBtn" class="btn btn-secondary">Agregar enfermedad</button>
-                </div>
-
-                <div id="diseaseCatalog" class="catalog"></div>
-              </section>
-
               <label class="field field-full">
                 <span>Otras enfermedades / observaciones</span>
                 <textarea id="otherConditions" rows="3" placeholder="Describe antecedentes o condiciones adicionales"></textarea>
@@ -279,6 +265,24 @@
                 <input type="color" id="newStatusColor" value="#ef4444" aria-label="Color de estado">
                 <button type="button" id="addStatusBtn" class="btn btn-secondary">Agregar estado</button>
               </div>
+            </section>
+          </section>
+        </section>
+
+        <section class="patient-subview" data-patient-subview="pathologies">
+          <section class="panel panel-pathologies">
+            <section class="card" id="pathologiesCard">
+              <h3>Enfermedades del paciente (con color)</h3>
+              <p class="card-help">Selecciona las enfermedades de este paciente y personaliza nuevas etiquetas con color.</p>
+              <div id="diseaseChecklist" class="tag-grid"></div>
+
+              <div class="inline-controls">
+                <input type="text" id="newDiseaseName" placeholder="Nueva enfermedad">
+                <input type="color" id="newDiseaseColor" value="#d97706" aria-label="Color de enfermedad">
+                <button type="button" id="addDiseaseBtn" class="btn btn-secondary">Agregar enfermedad</button>
+              </div>
+
+              <div id="diseaseCatalog" class="catalog"></div>
             </section>
           </section>
         </section>

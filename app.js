@@ -475,7 +475,9 @@ function bindEvents() {
     setActiveView("home");
     startNewPatient(true);
   });
-  el.openPathologiesBtn.addEventListener("click", focusPathologiesSection);
+  if (el.openPathologiesBtn) {
+    el.openPathologiesBtn.addEventListener("click", focusPathologiesSection);
+  }
   for (const button of el.viewTabs) {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
@@ -655,7 +657,7 @@ function setActiveView(view) {
 }
 
 function setActivePatientSubview(view) {
-  const validViews = new Set(["profile", "odontogram", "history"]);
+  const validViews = new Set(["profile", "odontogram", "pathologies", "history"]);
   const nextView = validViews.has(view) ? view : "profile";
   activePatientSubview = nextView;
 
@@ -2381,7 +2383,7 @@ function hydrateFormFromDraft() {
 
 function focusPathologiesSection() {
   setActiveView("home");
-  setActivePatientSubview("profile");
+  setActivePatientSubview("pathologies");
   if (!el.pathologiesCard) {
     return;
   }

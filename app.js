@@ -148,6 +148,130 @@ const CLINICAL_RECORD_TYPES = [
   }
 ];
 
+const CLINICAL_FORM_SCHEMAS = {
+  "f1-estomatologica": {
+    title: "Formato 1: Historia clinica estomatologica",
+    fields: [
+      { id: "motivo_consulta", label: "Motivo de consulta", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Sintoma o razon principal de la consulta." },
+      { id: "antecedentes_estomatologicos", label: "Antecedentes personales y familiares", type: "textarea", rows: 2, contextKey: "background", placeholder: "Antecedentes importantes para la atencion dental." },
+      { id: "diagnostico_estomatologico", label: "Diagnostico estomatologico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico clinico principal." },
+      { id: "plan_estomatologico", label: "Plan de tratamiento", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Fases del tratamiento indicado." },
+      { id: "pronostico_estomatologico", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Favorable, reservado, etc." },
+      { id: "observaciones_f1", label: "Observaciones", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Notas clinicas adicionales." }
+    ]
+  },
+  "f2-preventiva": {
+    title: "Formato 2: Estomatologia preventiva",
+    fields: [
+      { id: "riesgo_caries", label: "Riesgo de caries", type: "text", contextKey: "diagnosis", placeholder: "Alto, medio o bajo riesgo." },
+      { id: "indice_placa", label: "Indice de placa", type: "text", contextKey: "background", placeholder: "Resultado del indice de placa." },
+      { id: "tecnica_cepillado", label: "Tecnica de cepillado indicada", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tecnica recomendada al paciente." },
+      { id: "fluorizacion", label: "Aplicacion de fluor", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Producto, frecuencia y dosis." },
+      { id: "recomendaciones_preventivas", label: "Recomendaciones preventivas", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Instrucciones entregadas al paciente." },
+      { id: "seguimiento_preventivo", label: "Seguimiento preventivo", type: "text", contextKey: "prognosis", placeholder: "Fecha o criterio de control." }
+    ]
+  },
+  "f3-operatoria": {
+    title: "Formato 3: Operatoria dental",
+    fields: [
+      { id: "pieza_operatoria", label: "Pieza(s) tratada(s)", type: "text", contextKey: "odontoSummary", placeholder: "Ejemplo: 16, 26, 36." },
+      { id: "diagnostico_operatorio", label: "Diagnostico operatorio", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Tipo y extension de la lesion." },
+      { id: "material_restaurador", label: "Material restaurador", type: "text", contextKey: "treatmentPlan", placeholder: "Resina, ionomero, etc." },
+      { id: "tecnica_operatoria", label: "Tecnica operatoria", type: "textarea", rows: 2, contextKey: "background", placeholder: "Pasos clinicos realizados." },
+      { id: "control_operatorio", label: "Control postoperatorio", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Respuesta del paciente y control oclusal." },
+      { id: "pronostico_operatorio", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico del tratamiento restaurador." }
+    ]
+  },
+  "f4-protesis-fija": {
+    title: "Formato 4: Protesis fija",
+    fields: [
+      { id: "motivo_protesis_fija", label: "Motivo protetico", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Necesidad funcional o estetica." },
+      { id: "pilares_protesis", label: "Dientes pilares", type: "text", contextKey: "odontoSummary", placeholder: "Piezas que funcionaran como pilares." },
+      { id: "diagnostico_protesis_fija", label: "Diagnostico protetico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Situacion clinica para protesis fija." },
+      { id: "plan_protesis_fija", label: "Plan de tratamiento protetico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Secuencia de preparacion, impresion y cementacion." },
+      { id: "pruebas_protesis_fija", label: "Pruebas y ajustes", type: "textarea", rows: 2, contextKey: "background", placeholder: "Prueba de estructura, ajuste marginal y oclusion." },
+      { id: "observaciones_protesis_fija", label: "Observaciones", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Indicaciones y evolucion." }
+    ]
+  },
+  "f5-protesis-removible": {
+    title: "Formato 5: Protesis removible",
+    fields: [
+      { id: "clasificacion_kennedy", label: "Clasificacion de Kennedy", type: "text", contextKey: "diagnosis", placeholder: "Clase I, II, III o IV." },
+      { id: "zona_desdentada", label: "Area desdentada", type: "textarea", rows: 2, contextKey: "odontoSummary", placeholder: "Describe zonas a rehabilitar." },
+      { id: "diseno_protesis_removible", label: "Diseno de protesis removible", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Conector mayor, retenedores y apoyos." },
+      { id: "elementos_retencion", label: "Retencion y soporte", type: "textarea", rows: 2, contextKey: "background", placeholder: "Elementos seleccionados de retencion/soporte." },
+      { id: "indicaciones_protesis_removible", label: "Indicaciones de uso", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Uso, higiene y cuidados de la protesis." },
+      { id: "pronostico_protesis_removible", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico funcional del caso." }
+    ]
+  },
+  "f6-prostodoncia": {
+    title: "Formato 6: Prostodoncia total/parcial",
+    fields: [
+      { id: "estado_reborde", label: "Estado del reborde alveolar", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Reborde favorable, reabsorbido, etc." },
+      { id: "dimension_vertical", label: "Dimension vertical / relacion maxilomandibular", type: "textarea", rows: 2, contextKey: "background", placeholder: "Registros obtenidos en consulta." },
+      { id: "plan_prostodoncia", label: "Plan prostodontico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Secuencia de citas y procedimientos." },
+      { id: "pruebas_prostodoncia", label: "Pruebas esteticas y foneticas", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Resultados de pruebas clinicas." },
+      { id: "adaptacion_prostodoncia", label: "Adaptacion del paciente", type: "text", contextKey: "consultReason", placeholder: "Confort, masticacion y fonacion." },
+      { id: "pronostico_prostodoncia", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico general de la rehabilitacion." }
+    ]
+  },
+  "f7-cirugia-bucal": {
+    title: "Formato 7: Cirugia bucal",
+    fields: [
+      { id: "motivo_cirugia", label: "Motivo quirurgico", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Dolor, infeccion, tercer molar incluido, etc." },
+      { id: "diagnostico_cirugia", label: "Diagnostico quirurgico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico y localizacion de la lesion." },
+      { id: "procedimiento_cirugia", label: "Procedimiento realizado", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tecnica quirurgica empleada." },
+      { id: "medicacion_cirugia", label: "Medicacion indicada", type: "textarea", rows: 2, contextKey: "medications", placeholder: "Antibiotico, analgesico, antiinflamatorio, etc." },
+      { id: "cuidados_posoperatorios", label: "Cuidados postoperatorios", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Indicaciones entregadas al paciente." },
+      { id: "pronostico_cirugia", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico del procedimiento." }
+    ]
+  },
+  "f8-periodoncia": {
+    title: "Formato 8: Periodoncia",
+    fields: [
+      { id: "diagnostico_periodontal", label: "Diagnostico periodontal", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Gingivitis, periodontitis, estadio, grado." },
+      { id: "profundidad_bolsas", label: "Profundidad de bolsas y movilidad", type: "textarea", rows: 2, contextKey: "background", placeholder: "Registros por sextantes o piezas." },
+      { id: "sangrado_periodontal", label: "Sangrado al sondaje / inflamacion", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Hallazgos clinicos iniciales." },
+      { id: "plan_periodontal", label: "Plan periodontal", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Raspado, alisado, control de placa, etc." },
+      { id: "fase_mantenimiento", label: "Fase de mantenimiento", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Frecuencia y objetivos de mantenimiento." },
+      { id: "pronostico_periodontal", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico periodontal por caso." }
+    ]
+  },
+  "f9-endodoncia": {
+    title: "Formato 9: Endodoncia",
+    fields: [
+      { id: "pieza_endodoncia", label: "Pieza tratada", type: "text", contextKey: "odontoSummary", placeholder: "Ejemplo: 11, 21, 36." },
+      { id: "diagnostico_pulpar", label: "Diagnostico pulpar/periapical", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico endodontico." },
+      { id: "pruebas_endodoncia", label: "Pruebas de sensibilidad y percusion", type: "textarea", rows: 2, contextKey: "background", placeholder: "Resultados de pruebas diagnosticas." },
+      { id: "tecnica_endodoncia", label: "Tecnica de instrumentacion/obturacion", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tecnica y material utilizado." },
+      { id: "control_endodoncia", label: "Control y evolucion", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Seguimiento clinico y radiografico." },
+      { id: "pronostico_endodoncia", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico de la pieza tratada." }
+    ]
+  },
+  "f10-ortodoncia": {
+    title: "Formato 10: Ortodoncia y ortopedia maxilar",
+    fields: [
+      { id: "analisis_facial", label: "Analisis facial y esqueletal", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Clase esqueletal, perfil y simetria." },
+      { id: "diagnostico_oclusal", label: "Diagnostico oclusal", type: "textarea", rows: 2, contextKey: "background", placeholder: "Relaciones molares/caninas, overjet, overbite." },
+      { id: "objetivo_ortodoncia", label: "Objetivo de tratamiento", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Objetivos funcionales y esteticos." },
+      { id: "plan_ortodontico", label: "Plan ortodontico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tipo de aparatologia y fases." },
+      { id: "seguimiento_ortodoncia", label: "Seguimiento y controles", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Ajustes y respuesta del paciente." },
+      { id: "pronostico_ortodoncia", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico del tratamiento ortodontico." }
+    ]
+  },
+  "f11-odontopediatria": {
+    title: "Formato 11: Odontopediatria",
+    fields: [
+      { id: "responsable_nino", label: "Tutor o responsable", type: "text", contextKey: "background", placeholder: "Nombre del tutor responsable." },
+      { id: "conducta_paciente_pediatrico", label: "Conducta del paciente pediatrico", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Cooperador, ansioso, etc." },
+      { id: "diagnostico_odontopediatria", label: "Diagnostico odontopediatrico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Hallazgos clinicos de denticion temporal/mixta." },
+      { id: "plan_odontopediatria", label: "Plan preventivo/terapeutico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Selladores, fluor, restauraciones, etc." },
+      { id: "indicaciones_tutor", label: "Indicaciones al tutor", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Cuidados en casa y control dietetico." },
+      { id: "pronostico_odontopediatria", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Pronostico del caso pediatrico." }
+    ]
+  }
+};
+
 const CLINICAL_FORMAT_START_PAGES = {
   "f1-estomatologica": 1,
   "f2-preventiva": 13,
@@ -170,6 +294,8 @@ const CLINICAL_PDF_LABEL_RULES = [
   { matches: ["nombre(s)"], value: "firstNames" },
   { matches: ["nombre del paciente"], value: "fullName", maxPerPage: 2 },
   { matches: ["nombre completo"], value: "fullName", maxPerPage: 2 },
+  { matches: ["folio"], value: "recordReference", maxPerPage: 2, maxWidth: 180 },
+  { matches: ["referencia"], value: "recordReference", maxPerPage: 2, maxWidth: 180 },
   { matches: ["paciente"], value: "fullName", exact: true, maxPerPage: 1, dx: 28 },
   { matches: ["edad"], value: "ageText", exact: true, maxPerPage: 2 },
   { matches: ["anos"], value: "ageYears", exact: true, maxPerPage: 2 },
@@ -219,6 +345,8 @@ const el = {
   importFile: document.getElementById("importFile"),
   viewTabs: Array.from(document.querySelectorAll("[data-view-tab]")),
   viewSections: Array.from(document.querySelectorAll("[data-view-section]")),
+  patientSubTabs: Array.from(document.querySelectorAll("[data-patient-tab]")),
+  patientSubSections: Array.from(document.querySelectorAll("[data-patient-subview]")),
   searchInput: document.getElementById("searchInput"),
   upcomingCount: document.getElementById("upcomingCount"),
   upcomingList: document.getElementById("upcomingList"),
@@ -250,6 +378,8 @@ const el = {
   addClinicalNoteBtn: document.getElementById("addClinicalNoteBtn"),
   clinicalRecordType: document.getElementById("clinicalRecordType"),
   clinicalRecordReference: document.getElementById("clinicalRecordReference"),
+  clinicalFormatTitle: document.getElementById("clinicalFormatTitle"),
+  clinicalFormatFields: document.getElementById("clinicalFormatFields"),
   exportClinicalDocBtn: document.getElementById("exportClinicalDocBtn"),
   printClinicalDocBtn: document.getElementById("printClinicalDocBtn"),
   clinicalNoteDate: document.getElementById("clinicalNoteDate"),
@@ -286,6 +416,7 @@ let draftPatient = createEmptyPatient();
 let editingPatientId = null;
 let selectedStatusId = "";
 let activeView = "home";
+let activePatientSubview = "profile";
 let storageMode = "local";
 let remotePersistTimer = null;
 let remotePersistInFlight = false;
@@ -315,6 +446,12 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
       setActiveView(targetView);
+    });
+  }
+  for (const button of el.patientSubTabs) {
+    button.addEventListener("click", () => {
+      const targetSubview = button.getAttribute("data-patient-tab");
+      setActivePatientSubview(targetSubview);
     });
   }
   el.savePatientBtn.addEventListener("click", savePatient);
@@ -362,6 +499,7 @@ function bindEvents() {
 
   el.clinicalRecordType.addEventListener("change", () => {
     syncDraftClinicalRecordFields();
+    renderClinicalFormatFields();
     persistDraftPatientIfEditing();
   });
 
@@ -369,6 +507,8 @@ function bindEvents() {
     syncDraftClinicalRecordFields();
     persistDraftPatientIfEditing();
   });
+  el.clinicalFormatFields.addEventListener("input", handleClinicalFormatFieldInput);
+  el.clinicalFormatFields.addEventListener("change", handleClinicalFormatFieldInput);
 
   el.diseaseChecklist.addEventListener("change", () => {
     syncDraftFromForm();
@@ -480,6 +620,24 @@ function setActiveView(view) {
   }
 }
 
+function setActivePatientSubview(view) {
+  const validViews = new Set(["profile", "odontogram", "history"]);
+  const nextView = validViews.has(view) ? view : "profile";
+  activePatientSubview = nextView;
+
+  for (const button of el.patientSubTabs) {
+    const isActive = button.getAttribute("data-patient-tab") === nextView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  for (const section of el.patientSubSections) {
+    const isActive = section.getAttribute("data-patient-subview") === nextView;
+    section.classList.toggle("is-active", isActive);
+    section.hidden = !isActive;
+  }
+}
+
 function handleToothNodeClick(event) {
   const toothBtn = event.target.closest("[data-tooth-id]");
   if (!toothBtn) {
@@ -494,6 +652,14 @@ function createBaseState() {
     toothStatuses: deepClone(DEFAULT_TOOTH_STATUSES),
     patients: []
   };
+}
+
+function createEmptyClinicalFormData() {
+  const data = {};
+  for (const recordType of CLINICAL_RECORD_TYPES) {
+    data[recordType.id] = {};
+  }
+  return data;
 }
 
 function createEmptyPatient() {
@@ -518,6 +684,7 @@ function createEmptyPatient() {
     flossHabit: "",
     hasCaries: "",
     otherConditions: "",
+    clinicalFormData: createEmptyClinicalFormData(),
     diseaseIds: [],
     appointments: [],
     odontogramMode: "adult",
@@ -595,6 +762,9 @@ function normalizePatient(rawPatient) {
   );
   patient.clinicalRecordReference = stringOrEmpty(
     patient.clinicalRecordReference || patient.recordReference || patient.folio
+  );
+  patient.clinicalFormData = normalizeClinicalFormData(
+    patient.clinicalFormData || patient.clinicalForms || patient.formDataByType
   );
   patient.consultationDate = stringOrEmpty(patient.consultationDate);
   patient.nextConsultationDate = stringOrEmpty(
@@ -675,6 +845,30 @@ function normalizeClinicalRecordType(value) {
   }
   const exists = CLINICAL_RECORD_TYPES.some((type) => type.id === candidate);
   return exists ? candidate : CLINICAL_RECORD_TYPES[0].id;
+}
+
+function getClinicalFormSchema(formatId) {
+  const safeId = normalizeClinicalRecordType(formatId);
+  return CLINICAL_FORM_SCHEMAS[safeId] || CLINICAL_FORM_SCHEMAS[CLINICAL_RECORD_TYPES[0].id];
+}
+
+function normalizeClinicalFormData(rawData) {
+  const base = createEmptyClinicalFormData();
+  const source = rawData && typeof rawData === "object" ? rawData : {};
+
+  for (const type of CLINICAL_RECORD_TYPES) {
+    const typeId = type.id;
+    const schema = getClinicalFormSchema(typeId);
+    const entry = source[typeId];
+    const normalized = {};
+
+    for (const field of schema.fields) {
+      normalized[field.id] = stringOrEmpty(entry?.[field.id]);
+    }
+    base[typeId] = normalized;
+  }
+
+  return base;
 }
 
 function normalizeHistoryEntries(rawEntries) {
@@ -902,10 +1096,12 @@ function renderAll() {
   renderDiseaseCatalog();
   renderStatusCatalog();
   renderOdontogram();
+  renderClinicalFormatFields();
   renderAppointmentList();
   renderPatientTable();
   renderUpcomingAppointments();
   renderPatientHistory();
+  setActivePatientSubview(activePatientSubview);
   updateDeleteCurrentButtonState();
   setFormTitle();
 }
@@ -1236,6 +1432,78 @@ function renderPatientHistory() {
     .join("");
 }
 
+function ensureDraftClinicalFormData() {
+  if (!draftPatient.clinicalFormData || typeof draftPatient.clinicalFormData !== "object") {
+    draftPatient.clinicalFormData = createEmptyClinicalFormData();
+  }
+  draftPatient.clinicalFormData = normalizeClinicalFormData(draftPatient.clinicalFormData);
+}
+
+function renderClinicalFormatFields() {
+  if (!el.clinicalFormatFields) {
+    return;
+  }
+
+  ensureDraftClinicalFormData();
+  const activeType = normalizeClinicalRecordType(
+    el.clinicalRecordType?.value || draftPatient.clinicalRecordType
+  );
+  draftPatient.clinicalRecordType = activeType;
+  const schema = getClinicalFormSchema(activeType);
+  const values = draftPatient.clinicalFormData[activeType] || {};
+
+  if (el.clinicalFormatTitle) {
+    el.clinicalFormatTitle.textContent = `Campos de ${schema.title}`;
+  }
+
+  el.clinicalFormatFields.innerHTML = schema.fields
+    .map((field) => {
+      const fieldValue = values[field.id] || "";
+      const inputType = field.type || "text";
+      if (inputType === "textarea") {
+        return `
+          <label class="field field-full format-field format-field-wide">
+            <span>${escapeHtml(field.label)}</span>
+            <textarea data-clinical-field="${escapeHtml(field.id)}" rows="${Number(field.rows || 2)}" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(fieldValue)}</textarea>
+          </label>
+        `;
+      }
+      return `
+        <label class="field format-field">
+          <span>${escapeHtml(field.label)}</span>
+          <input
+            type="${escapeHtml(inputType)}"
+            data-clinical-field="${escapeHtml(field.id)}"
+            value="${escapeHtml(fieldValue)}"
+            placeholder="${escapeHtml(field.placeholder || "")}"
+          >
+        </label>
+      `;
+    })
+    .join("");
+}
+
+function handleClinicalFormatFieldInput(event) {
+  const input = event.target.closest("[data-clinical-field]");
+  if (!input) {
+    return;
+  }
+  ensureDraftClinicalFormData();
+  const activeType = normalizeClinicalRecordType(
+    el.clinicalRecordType?.value || draftPatient.clinicalRecordType
+  );
+  const fieldId = input.getAttribute("data-clinical-field");
+  if (!fieldId) {
+    return;
+  }
+
+  const value = stringOrEmpty(input.value);
+  const bucket = draftPatient.clinicalFormData[activeType] || {};
+  bucket[fieldId] = value;
+  draftPatient.clinicalFormData[activeType] = bucket;
+  persistDraftPatientIfEditing();
+}
+
 function renderHistoryStatusBadges(statusIds) {
   const list = normalizeHistoryStatusIds(statusIds);
   if (list.length === 0) {
@@ -1526,6 +1794,7 @@ function openPatient(id) {
   }
 
   setActiveView("home");
+  setActivePatientSubview("profile");
   editingPatientId = id;
   draftPatient = deepClone(found);
   draftPatient = normalizePatient(draftPatient);
@@ -1547,6 +1816,7 @@ function openPatient(id) {
 function startNewPatient(showMessage) {
   editingPatientId = null;
   draftPatient = createEmptyPatient();
+  setActivePatientSubview("profile");
   hydrateFormFromDraft();
   setFormTitle();
   renderPatientTable();
@@ -1940,6 +2210,29 @@ function importData(event) {
 function syncDraftClinicalRecordFields() {
   draftPatient.clinicalRecordType = normalizeClinicalRecordType(el.clinicalRecordType.value);
   draftPatient.clinicalRecordReference = stringOrEmpty(el.clinicalRecordReference.value);
+  ensureDraftClinicalFormData();
+}
+
+function syncActiveClinicalFormatFieldsFromDom() {
+  if (!el.clinicalFormatFields) {
+    return;
+  }
+  ensureDraftClinicalFormData();
+  const activeType = normalizeClinicalRecordType(
+    el.clinicalRecordType?.value || draftPatient.clinicalRecordType
+  );
+  const bucket = draftPatient.clinicalFormData[activeType] || {};
+  const schema = getClinicalFormSchema(activeType);
+
+  for (const field of schema.fields) {
+    const input = el.clinicalFormatFields.querySelector(`[data-clinical-field="${field.id}"]`);
+    if (!input) {
+      continue;
+    }
+    bucket[field.id] = stringOrEmpty(input.value);
+  }
+
+  draftPatient.clinicalFormData[activeType] = bucket;
 }
 
 function syncDraftFromForm() {
@@ -1954,6 +2247,7 @@ function syncDraftFromForm() {
   draftPatient.dentistName = stringOrEmpty(el.dentistName.value);
   draftPatient.allergies = stringOrEmpty(el.allergies.value);
   syncDraftClinicalRecordFields();
+  syncActiveClinicalFormatFieldsFromDom();
   draftPatient.consultationDate = stringOrEmpty(el.consultationDate.value);
   draftPatient.nextConsultationDate = stringOrEmpty(el.nextConsultationDate.value);
   draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
@@ -1988,10 +2282,12 @@ function hydrateFormFromDraft() {
   el.flossHabit.value = draftPatient.flossHabit || "";
   el.hasCaries.value = draftPatient.hasCaries || "";
   el.otherConditions.value = draftPatient.otherConditions || "";
+  renderClinicalFormatFields();
 }
 
 function focusPathologiesSection() {
   setActiveView("home");
+  setActivePatientSubview("profile");
   if (!el.pathologiesCard) {
     return;
   }
@@ -2135,6 +2431,7 @@ async function requestOfficialClinicalPdf() {
   const payload = {
     formatId: recordType.id,
     patient: normalizePatient(draftPatient),
+    clinicalContext: buildClinicalContextFromForm(draftPatient, recordType.id),
     dictionaries: {
       diseases: Array.isArray(state.diseases) ? state.diseases : [],
       toothStatuses: Array.isArray(state.toothStatuses) ? state.toothStatuses : []
@@ -2191,7 +2488,12 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
   const templateBytes = await loadClientTemplateBytes();
   const textData = await loadClientTemplateTextData(pdfjsLib, templateBytes);
   const selected = resolveClinicalFormatRange(payload?.formatId, textData.totalPages);
-  const context = buildClinicalPdfContext(payload?.patient, payload?.dictionaries, selected.formatId);
+  const context = buildClinicalPdfContext(
+    payload?.patient,
+    payload?.dictionaries,
+    selected.formatId,
+    payload?.clinicalContext
+  );
 
   const sourcePdf = await pdfLib.PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const targetPdf = await pdfLib.PDFDocument.create();
@@ -2433,7 +2735,36 @@ function summarizeClinicalNotes(patient) {
   return summarizeClinicalList(texts, 3);
 }
 
-function buildClinicalPdfContext(patientInput, dictionaries) {
+function buildClinicalContextFromForm(patientInput, formatId) {
+  const patient = normalizePatient(patientInput || {});
+  const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
+  const schema = getClinicalFormSchema(safeFormat);
+  const values = patient.clinicalFormData?.[safeFormat] || {};
+  const byKey = {};
+  const detailLines = [];
+
+  for (const field of schema.fields) {
+    const value = stringOrEmpty(values[field.id]);
+    if (!value) {
+      continue;
+    }
+
+    detailLines.push(`${field.label}: ${value}`);
+    if (field.contextKey) {
+      byKey[field.contextKey] = byKey[field.contextKey]
+        ? `${byKey[field.contextKey]} | ${value}`
+        : value;
+    }
+  }
+
+  return {
+    formatId: safeFormat,
+    byKey,
+    details: detailLines
+  };
+}
+
+function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalContextInput) {
   const patient = normalizePatient(patientInput || {});
   const fullName = String(patient.name || "").trim();
   const nameParts = splitClinicalFullName(fullName);
@@ -2454,12 +2785,14 @@ function buildClinicalPdfContext(patientInput, dictionaries) {
   const isFemale = sexText.includes("fem");
   const consultationReason = String(patient.otherConditions || "").trim() || String(patient.medications || "").trim();
   const background = [patient.allergies, patient.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
+  const clinicalContext = clinicalContextInput || buildClinicalContextFromForm(patient, formatId);
 
-  return {
+  const context = {
     fullName,
     firstNames: nameParts.firstNames,
     lastNameFather: nameParts.lastNameFather,
     lastNameMother: nameParts.lastNameMother,
+    recordReference: stringOrEmpty(patient.clinicalRecordReference),
     ageText: String(patient.age || "").trim(),
     ageYears: String(patient.age || "").trim(),
     ageMonths: "",
@@ -2493,6 +2826,36 @@ function buildClinicalPdfContext(patientInput, dictionaries) {
     notes: truncateClinicalText(notes || "Sin observaciones clinicas adicionales.", 170),
     odontoSummary: truncateClinicalText(odontoSummary || "Sin marcas registradas.", 170)
   };
+
+  const maxByKey = {
+    consultReason: 170,
+    diagnosis: 180,
+    treatmentPlan: 180,
+    prognosis: 120,
+    medications: 170,
+    allergies: 170,
+    background: 180,
+    notes: 170,
+    odontoSummary: 170
+  };
+
+  for (const [key, value] of Object.entries(clinicalContext.byKey || {})) {
+    if (!value) {
+      continue;
+    }
+    const max = maxByKey[key] || 180;
+    context[key] = truncateClinicalText(value, max);
+  }
+
+  if (Array.isArray(clinicalContext.details) && clinicalContext.details.length > 0) {
+    const detailsText = truncateClinicalText(clinicalContext.details.join(" | "), 260);
+    context.notes = truncateClinicalText(
+      context.notes ? `${context.notes} | ${detailsText}` : detailsText,
+      170
+    );
+  }
+
+  return context;
 }
 
 function matchClinicalPdfItem(itemNorm, rule) {

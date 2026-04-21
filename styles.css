@@ -151,6 +151,37 @@ body {
   gap: 1rem;
 }
 
+.patient-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.patient-subtab {
+  border: 1px solid #3b6b89;
+  background: #0f2b40;
+  color: #d7efff;
+  border-radius: 11px;
+  padding: 0.56rem 0.8rem;
+  font-weight: 800;
+  font-size: 0.84rem;
+  cursor: pointer;
+}
+
+.patient-subtab.is-active {
+  color: #052635;
+  border-color: #67e8f9;
+  background: linear-gradient(125deg, #67e8f9, #2dd4bf);
+}
+
+.patient-subview {
+  display: none;
+}
+
+.patient-subview.is-active {
+  display: block;
+}
+
 .panel {
   padding: 1rem;
   display: grid;
@@ -368,6 +399,25 @@ tbody tr.active {
 
 .clinical-doc-card {
   margin-bottom: 0.35rem;
+}
+
+.clinical-format-card {
+  margin-bottom: 0.35rem;
+}
+
+.format-fields-grid {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.format-field-wide {
+  grid-column: 1 / -1;
+}
+
+.format-fields-grid textarea {
+  resize: vertical;
+  min-height: 74px;
 }
 
 .badge-count {
@@ -1050,6 +1100,16 @@ tbody tr.active {
 
   .view-tab {
     width: 100%;
+  }
+
+  .patient-subtabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .patient-subtab {
+    width: 100%;
+    text-align: left;
   }
 
   .hero {

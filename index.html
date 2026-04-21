@@ -47,7 +47,13 @@
           </div>
         </section>
 
-        <div class="home-grid">
+        <nav class="patient-subtabs" aria-label="Registro del paciente">
+          <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
+          <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
+          <button type="button" class="patient-subtab" data-patient-tab="history">Historial clinico</button>
+        </nav>
+
+        <section class="patient-subview is-active" data-patient-subview="profile">
           <section class="panel panel-form">
             <div class="panel-header">
               <div>
@@ -208,7 +214,9 @@
               </label>
             </form>
           </section>
+        </section>
 
+        <section class="patient-subview" data-patient-subview="odontogram">
           <section class="panel panel-odontogram">
             <div class="panel-header panel-header-odonto">
               <div>
@@ -273,9 +281,10 @@
               </div>
             </section>
           </section>
-        </div>
+        </section>
 
-        <section class="panel panel-history">
+        <section class="patient-subview" data-patient-subview="history">
+          <section class="panel panel-history">
           <section class="card clinical-doc-card">
             <div class="card-title-row">
               <h3>Historia clinica imprimible</h3>
@@ -309,6 +318,16 @@
             </div>
           </section>
 
+          <section class="card clinical-format-card">
+            <div class="card-title-row">
+              <h3 id="clinicalFormatTitle">Campos del formato activo</h3>
+            </div>
+            <p class="card-help">
+              Cada formato tiene su propio frontend. Llena sus recuadros y esos datos se usan para completar el PDF oficial del formato activo.
+            </p>
+            <div id="clinicalFormatFields" class="format-fields-grid"></div>
+          </section>
+
           <div class="card-title-row">
             <h3>Historial clinico del paciente</h3>
             <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
@@ -333,6 +352,7 @@
           </label>
 
           <div id="patientHistoryList" class="history-list"></div>
+        </section>
         </section>
       </section>
 

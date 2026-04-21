@@ -211,7 +211,8 @@ async function handleApi(req, res, pathname) {
         templatePath: CLINICAL_TEMPLATE_FILE,
         formatId: payload?.formatId,
         patient: payload?.patient,
-        dictionaries: payload?.dictionaries
+        dictionaries: payload?.dictionaries,
+        clinicalContext: payload?.clinicalContext
       });
 
       res.writeHead(200, {

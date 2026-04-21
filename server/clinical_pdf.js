@@ -26,6 +26,8 @@ const LABEL_RULES = [
   { matches: ["nombre(s)"], value: "firstNames" },
   { matches: ["nombre del paciente"], value: "fullName", maxPerPage: 2 },
   { matches: ["nombre completo"], value: "fullName", maxPerPage: 2 },
+  { matches: ["folio"], value: "recordReference", maxPerPage: 2, maxWidth: 180 },
+  { matches: ["referencia"], value: "recordReference", maxPerPage: 2, maxWidth: 180 },
   { matches: ["paciente"], value: "fullName", exact: true, maxPerPage: 1, dx: 28 },
   { matches: ["edad"], value: "ageText", exact: true, maxPerPage: 2 },
   { matches: ["anos"], value: "ageYears", exact: true, maxPerPage: 2 },
@@ -186,7 +188,27 @@ function summarizeNotes(patient) {
   return summarizeList(texts, 3);
 }
 
-function buildContext(patient, dictionaries, formatId) {
+function normalizeClinicalContext(rawContext) {
+  const source = rawContext && typeof rawContext === "object" ? rawContext : {};
+  const byKey = source.byKey && typeof source.byKey === "object" ? source.byKey : {};
+  const details = Array.isArray(source.details) ? source.details : [];
+  const normalizedByKey = {};
+
+  for (const [key, value] of Object.entries(byKey)) {
+    const clean = String(value || "").trim();
+    if (!clean) {
+      continue;
+    }
+    normalizedByKey[key] = clean;
+  }
+
+  return {
+    byKey: normalizedByKey,
+    details: details.map((value) => String(value || "").trim()).filter(Boolean)
+  };
+}
+
+function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const p = patient && typeof patient === "object" ? patient : {};
   const name = String(p.name || "").trim();
   const nameParts = splitPatientName(name);
@@ -209,13 +231,15 @@ function buildContext(patient, dictionaries, formatId) {
 
   const consultationReason = String(p.otherConditions || "").trim() || String(p.medications || "").trim();
   const background = [p.allergies, p.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
+  const clinicalContext = normalizeClinicalContext(clinicalContextInput);
 
-  return {
+  const context = {
     formatId,
     fullName: name,
     firstNames: nameParts.firstNames,
     lastNameFather: nameParts.lastNameFather,
     lastNameMother: nameParts.lastNameMother,
+    recordReference: String(p.clinicalRecordReference || "").trim(),
     ageText: String(p.age || "").trim(),
     ageYears: String(p.age || "").trim(),
     ageMonths: "",
@@ -249,6 +273,30 @@ function buildContext(patient, dictionaries, formatId) {
     notes: truncate(notes || "Sin observaciones clinicas adicionales.", 170),
     odontoSummary: truncate(odontoSummary || "Sin marcas registradas.", 170)
   };
+
+  const maxByKey = {
+    consultReason: 170,
+    diagnosis: 180,
+    treatmentPlan: 180,
+    prognosis: 120,
+    medications: 170,
+    allergies: 170,
+    background: 180,
+    notes: 170,
+    odontoSummary: 170
+  };
+
+  for (const [key, value] of Object.entries(clinicalContext.byKey)) {
+    const max = maxByKey[key] || 180;
+    context[key] = truncate(value, max);
+  }
+
+  if (clinicalContext.details.length > 0) {
+    const detailsText = truncate(clinicalContext.details.join(" | "), 260);
+    context.notes = truncate(context.notes ? `${context.notes} | ${detailsText}` : detailsText, 170);
+  }
+
+  return context;
 }
 
 function resolveFormatRange(formatId, totalPages) {
@@ -398,7 +446,7 @@ async function generateClinicalPdf(options) {
   const selected = resolveFormatRange(options?.formatId, textData.totalPages);
   const patient = options?.patient && typeof options.patient === "object" ? options.patient : {};
   const dictionaries = options?.dictionaries && typeof options.dictionaries === "object" ? options.dictionaries : {};
-  const context = buildContext(patient, dictionaries, selected.formatId);
+  const context = buildContext(patient, dictionaries, selected.formatId, options?.clinicalContext);
 
   const sourcePdf = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const targetPdf = await PDFDocument.create();
@@ -452,4 +500,3 @@ async function generateClinicalPdf(options) {
 module.exports = {
   generateClinicalPdf
 };
-

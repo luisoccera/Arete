@@ -51,6 +51,7 @@
           <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
           <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
           <button type="button" class="patient-subtab" data-patient-tab="pathologies">Patologias</button>
+          <button type="button" class="patient-subtab" data-patient-tab="media">Imagenes</button>
           <button type="button" class="patient-subtab" data-patient-tab="history">Historial clinico</button>
         </nav>
 
@@ -70,8 +71,18 @@
             <form id="patientForm" novalidate>
               <div class="form-grid">
                 <label class="field">
-                  <span>Nombre completo</span>
+                  <span>Nombre(s)</span>
                   <input type="text" id="patientName" required>
+                </label>
+
+                <label class="field">
+                  <span>Apellido paterno</span>
+                  <input type="text" id="patientLastNameFather">
+                </label>
+
+                <label class="field">
+                  <span>Apellido materno</span>
+                  <input type="text" id="patientLastNameMother">
                 </label>
 
                 <label class="field">
@@ -283,6 +294,32 @@
               </div>
 
               <div id="diseaseCatalog" class="catalog"></div>
+            </section>
+          </section>
+        </section>
+
+        <section class="patient-subview" data-patient-subview="media">
+          <section class="panel panel-media">
+            <section class="card">
+              <h3>Radiografias y fotografias del paciente</h3>
+              <p class="card-help">Carga imagenes clinicas del paciente para tener historial visual por expediente.</p>
+
+              <div class="form-grid">
+                <label class="field">
+                  <span>Tipo de imagen</span>
+                  <select id="patientImageType">
+                    <option value="radiografia">Radiografia</option>
+                    <option value="fotografia">Fotografia</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Subir imagen(es)</span>
+                  <input type="file" id="patientImageInput" accept="image/*" multiple>
+                </label>
+              </div>
+
+              <div id="patientImageList" class="media-grid"></div>
             </section>
           </section>
         </section>

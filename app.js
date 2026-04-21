@@ -422,6 +422,8 @@ const el = {
   patientHistoryList: document.getElementById("patientHistoryList"),
   feedbackMessage: document.getElementById("feedbackMessage"),
   patientName: document.getElementById("patientName"),
+  patientLastNameFather: document.getElementById("patientLastNameFather"),
+  patientLastNameMother: document.getElementById("patientLastNameMother"),
   patientAge: document.getElementById("patientAge"),
   patientSex: document.getElementById("patientSex"),
   patientLocation: document.getElementById("patientLocation"),
@@ -439,6 +441,9 @@ const el = {
   appointmentReason: document.getElementById("appointmentReason"),
   addAppointmentBtn: document.getElementById("addAppointmentBtn"),
   appointmentList: document.getElementById("appointmentList"),
+  patientImageType: document.getElementById("patientImageType"),
+  patientImageInput: document.getElementById("patientImageInput"),
+  patientImageList: document.getElementById("patientImageList"),
   brushTimes: document.getElementById("brushTimes"),
   flossHabit: document.getElementById("flossHabit"),
   hasCaries: document.getElementById("hasCaries"),
@@ -504,6 +509,7 @@ function bindEvents() {
   el.addDiseaseBtn.addEventListener("click", addDisease);
   el.addStatusBtn.addEventListener("click", addToothStatus);
   el.addAppointmentBtn.addEventListener("click", addAppointmentToPatient);
+  el.patientImageInput.addEventListener("change", handlePatientImageUpload);
   el.exportClinicalDocBtn.addEventListener("click", downloadClinicalDocument);
   el.printClinicalDocBtn.addEventListener("click", printClinicalDocument);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
@@ -612,6 +618,14 @@ function bindEvents() {
     removeAppointmentFromPatient(removeBtn.getAttribute("data-remove-appointment-id"));
   });
 
+  el.patientImageList.addEventListener("click", (event) => {
+    const removeBtn = event.target.closest("[data-remove-media-id]");
+    if (!removeBtn) {
+      return;
+    }
+    removePatientMediaEntry(removeBtn.getAttribute("data-remove-media-id"));
+  });
+
   el.zoneList.addEventListener("click", (event) => {
     const zoneBtn = event.target.closest("[data-zone-id]");
     if (!zoneBtn) {
@@ -657,7 +671,7 @@ function setActiveView(view) {
 }
 
 function setActivePatientSubview(view) {
-  const validViews = new Set(["profile", "odontogram", "pathologies", "history"]);
+  const validViews = new Set(["profile", "odontogram", "pathologies", "media", "history"]);
   const nextView = validViews.has(view) ? view : "profile";
   activePatientSubview = nextView;
 
@@ -702,6 +716,8 @@ function createEmptyPatient() {
   return {
     id: null,
     name: "",
+    lastNameFather: "",
+    lastNameMother: "",
     age: "",
     sex: "",
     location: "",
@@ -723,6 +739,7 @@ function createEmptyPatient() {
     clinicalFormData: createEmptyClinicalFormData(),
     diseaseIds: [],
     appointments: [],
+    mediaEntries: [],
     odontogramMode: "adult",
     odontogram: {
       teeth: {},
@@ -829,6 +846,16 @@ function normalizePatient(rawPatient) {
   };
 
   patient.name = stringOrEmpty(patient.name);
+  patient.lastNameFather = stringOrEmpty(patient.lastNameFather || patient.surnameFather || patient.apellidoPaterno);
+  patient.lastNameMother = stringOrEmpty(patient.lastNameMother || patient.surnameMother || patient.apellidoMaterno);
+  if (!patient.lastNameFather && !patient.lastNameMother && patient.name) {
+    const inferredName = splitClinicalFullName(patient.name);
+    if (inferredName.lastNameFather || inferredName.lastNameMother) {
+      patient.name = inferredName.firstNames || patient.name;
+      patient.lastNameFather = inferredName.lastNameFather;
+      patient.lastNameMother = inferredName.lastNameMother;
+    }
+  }
   patient.sex = stringOrEmpty(patient.sex);
   patient.location = stringOrEmpty(patient.location);
   patient.birthDate = stringOrEmpty(patient.birthDate);
@@ -867,6 +894,7 @@ function normalizePatient(rawPatient) {
     ? patient.diseaseIds.filter((id) => typeof id === "string")
     : [];
   patient.appointments = normalizeAppointments(patient.appointments);
+  patient.mediaEntries = normalizePatientMediaEntries(patient.mediaEntries || patient.images || patient.media);
 
   patient.odontogramMode = isValidDentitionMode(patient.odontogramMode) ? patient.odontogramMode : "adult";
 
@@ -916,6 +944,31 @@ function normalizeAppointments(rawAppointments) {
     return aTs - bTs;
   });
   return appointments;
+}
+
+function normalizePatientMediaEntries(rawEntries) {
+  if (!Array.isArray(rawEntries)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const entry of rawEntries) {
+    const dataUrl = stringOrEmpty(entry?.dataUrl || entry?.url);
+    if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+      continue;
+    }
+    const type = stringOrEmpty(entry?.type).toLowerCase() === "fotografia" ? "fotografia" : "radiografia";
+    normalized.push({
+      id: stringOrEmpty(entry?.id) || generateId("img"),
+      type,
+      name: stringOrEmpty(entry?.name) || "imagen-clinica",
+      dataUrl,
+      createdAt: isValidDate(entry?.createdAt) ? String(entry.createdAt) : new Date().toISOString()
+    });
+  }
+
+  normalized.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return normalized.slice(0, 80);
 }
 
 function normalizeClinicalRecordType(value) {
@@ -1194,6 +1247,7 @@ function renderAll() {
   renderOdontogram();
   renderClinicalFormatFields();
   renderAppointmentList();
+  renderPatientMedia();
   renderPatientTable();
   renderUpcomingAppointments();
   renderPatientHistory();
@@ -1209,11 +1263,15 @@ function renderPatientTable() {
       if (!query) {
         return true;
       }
+      const fullName = getPatientFullName(patient);
       const diseaseNames = patient.diseaseIds
         .map((id) => getDiseaseById(id)?.name || "")
         .join(" ");
       const haystack = [
+        fullName,
         patient.name,
+        patient.lastNameFather,
+        patient.lastNameMother,
         patient.phone,
         patient.location,
         patient.dentistName,
@@ -1224,7 +1282,7 @@ function renderPatientTable() {
 
       return haystack.includes(query);
     })
-    .sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
+    .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b), "es", { sensitivity: "base" }));
 
   if (patients.length === 0) {
     el.patientRows.innerHTML = "<tr><td colspan=\"5\">No hay pacientes para mostrar.</td></tr>";
@@ -1234,6 +1292,7 @@ function renderPatientTable() {
 
   const rowsHtml = patients
     .map((patient) => {
+      const fullName = getPatientFullName(patient);
       const diseaseBoxes = patient.diseaseIds
         .map((id) => {
           const disease = getDiseaseById(id);
@@ -1255,7 +1314,7 @@ function renderPatientTable() {
         <tr class="${patient.id === editingPatientId ? "active" : ""}">
           <td>
             <div class="patient-name-cell">
-              <strong>${escapeHtml(patient.name || "Sin nombre")}</strong>
+              <strong>${escapeHtml(fullName || "Sin nombre")}</strong>
               <div class="color-boxes">${diseaseBoxes || "<span class=\"patient-meta\">Sin enfermedades seleccionadas</span>"}</div>
               <span class="patient-meta">${escapeHtml(patient.location || "Sin ubicacion")}</span>
             </div>
@@ -1295,7 +1354,7 @@ function renderUpcomingAppointments() {
         if (info.timestamp >= threshold) {
           entries.push({
             patientId: patient.id,
-            patientName: patient.name || "Sin nombre",
+            patientName: getPatientFullName(patient) || "Sin nombre",
             date: appointment.date,
             time: appointment.time || "",
             dentistName: patient.dentistName || "Sin dentista",
@@ -1311,7 +1370,7 @@ function renderUpcomingAppointments() {
     if (nextConsultationInfo && nextConsultationInfo.timestamp >= todayStart) {
       entries.push({
         patientId: patient.id,
-        patientName: patient.name || "Sin nombre",
+        patientName: getPatientFullName(patient) || "Sin nombre",
         date: patient.nextConsultationDate,
         time: "",
         dentistName: patient.dentistName || "Sin dentista",
@@ -1325,7 +1384,7 @@ function renderUpcomingAppointments() {
     if (consultationInfo && consultationInfo.timestamp >= todayStart) {
       entries.push({
         patientId: patient.id,
-        patientName: patient.name || "Sin nombre",
+        patientName: getPatientFullName(patient) || "Sin nombre",
         date: patient.consultationDate,
         time: "",
         dentistName: patient.dentistName || "Sin dentista",
@@ -1494,6 +1553,120 @@ function renderAppointmentList() {
       </article>
     `)
     .join("");
+}
+
+function renderPatientMedia() {
+  if (!el.patientImageList) {
+    return;
+  }
+
+  const entries = normalizePatientMediaEntries(draftPatient.mediaEntries);
+  draftPatient.mediaEntries = entries;
+
+  if (entries.length === 0) {
+    el.patientImageList.innerHTML = "<div class=\"history-empty\">Aun no hay imagenes cargadas para este paciente.</div>";
+    return;
+  }
+
+  el.patientImageList.innerHTML = entries
+    .map((entry) => `
+      <article class="media-item">
+        <img src="${entry.dataUrl}" alt="${escapeHtml(entry.name || "Imagen clinica")}">
+        <div class="media-item-body">
+          <div class="media-item-title">${escapeHtml(entry.name || "Imagen clinica")}</div>
+          <div class="media-item-meta">${escapeHtml(entry.type === "fotografia" ? "Fotografia" : "Radiografia")} | ${escapeHtml(formatDateTime(entry.createdAt))}</div>
+          <button type="button" class="catalog-btn" data-remove-media-id="${entry.id}">Eliminar</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+async function handlePatientImageUpload(event) {
+  const files = Array.from(event.target.files || []);
+  if (files.length === 0) {
+    return;
+  }
+
+  const selectedType = stringOrEmpty(el.patientImageType.value).toLowerCase() === "fotografia"
+    ? "fotografia"
+    : "radiografia";
+  const maxFileSize = 8 * 1024 * 1024;
+  let loadedCount = 0;
+
+  if (!Array.isArray(draftPatient.mediaEntries)) {
+    draftPatient.mediaEntries = [];
+  }
+
+  for (const file of files) {
+    if (!String(file.type || "").toLowerCase().startsWith("image/")) {
+      continue;
+    }
+    if (Number(file.size || 0) > maxFileSize) {
+      continue;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      draftPatient.mediaEntries.unshift({
+        id: generateId("img"),
+        type: selectedType,
+        name: stringOrEmpty(file.name) || "imagen-clinica",
+        dataUrl,
+        createdAt: new Date().toISOString()
+      });
+      loadedCount += 1;
+    } catch {
+      continue;
+    }
+  }
+
+  draftPatient.mediaEntries = normalizePatientMediaEntries(draftPatient.mediaEntries);
+  renderPatientMedia();
+  persistDraftPatientIfEditing();
+  resetPatientMediaInput();
+
+  if (loadedCount > 0) {
+    setFeedback(`${loadedCount} imagen(es) agregadas al expediente del paciente.`);
+  } else {
+    setFeedback("No se pudo cargar ninguna imagen. Verifica formato y tamano (max 8MB).", "error");
+  }
+}
+
+function removePatientMediaEntry(mediaId) {
+  if (!Array.isArray(draftPatient.mediaEntries)) {
+    return;
+  }
+
+  const found = draftPatient.mediaEntries.find((entry) => entry.id === mediaId);
+  if (!found) {
+    return;
+  }
+
+  const approved = window.confirm(`Se eliminara la imagen "${found.name || "sin nombre"}". Deseas continuar?`);
+  if (!approved) {
+    return;
+  }
+
+  draftPatient.mediaEntries = draftPatient.mediaEntries.filter((entry) => entry.id !== mediaId);
+  renderPatientMedia();
+  persistDraftPatientIfEditing();
+  setFeedback("Imagen eliminada del expediente.");
+}
+
+function resetPatientMediaInput() {
+  if (el.patientImageInput) {
+    el.patientImageInput.value = "";
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function renderPatientHistory() {
@@ -1904,9 +2077,10 @@ function openPatient(id) {
   renderAppointmentList();
   renderPatientHistory();
   resetAppointmentInputs();
+  resetPatientMediaInput();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
-  setFeedback(`Editando expediente de ${found.name}.`);
+  setFeedback(`Editando expediente de ${getPatientFullName(found)}.`);
 }
 
 function startNewPatient(showMessage) {
@@ -1921,8 +2095,10 @@ function startNewPatient(showMessage) {
   renderDiseaseChecklist();
   renderOdontogram();
   renderAppointmentList();
+  renderPatientMedia();
   renderPatientHistory();
   resetAppointmentInputs();
+  resetPatientMediaInput();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
 
@@ -1966,11 +2142,13 @@ function savePatient() {
   renderUpcomingAppointments();
   renderDentitionSwitch();
   renderAppointmentList();
+  renderPatientMedia();
   renderPatientHistory();
   resetAppointmentInputs();
+  resetPatientMediaInput();
   updateDeleteCurrentButtonState();
   setFormTitle();
-  setFeedback(`Paciente ${normalized.name} guardado correctamente.`);
+  setFeedback(`Paciente ${getPatientFullName(normalized)} guardado correctamente.`);
 }
 
 function deletePatient(id) {
@@ -1979,7 +2157,7 @@ function deletePatient(id) {
     return;
   }
 
-  const approved = window.confirm(`Se eliminara el paciente "${patient.name}". Esta accion no se puede deshacer.`);
+  const approved = window.confirm(`Se eliminara el paciente "${getPatientFullName(patient)}". Esta accion no se puede deshacer.`);
   if (!approved) {
     return;
   }
@@ -1994,7 +2172,7 @@ function deletePatient(id) {
   renderUpcomingAppointments();
   renderPatientHistory();
   updateDeleteCurrentButtonState();
-  setFeedback(`Paciente ${patient.name} eliminado.`);
+  setFeedback(`Paciente ${getPatientFullName(patient)} eliminado.`);
 }
 
 function addAppointmentToPatient() {
@@ -2333,6 +2511,8 @@ function syncActiveClinicalFormatFieldsFromDom() {
 
 function syncDraftFromForm() {
   draftPatient.name = stringOrEmpty(el.patientName.value);
+  draftPatient.lastNameFather = stringOrEmpty(el.patientLastNameFather.value);
+  draftPatient.lastNameMother = stringOrEmpty(el.patientLastNameMother.value);
   draftPatient.age = numberOrEmpty(el.patientAge.value);
   draftPatient.sex = stringOrEmpty(el.patientSex.value);
   draftPatient.location = stringOrEmpty(el.patientLocation.value);
@@ -2360,6 +2540,8 @@ function syncDraftFromForm() {
 
 function hydrateFormFromDraft() {
   el.patientName.value = draftPatient.name || "";
+  el.patientLastNameFather.value = draftPatient.lastNameFather || "";
+  el.patientLastNameMother.value = draftPatient.lastNameMother || "";
   el.patientAge.value = toInputNumber(draftPatient.age);
   el.patientSex.value = draftPatient.sex || "";
   el.patientLocation.value = draftPatient.location || "";
@@ -2379,6 +2561,7 @@ function hydrateFormFromDraft() {
   el.hasCaries.value = draftPatient.hasCaries || "";
   el.otherConditions.value = draftPatient.otherConditions || "";
   renderClinicalFormatFields();
+  renderPatientMedia();
 }
 
 function focusPathologiesSection() {
@@ -2974,16 +3157,16 @@ function parseClinicalLocationParts(locationInput) {
     .filter(Boolean);
 
   const first = tokens[0] || text;
-  const second = tokens[1] || first;
-  const third = tokens[2] || second || first;
+  const second = tokens[1] || "";
+  const third = tokens[2] || "";
 
   return {
     street: first,
-    colony: second || first,
-    municipality: second || first,
-    delegation: second || first,
-    state: third || second || first,
-    city: second || first
+    colony: second,
+    municipality: second,
+    delegation: second,
+    state: third,
+    city: second
   };
 }
 
@@ -3073,8 +3256,24 @@ function buildClinicalContextFromForm(patientInput, formatId) {
 
 function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalContextInput) {
   const patient = normalizePatient(patientInput || {});
-  const fullName = String(patient.name || "").trim();
-  const nameParts = splitClinicalFullName(fullName);
+  let explicitFirstNames = stringOrEmpty(patient.name);
+  let explicitLastNameFather = stringOrEmpty(patient.lastNameFather);
+  let explicitLastNameMother = stringOrEmpty(patient.lastNameMother);
+  if (!explicitLastNameFather && !explicitLastNameMother && explicitFirstNames) {
+    const inferred = splitClinicalFullName(explicitFirstNames);
+    if (inferred.lastNameFather || inferred.lastNameMother) {
+      explicitFirstNames = inferred.firstNames || explicitFirstNames;
+      explicitLastNameFather = inferred.lastNameFather;
+      explicitLastNameMother = inferred.lastNameMother;
+    }
+  }
+  const fullName = getPatientFullName(patient);
+  const fallbackNameParts = splitClinicalFullName(fullName);
+  const nameParts = {
+    firstNames: explicitFirstNames || fallbackNameParts.firstNames,
+    lastNameFather: explicitLastNameFather || fallbackNameParts.lastNameFather,
+    lastNameMother: explicitLastNameMother || fallbackNameParts.lastNameMother
+  };
   const consultDate = parseDatePartsForClinicalPdf(patient.consultationDate || patient.nextConsultationDate || "");
   const birthDate = parseDatePartsForClinicalPdf(patient.birthDate || "");
   const locationParts = parseClinicalLocationParts(patient.location);
@@ -3307,7 +3506,6 @@ function shouldSkipClinicalRuleOnIdentificationPage(rule) {
 
 function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   const ageValue = String(context.ageYears || context.ageText || "").trim();
-  const yearsValue = ageValue;
   const monthsValue = String(context.ageMonths || "").trim();
   const birthPlace = String(context.locationShort || context.location || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
@@ -3319,7 +3517,6 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 }, pdfLib);
 
   drawClinicalTextAt(page, font, ageValue, { x: 447, y: 397.2, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 5 }, pdfLib);
-  drawClinicalTextAt(page, font, yearsValue, { x: 486, y: 397.2, maxWidth: 24, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
   drawClinicalTextAt(page, font, monthsValue, { x: 538, y: 397.2, maxWidth: 32, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 
   drawClinicalMark(page, font, context.isMale, 250.5, 364.2, 10, pdfLib);
@@ -3348,9 +3545,9 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, context.doctorPhone || context.phone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 }, pdfLib);
 
-  drawClinicalTextAt(page, font, context.consultDay, { x: 473, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, context.consultMonth, { x: 498, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, context.consultYear, { x: 526, y: 451.8, maxWidth: 40, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, context.consultDay, { x: 486, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.consultMonth, { x: 511, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, context.consultYear, { x: 538, y: 451.8, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function drawClinicalPdfRule(page, font, value, item, rule, pdfLib) {
@@ -3408,10 +3605,22 @@ function sanitizeFileName(value) {
 
 function setFormTitle() {
   if (editingPatientId) {
-    el.formTitle.textContent = `Editando paciente: ${draftPatient.name || "Sin nombre"}`;
+    el.formTitle.textContent = `Editando paciente: ${getPatientFullName(draftPatient) || "Sin nombre"}`;
   } else {
     el.formTitle.textContent = "Nuevo paciente";
   }
+}
+
+function getPatientFullName(patientInput) {
+  const patient = patientInput || {};
+  const firstNames = stringOrEmpty(patient.name);
+  const lastFather = stringOrEmpty(patient.lastNameFather);
+  const lastMother = stringOrEmpty(patient.lastNameMother);
+  const full = [firstNames, lastFather, lastMother].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  if (full) {
+    return full;
+  }
+  return firstNames || stringOrEmpty(patient.fullName) || "Sin nombre";
 }
 
 function getDiseaseById(id) {

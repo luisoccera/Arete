@@ -1058,6 +1058,44 @@ tbody tr.active {
   z-index: 1;
 }
 
+.media-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.media-item {
+  border: 1px solid #2f5168;
+  border-radius: 10px;
+  background: #0f2b40;
+  overflow: hidden;
+}
+
+.media-item img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: #081827;
+}
+
+.media-item-body {
+  padding: 0.55rem;
+  display: grid;
+  gap: 0.36rem;
+}
+
+.media-item-title {
+  font-weight: 700;
+  color: #e8f6ff;
+  word-break: break-word;
+}
+
+.media-item-meta {
+  font-size: 0.76rem;
+  color: #a3d0ea;
+}
+
 .app-footer {
   padding: 0.75rem 1rem;
 }

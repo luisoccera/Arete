@@ -186,16 +186,16 @@ function parseClinicalLocationParts(locationInput) {
     .filter(Boolean);
 
   const first = tokens[0] || text;
-  const second = tokens[1] || first;
-  const third = tokens[2] || second || first;
+  const second = tokens[1] || "";
+  const third = tokens[2] || "";
 
   return {
     street: first,
-    colony: second || first,
-    municipality: second || first,
-    delegation: second || first,
-    state: third || second || first,
-    city: second || first
+    colony: second,
+    municipality: second,
+    delegation: second,
+    state: third,
+    city: second
   };
 }
 
@@ -276,8 +276,29 @@ function normalizeClinicalContext(rawContext) {
 
 function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const p = patient && typeof patient === "object" ? patient : {};
-  const name = String(p.name || "").trim();
-  const nameParts = splitPatientName(name);
+  let explicitFirstNames = String(p.name || "").trim();
+  let explicitLastNameFather = String(p.lastNameFather || p.surnameFather || p.apellidoPaterno || "").trim();
+  let explicitLastNameMother = String(p.lastNameMother || p.surnameMother || p.apellidoMaterno || "").trim();
+  if (!explicitLastNameFather && !explicitLastNameMother && explicitFirstNames) {
+    const inferred = splitPatientName(explicitFirstNames);
+    if (inferred.lastNameFather || inferred.lastNameMother) {
+      explicitFirstNames = inferred.firstNames || explicitFirstNames;
+      explicitLastNameFather = inferred.lastNameFather;
+      explicitLastNameMother = inferred.lastNameMother;
+    }
+  }
+  const fullName = [explicitFirstNames, explicitLastNameFather, explicitLastNameMother]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const name = fullName || explicitFirstNames;
+  const fallbackParts = splitPatientName(name);
+  const nameParts = {
+    firstNames: explicitFirstNames || fallbackParts.firstNames,
+    lastNameFather: explicitLastNameFather || fallbackParts.lastNameFather,
+    lastNameMother: explicitLastNameMother || fallbackParts.lastNameMother
+  };
   const consultDate = parseDateParts(p.consultationDate || p.nextConsultationDate || "");
   const birthDate = parseDateParts(p.birthDate || "");
   const locationParts = parseClinicalLocationParts(p.location);
@@ -516,7 +537,6 @@ function shouldSkipRuleOnIdentificationPage(rule) {
 
 function drawIdentificationBlock(page, font, context) {
   const ageValue = String(context.ageYears || context.ageText || "").trim();
-  const yearsValue = ageValue;
   const monthsValue = String(context.ageMonths || "").trim();
   const birthPlace = String(context.locationShort || context.location || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
@@ -528,7 +548,6 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 });
 
   drawTextAt(page, font, ageValue, { x: 447, y: 397.2, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 5 });
-  drawTextAt(page, font, yearsValue, { x: 486, y: 397.2, maxWidth: 24, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
   drawTextAt(page, font, monthsValue, { x: 538, y: 397.2, maxWidth: 32, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
 
   drawMark(page, font, context.isMale, 250.5, 364.2, 10);
@@ -557,9 +576,9 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, context.doctorPhone || context.phone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 });
 
-  drawTextAt(page, font, context.consultDay, { x: 473, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.consultMonth, { x: 498, y: 451.8, maxWidth: 22, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.consultYear, { x: 526, y: 451.8, maxWidth: 40, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, context.consultDay, { x: 486, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, context.consultMonth, { x: 511, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, context.consultYear, { x: 538, y: 451.8, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
 }
 
 function drawRuleValue(page, font, value, item, rule) {

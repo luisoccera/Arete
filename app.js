@@ -1981,8 +1981,13 @@ async function downloadClinicalDocument() {
     const objectUrl = URL.createObjectURL(blob);
     link.href = objectUrl;
     link.download = fileName || `${sanitizeFileName(draftPatient.name || "paciente")}-${recordType.id}.pdf`;
+    link.style.display = "none";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(objectUrl);
+    window.setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+      link.remove();
+    }, 1500);
     persistDraftPatientIfEditing();
     setFeedback(`PDF oficial "${recordType.label}" generado correctamente.`);
   } catch (error) {
@@ -2001,40 +2006,84 @@ async function printClinicalDocument() {
     return;
   }
 
-  let objectUrl = "";
-  const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
   try {
     const result = await requestOfficialClinicalPdf();
-    objectUrl = URL.createObjectURL(result.blob);
-    const printWindow = window.open(objectUrl, "_blank", "noopener,noreferrer");
-    if (!printWindow) {
-      URL.revokeObjectURL(objectUrl);
-      setFeedback("No se pudo abrir la ventana de impresion. Revisa el bloqueo de ventanas emergentes.", "error");
-      return;
-    }
-
-    window.setTimeout(() => {
-      try {
-        printWindow.focus();
-        printWindow.print();
-      } catch (error) {
-        console.error(error);
-      } finally {
-        if (objectUrl) {
-          URL.revokeObjectURL(objectUrl);
-        }
-      }
-    }, 650);
-
+    await printPdfBlob(result.blob);
     persistDraftPatientIfEditing();
-    setFeedback(`PDF oficial de ${recordType.label} abierto para impresion.`);
+    setFeedback(`PDF oficial de ${result.recordType.label} listo para impresion.`);
   } catch (error) {
     console.error(error);
-    if (objectUrl) {
-      URL.revokeObjectURL(objectUrl);
-    }
     setFeedback(error.message || "No se pudo preparar el PDF para imprimir.", "error");
   }
+}
+
+function printPdfBlob(blob) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const frame = document.createElement("iframe");
+    frame.style.position = "fixed";
+    frame.style.width = "0";
+    frame.style.height = "0";
+    frame.style.opacity = "0";
+    frame.style.border = "0";
+    frame.style.left = "-9999px";
+    frame.style.bottom = "0";
+
+    let settled = false;
+    const finalize = (callback) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 30000);
+      if (frame.parentNode) {
+        frame.parentNode.removeChild(frame);
+      }
+      callback();
+    };
+
+    frame.onerror = () => {
+      finalize(() => reject(new Error("No se pudo cargar el PDF para imprimir.")));
+    };
+
+    frame.onload = () => {
+      window.setTimeout(() => {
+        try {
+          const frameWindow = frame.contentWindow;
+          if (!frameWindow) {
+            finalize(() => reject(new Error("No se pudo abrir el visor de impresion.")));
+            return;
+          }
+
+          let done = false;
+          const complete = () => {
+            if (done) {
+              return;
+            }
+            done = true;
+            frameWindow.removeEventListener("afterprint", onAfterPrint);
+            finalize(() => resolve());
+          };
+
+          const onAfterPrint = () => {
+            complete();
+          };
+
+          frameWindow.addEventListener("afterprint", onAfterPrint);
+          frameWindow.focus();
+          frameWindow.print();
+          window.setTimeout(complete, 1600);
+        } catch (error) {
+          finalize(() => reject(error instanceof Error ? error : new Error("Error al imprimir el PDF.")));
+        }
+      }, 220);
+    };
+
+    document.body.appendChild(frame);
+    frame.src = objectUrl;
+  });
 }
 
 function getClinicalRecordTypeById(id) {
@@ -2151,15 +2200,27 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
 
 async function loadClientPdfModules() {
   if (!clientPdfModulesPromise) {
-    clientPdfModulesPromise = Promise.all([
-      import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm"),
-      import("https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.mjs")
-    ]).then(([pdfLib, pdfjsLib]) => {
-      if (pdfjsLib?.GlobalWorkerOptions) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.mjs";
+    clientPdfModulesPromise = (async () => {
+      try {
+        const [pdfLib, pdfjsLib] = await Promise.all([
+          import(new URL("./vendor/pdf-lib.esm.min.js", document.baseURI).toString()),
+          import(new URL("./vendor/pdf.min.mjs", document.baseURI).toString())
+        ]);
+        if (pdfjsLib?.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("./vendor/pdf.worker.min.mjs", document.baseURI).toString();
+        }
+        return { pdfLib, pdfjsLib };
+      } catch {
+        const [pdfLib, pdfjsLib] = await Promise.all([
+          import("https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/+esm"),
+          import("https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.mjs")
+        ]);
+        if (pdfjsLib?.GlobalWorkerOptions) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.6.205/legacy/build/pdf.worker.mjs";
+        }
+        return { pdfLib, pdfjsLib };
       }
-      return { pdfLib, pdfjsLib };
-    }).catch((error) => {
+    })().catch((error) => {
       clientPdfModulesPromise = null;
       throw error;
     });
@@ -2169,11 +2230,11 @@ async function loadClientPdfModules() {
 
 async function loadClientTemplateBytes() {
   if (!clientTemplateBytesPromise) {
-    const templateUrl = new URL("./data/uv-historias.pdf", window.location.href).toString();
+    const templateUrl = new URL("data/uv-historias.pdf", document.baseURI).toString();
     clientTemplateBytesPromise = fetch(templateUrl, { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
-          throw new Error("No se encontro la plantilla UV (data/uv-historias.pdf).");
+          throw new Error(`No se encontro la plantilla UV (${templateUrl}).`);
         }
         return response.arrayBuffer();
       })

@@ -2716,34 +2716,97 @@ async function loadClientTemplateBytes() {
 async function loadClientTemplateTextData(pdfjsLib, templateBytes) {
   if (!clientTemplateTextPromise) {
     clientTemplateTextPromise = (async () => {
-      const doc = await pdfjsLib.getDocument({ data: templateBytes, useSystemFonts: true }).promise;
-      const pages = {};
-      for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
-        const page = await doc.getPage(pageNo);
-        const content = await page.getTextContent();
-        pages[pageNo] = content.items
-          .map((item) => {
-            const raw = String(item?.str || "").trim();
-            if (!raw) {
-              return null;
-            }
-            return {
-              raw,
-              norm: normalizeClinicalPdfText(raw),
-              x: Number(item.transform?.[4] || 0),
-              y: Number(item.transform?.[5] || 0),
-              w: Number(item.width || 0)
-            };
-          })
-          .filter(Boolean);
+      const textMapCandidates = Array.from(
+        new Set([
+          resolveStaticAssetUrl("data/uv-historias.textmap.json"),
+          new URL("data/uv-historias.textmap.json", document.baseURI).toString(),
+          new URL("./data/uv-historias.textmap.json", window.location.href).toString()
+        ])
+      );
+
+      for (const mapUrl of textMapCandidates) {
+        try {
+          const response = await fetch(mapUrl, { cache: "no-store" });
+          if (!response.ok) {
+            continue;
+          }
+          const rawMap = await response.json();
+          const normalizedMap = normalizeClientTemplateTextMap(rawMap);
+          if (normalizedMap.totalPages > 0) {
+            return normalizedMap;
+          }
+        } catch {
+          continue;
+        }
       }
-      return { totalPages: doc.numPages, pages };
+
+      try {
+        const doc = await pdfjsLib.getDocument({ data: templateBytes, useSystemFonts: true }).promise;
+        const pages = {};
+        for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
+          const page = await doc.getPage(pageNo);
+          const content = await page.getTextContent();
+          pages[pageNo] = content.items
+            .map((item) => {
+              const raw = String(item?.str || "").trim();
+              if (!raw) {
+                return null;
+              }
+              return {
+                raw,
+                norm: normalizeClinicalPdfText(raw),
+                x: Number(item.transform?.[4] || 0),
+                y: Number(item.transform?.[5] || 0),
+                w: Number(item.width || 0)
+              };
+            })
+            .filter(Boolean);
+        }
+        return { totalPages: doc.numPages, pages };
+      } catch (error) {
+        throw new Error(
+          `No se pudo analizar la plantilla oficial en este navegador. ${error?.message || "Error desconocido"}`
+        );
+      }
     })().catch((error) => {
       clientTemplateTextPromise = null;
       throw error;
     });
   }
   return clientTemplateTextPromise;
+}
+
+function normalizeClientTemplateTextMap(rawMap) {
+  const source = rawMap && typeof rawMap === "object" ? rawMap : {};
+  const totalPages = Number(source.totalPages || 0);
+  const pagesSource = source.pages && typeof source.pages === "object" ? source.pages : {};
+  const pages = {};
+
+  for (const [pageNo, items] of Object.entries(pagesSource)) {
+    if (!Array.isArray(items)) {
+      continue;
+    }
+    pages[pageNo] = items
+      .map((item) => {
+        const raw = String(item?.raw || "").trim();
+        if (!raw) {
+          return null;
+        }
+        return {
+          raw,
+          norm: normalizeClinicalPdfText(item?.norm || raw),
+          x: Number(item?.x || 0),
+          y: Number(item?.y || 0),
+          w: Number(item?.w || 0)
+        };
+      })
+      .filter(Boolean);
+  }
+
+  return {
+    totalPages: Number.isFinite(totalPages) && totalPages > 0 ? totalPages : 0,
+    pages
+  };
 }
 
 function resolveClinicalFormatRange(formatId, totalPages) {

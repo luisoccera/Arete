@@ -2307,28 +2307,29 @@ async function downloadClinicalDocument() {
 
   if (!draftPatient.name) {
     setFeedback("Primero captura el nombre del paciente para generar el PDF.", "error");
+    setActivePatientSubview("profile");
     el.patientName.focus();
     return;
   }
 
+  setPdfActionState(true, "download");
+  setFeedback("Generando PDF oficial. Espera un momento...");
   try {
     const { blob, fileName, recordType } = await requestOfficialClinicalPdf();
-    const link = document.createElement("a");
-    const objectUrl = URL.createObjectURL(blob);
-    link.href = objectUrl;
-    link.download = fileName || `${sanitizeFileName(draftPatient.name || "paciente")}-${recordType.id}.pdf`;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-    window.setTimeout(() => {
-      URL.revokeObjectURL(objectUrl);
-      link.remove();
-    }, 1500);
+    const mode = triggerPdfDownload(blob, fileName || `${sanitizeFileName(draftPatient.name || "paciente")}-${recordType.id}.pdf`);
     persistDraftPatientIfEditing();
-    setFeedback(`PDF oficial "${recordType.label}" generado correctamente.`);
+    if (mode === "opened") {
+      setFeedback(`PDF oficial "${recordType.label}" abierto en una nueva pestana para guardar/compartir.`);
+    } else {
+      setFeedback(`PDF oficial "${recordType.label}" generado correctamente.`);
+    }
   } catch (error) {
     console.error(error);
-    setFeedback(error.message || "No se pudo generar el PDF oficial.", "error");
+    const message = error.message || "No se pudo generar el PDF oficial.";
+    setFeedback(message, "error");
+    window.alert(message);
+  } finally {
+    setPdfActionState(false);
   }
 }
 
@@ -2338,23 +2339,40 @@ async function printClinicalDocument() {
 
   if (!draftPatient.name) {
     setFeedback("Primero captura el nombre del paciente para imprimir el PDF.", "error");
+    setActivePatientSubview("profile");
     el.patientName.focus();
     return;
   }
 
+  setPdfActionState(true, "print");
+  setFeedback("Preparando PDF para impresion...");
   try {
     const result = await requestOfficialClinicalPdf();
-    await printPdfBlob(result.blob);
+    const printed = await printPdfBlob(result.blob);
     persistDraftPatientIfEditing();
-    setFeedback(`PDF oficial de ${result.recordType.label} listo para impresion.`);
+    if (printed) {
+      setFeedback(`PDF oficial de ${result.recordType.label} listo para impresion.`);
+    } else {
+      setFeedback(`PDF oficial de ${result.recordType.label} abierto para impresion manual.`);
+    }
   } catch (error) {
     console.error(error);
-    setFeedback(error.message || "No se pudo preparar el PDF para imprimir.", "error");
+    const message = error.message || "No se pudo preparar el PDF para imprimir.";
+    setFeedback(message, "error");
+    window.alert(message);
+  } finally {
+    setPdfActionState(false);
   }
 }
 
 function printPdfBlob(blob) {
   return new Promise((resolve, reject) => {
+    if (isLikelyIOSLikeBrowser()) {
+      const mode = triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
+      resolve(mode === "opened" ? false : true);
+      return;
+    }
+
     const objectUrl = URL.createObjectURL(blob);
     const frame = document.createElement("iframe");
     frame.style.position = "fixed";
@@ -2400,7 +2418,7 @@ function printPdfBlob(blob) {
             }
             done = true;
             frameWindow.removeEventListener("afterprint", onAfterPrint);
-            finalize(() => resolve());
+            finalize(() => resolve(true));
           };
 
           const onAfterPrint = () => {
@@ -2424,6 +2442,60 @@ function printPdfBlob(blob) {
 
 function getClinicalRecordTypeById(id) {
   return CLINICAL_RECORD_TYPES.find((type) => type.id === id) || CLINICAL_RECORD_TYPES[0];
+}
+
+function setPdfActionState(isBusy, action) {
+  const busy = Boolean(isBusy);
+  if (el.exportClinicalDocBtn) {
+    el.exportClinicalDocBtn.disabled = busy;
+    el.exportClinicalDocBtn.textContent = busy
+      ? (action === "download" ? "Generando PDF..." : "Descargar PDF oficial")
+      : "Descargar PDF oficial";
+  }
+  if (el.printClinicalDocBtn) {
+    el.printClinicalDocBtn.disabled = busy;
+    el.printClinicalDocBtn.textContent = busy
+      ? (action === "print" ? "Preparando..." : "Imprimir PDF")
+      : "Imprimir PDF";
+  }
+}
+
+function isLikelyIOSLikeBrowser() {
+  const ua = String(window.navigator.userAgent || "");
+  const platform = String(window.navigator.platform || "");
+  const maxTouchPoints = Number(window.navigator.maxTouchPoints || 0);
+  const iOSDevice = /iPad|iPhone|iPod/i.test(ua);
+  const iPadDesktopMode = platform === "MacIntel" && maxTouchPoints > 1;
+  return iOSDevice || iPadDesktopMode;
+}
+
+function triggerPdfDownload(blob, fileName) {
+  const objectUrl = URL.createObjectURL(blob);
+  const supportsDownloadAttribute = "download" in HTMLAnchorElement.prototype;
+  const needsOpenFallback = isLikelyIOSLikeBrowser() || !supportsDownloadAttribute;
+
+  if (needsOpenFallback) {
+    const popup = window.open(objectUrl, "_blank", "noopener,noreferrer");
+    if (!popup) {
+      window.location.assign(objectUrl);
+    }
+    window.setTimeout(() => {
+      URL.revokeObjectURL(objectUrl);
+    }, 60000);
+    return "opened";
+  }
+
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = fileName;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl);
+    link.remove();
+  }, 1500);
+  return "downloaded";
 }
 
 async function requestOfficialClinicalPdf() {

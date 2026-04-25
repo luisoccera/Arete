@@ -1,10 +1,10 @@
 :root {
-  --bg-0: #061624;
-  --bg-1: #0c2a3f;
-  --panel-border: #66d9ef2e;
-  --text-main: #e7f3fb;
-  --text-soft: #a7c5d8;
-  --ink: #0d1b2a;
+  --bg-0: #fffaf2;
+  --bg-1: #efe5d4;
+  --panel-border: #d7c8b2;
+  --text-main: #2f261d;
+  --text-soft: #6f6558;
+  --ink: #2c241b;
 }
 
 *,
@@ -60,6 +60,127 @@ body {
   margin: 1.5rem auto 2rem;
   display: grid;
   gap: 1rem;
+}
+
+.app-shell.is-locked {
+  display: none;
+}
+
+.auth-shell {
+  position: relative;
+  z-index: 2;
+  width: min(760px, 94vw);
+  margin: 1.2rem auto;
+  display: grid;
+}
+
+.auth-shell.is-hidden {
+  display: none;
+}
+
+.auth-card {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 1rem 1.05rem;
+  background: linear-gradient(140deg, #fffefc, #f8f1e5);
+  box-shadow: 0 16px 36px #8d755020;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.auth-header h1 {
+  margin: 0.24rem 0 0.45rem;
+  font-family: "Sora", "Manrope", sans-serif;
+  font-size: clamp(1.16rem, 2.2vw, 1.72rem);
+}
+
+.auth-kicker {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #91754d;
+}
+
+.auth-text {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.auth-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.44rem;
+}
+
+.auth-tab {
+  border: 1px solid #ceb99a;
+  border-radius: 10px;
+  padding: 0.52rem 0.84rem;
+  background: #fffaf1;
+  color: #4a3b2b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-tab.is-active {
+  border-color: #b89f7a;
+  background: linear-gradient(125deg, #f7e5c7, #ead4ae);
+  color: #2f2518;
+}
+
+.auth-view {
+  display: none;
+}
+
+.auth-view.is-active {
+  display: block;
+}
+
+.auth-form {
+  display: grid;
+  gap: 0.68rem;
+}
+
+.auth-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.auth-submit {
+  justify-self: flex-start;
+}
+
+.auth-form-separator {
+  border-top: 1px solid #dfd0bb;
+  margin-top: 0.32rem;
+  padding-top: 0.72rem;
+}
+
+.auth-message {
+  min-height: 1.1rem;
+  margin: 0;
+  color: #256f46;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.auth-message[data-mode="error"] {
+  color: #a02735;
+}
+
+.auth-user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.48rem;
+  border: 1px solid #cdb89b;
+  border-radius: 11px;
+  padding: 0.42rem 0.52rem;
+  background: #fff8ef;
+  color: #4f4130;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .hero,
@@ -1114,6 +1235,249 @@ tbody tr.active {
   color: #bbf7d0;
 }
 
+/* Tema claro beige */
+body {
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at 8% -12%, #ffe7c5 0%, transparent 42%),
+    radial-gradient(circle at 95% 6%, #f2ddbf 0%, transparent 38%),
+    linear-gradient(140deg, var(--bg-0), var(--bg-1));
+}
+
+.bg-shape {
+  opacity: 0.3;
+}
+
+.bg-shape-a {
+  background: #e8cfaa;
+}
+
+.bg-shape-b {
+  background: #dbc4a0;
+}
+
+.hero,
+.panel,
+.app-footer {
+  border-color: #d7c8b2;
+  background: linear-gradient(145deg, #fffefb, #f6ecde);
+  box-shadow: 0 12px 28px #8e7f6a21;
+}
+
+.hero-kicker {
+  color: #8a6d49;
+}
+
+.view-tab,
+.patient-subtab {
+  border-color: #d1b999;
+  background: #fff7eb;
+  color: #463626;
+}
+
+.view-tab.is-active,
+.patient-subtab.is-active {
+  color: #2d2419;
+  border-color: #c3a27a;
+  background: linear-gradient(125deg, #f5dfbf, #e9ce9f);
+}
+
+.btn-primary {
+  color: #2a2117;
+  background: linear-gradient(120deg, #f5deb8, #e7ca96);
+  border-color: #c9ab7f;
+  box-shadow: 0 7px 14px #a8895b33;
+}
+
+.btn-secondary {
+  color: #3f3123;
+  background: #f7ede0;
+  border-color: #c8ae8b;
+}
+
+.btn-ghost {
+  color: #3f3123;
+  background: #fbf5ec;
+  border-color: #d4bea0;
+}
+
+.btn-danger {
+  color: #fff2ef;
+  background: #aa3a39;
+  border-color: #8d2a2a;
+}
+
+input[type="search"],
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="tel"],
+textarea,
+select {
+  border-color: #d4bda1;
+  background: #fffdfa;
+  color: #34281d;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #98866f;
+}
+
+input:focus,
+textarea:focus,
+select:focus,
+button:focus-visible {
+  outline: 2px solid #d2b388;
+}
+
+.table-wrap,
+.card,
+.history-item,
+.appointment-item,
+.upcoming-item,
+.catalog-item,
+.history-empty,
+.badge-count,
+.status-picker,
+.jaw-section,
+.jaw-canvas,
+.upcoming-card,
+.panel-odontogram,
+.clinical-doc-card,
+.clinical-format-card,
+.media-item {
+  border-color: #d8c4aa;
+  background: #fffaf2;
+}
+
+thead th {
+  background: #f6ead9;
+  color: #7d6240;
+  border-bottom-color: #d8c4aa;
+}
+
+tbody tr:hover {
+  background: #f7ecde;
+}
+
+tbody tr.active {
+  background: #efe0c9;
+}
+
+th,
+td {
+  border-bottom-color: #e4d4bf;
+}
+
+.patient-meta,
+.panel-subtitle,
+.card-help,
+.upcoming-meta,
+.history-date,
+.history-body,
+.history-empty,
+.appointment-meta,
+.field span,
+.jaw-help,
+.jaw-standard,
+.status-picker label {
+  color: #6f6558;
+}
+
+.table-btn {
+  border-color: #ceb293;
+  background: #fbf4e8;
+  color: #3c2f21;
+}
+
+.table-btn.warn {
+  background: #b13c3c;
+  border-color: #922f2f;
+  color: #fff1ef;
+}
+
+.history-type {
+  color: #8b6736;
+}
+
+.history-status-chip {
+  border-color: #d2bca0;
+  color: #473628;
+  background: #fbf4e9;
+}
+
+.catalog-btn {
+  border-color: #b98f8f;
+  background: #a53a39;
+  color: #fff6f3;
+}
+
+.tag-label {
+  border-color: #d4bca0;
+  color: #3f3022;
+  background: #fff8ef;
+}
+
+.tooth-node .tooth-id {
+  color: #4f3a28;
+  text-shadow: 0 1px 0 #ffffff;
+}
+
+.jaw-backdrop {
+  border-color: #d7b999;
+  background: radial-gradient(circle at 50% 42%, #ffe2ce, #f5cdba);
+}
+
+.jaw-center-label {
+  border-color: #cfae8a;
+  background: #fff7ea;
+  color: #3e3023;
+}
+
+.jaw-divider-horizontal,
+.jaw-divider-vertical {
+  background: #cfa87d;
+}
+
+.zone-btn {
+  border-color: #d2b899;
+  background: #fff8ef;
+  color: #3f3123;
+}
+
+.zone-btn.has-marks {
+  border-color: #b38762;
+}
+
+.zone-btn::before {
+  border-color: #ecd8c0;
+}
+
+.media-item {
+  background: #fff8ef;
+}
+
+.media-item-title {
+  color: #3c2f21;
+}
+
+.media-item-meta {
+  color: #6e6254;
+}
+
+#feedbackMessage {
+  color: #3f7a53;
+}
+
+#feedbackMessage[data-mode="error"] {
+  color: #a2383f;
+}
+
+#feedbackMessage[data-mode="ok"] {
+  color: #387a53;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;
@@ -1126,6 +1490,35 @@ tbody tr.active {
 }
 
 @media (max-width: 575.98px) {
+  .auth-shell {
+    width: min(97vw, 100%);
+    margin-top: 0.75rem;
+  }
+
+  .auth-card {
+    padding: 0.82rem;
+  }
+
+  .auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .auth-tab {
+    width: 100%;
+    text-align: left;
+  }
+
+  .auth-submit {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .auth-user-badge {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .app-shell {
     width: min(98vw, 100%);
     margin-top: 0.7rem;

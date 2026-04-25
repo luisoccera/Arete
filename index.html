@@ -13,7 +13,97 @@
   <div class="bg-shape bg-shape-a"></div>
   <div class="bg-shape bg-shape-b"></div>
 
-  <div class="app-shell">
+  <section id="authShell" class="auth-shell">
+    <article class="auth-card">
+      <header class="auth-header">
+        <p class="auth-kicker">Arete | Acceso seguro</p>
+        <h1>Inicia sesión o crea tu cuenta</h1>
+        <p class="auth-text">Registra tu consultorio con correo, usuario y contraseña. También puedes recuperar tu contraseña.</p>
+      </header>
+
+      <nav class="auth-tabs" aria-label="Opciones de acceso">
+        <button type="button" class="auth-tab is-active" data-auth-tab="login">Iniciar sesión</button>
+        <button type="button" class="auth-tab" data-auth-tab="register">Registrarse</button>
+        <button type="button" class="auth-tab" data-auth-tab="recover">Recuperar contraseña</button>
+      </nav>
+
+      <section class="auth-view is-active" data-auth-view="login">
+        <form id="loginForm" class="auth-form" novalidate>
+          <label class="field">
+            <span>Correo o usuario</span>
+            <input type="text" id="loginIdentifier" autocomplete="username" required>
+          </label>
+          <label class="field">
+            <span>Contraseña</span>
+            <input type="password" id="loginPassword" autocomplete="current-password" required>
+          </label>
+          <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
+        </form>
+      </section>
+
+      <section class="auth-view" data-auth-view="register" hidden>
+        <form id="registerForm" class="auth-form" novalidate>
+          <label class="field">
+            <span>Nombre completo</span>
+            <input type="text" id="registerName" autocomplete="name" required>
+          </label>
+          <div class="form-grid auth-grid">
+            <label class="field">
+              <span>Correo</span>
+              <input type="email" id="registerEmail" autocomplete="email" required>
+            </label>
+            <label class="field">
+              <span>Usuario</span>
+              <input type="text" id="registerUsername" autocomplete="username" required>
+            </label>
+          </div>
+          <div class="form-grid auth-grid">
+            <label class="field">
+              <span>Contraseña</span>
+              <input type="password" id="registerPassword" autocomplete="new-password" required>
+            </label>
+            <label class="field">
+              <span>Confirmar contraseña</span>
+              <input type="password" id="registerPasswordConfirm" autocomplete="new-password" required>
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary auth-submit">Crear cuenta</button>
+        </form>
+      </section>
+
+      <section class="auth-view" data-auth-view="recover" hidden>
+        <form id="recoverRequestForm" class="auth-form" novalidate>
+          <label class="field">
+            <span>Correo o usuario</span>
+            <input type="text" id="recoverIdentifier" autocomplete="username" required>
+          </label>
+          <button type="submit" class="btn btn-secondary auth-submit">Solicitar código de recuperación</button>
+        </form>
+
+        <form id="recoverResetForm" class="auth-form auth-form-separator" novalidate>
+          <div class="form-grid auth-grid">
+            <label class="field">
+              <span>Código de recuperación</span>
+              <input type="text" id="recoverCode" placeholder="Ejemplo: 123456" required>
+            </label>
+            <label class="field">
+              <span>Nueva contraseña</span>
+              <input type="password" id="recoverNewPassword" autocomplete="new-password" required>
+            </label>
+          </div>
+          <label class="field">
+            <span>Confirmar nueva contraseña</span>
+            <input type="password" id="recoverNewPasswordConfirm" autocomplete="new-password" required>
+          </label>
+          <button type="submit" class="btn btn-primary auth-submit">Restablecer contraseña</button>
+        </form>
+      </section>
+
+      <p id="authMessage" class="auth-message" role="status" aria-live="polite"></p>
+    </article>
+  </section>
+
+  <div id="appShell" class="app-shell is-locked">
     <header class="hero">
       <div>
         <p class="hero-kicker">Arete | Sistema de Odontologia</p>
@@ -23,6 +113,10 @@
         </p>
       </div>
       <div class="hero-actions">
+        <div id="authUserBadge" class="auth-user-badge" hidden>
+          <span id="authUserLabel">Usuario</span>
+          <button type="button" id="logoutBtn" class="btn btn-ghost">Cerrar sesión</button>
+        </div>
         <button type="button" id="newPatientBtn" class="btn btn-secondary">Nuevo paciente</button>
         <button type="button" id="exportBtn" class="btn btn-primary">Exportar respaldo</button>
         <label class="btn btn-ghost" for="importFile">Importar respaldo</label>
@@ -32,23 +126,26 @@
 
     <nav class="view-tabs" aria-label="Navegacion principal">
       <button type="button" class="view-tab is-active" data-view-tab="home">Inicio</button>
+      <button type="button" class="view-tab" data-view-tab="patient">Ficha del paciente</button>
       <button type="button" class="view-tab" data-view-tab="registry">Registro de pacientes</button>
       <button type="button" class="view-tab" data-view-tab="upcoming">Citas proximas</button>
     </nav>
 
     <main class="views-shell">
       <section class="view-section is-active" data-view-section="home">
-        <section class="panel panel-home">
+        <section class="panel panel-home-cover">
           <div class="panel-header">
             <div>
               <h2>Inicio</h2>
-              <p class="panel-subtitle">Desde aqui puedes abrir el formulario para agregar o editar pacientes.</p>
+              <p class="panel-subtitle">Esta pantalla es tu portada principal. Selecciona una pestaña para abrir su modulo.</p>
             </div>
+            <button type="button" id="openPatientWorkspaceBtn" class="btn btn-secondary">Abrir ficha de paciente</button>
           </div>
         </section>
+      </section>
 
+      <section class="view-section" data-view-section="patient">
         <nav class="patient-subtabs" aria-label="Registro del paciente">
-          <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
           <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
           <button type="button" class="patient-subtab" data-patient-tab="pathologies">Patologias</button>
           <button type="button" class="patient-subtab" data-patient-tab="media">Imagenes</button>

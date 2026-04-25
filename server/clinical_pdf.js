@@ -104,6 +104,11 @@ const CLINICAL_IDENTIFICATION_KEYS = new Set([
   "lastMedicalConsult"
 ]);
 
+const IDENTIFICATION_LAYOUT_FORMATS = new Set([
+  "f1-estomatologica",
+  "f11-odontopediatria"
+]);
+
 let pdfjsImportPromise = null;
 const textCacheByTemplate = new Map();
 
@@ -432,6 +437,122 @@ function matchItemWithRule(itemNorm, rule) {
   return false;
 }
 
+function normalizeFillEntries(rawEntries) {
+  if (!Array.isArray(rawEntries)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const entry of rawEntries) {
+    const value = String(entry?.value || "").trim();
+    if (!value) {
+      continue;
+    }
+    const matchesRaw = Array.isArray(entry?.matches)
+      ? entry.matches
+      : (entry?.match ? [entry.match] : []);
+    const matches = matchesRaw.map((token) => String(token || "").trim()).filter(Boolean);
+    if (matches.length === 0) {
+      continue;
+    }
+
+    normalized.push({
+      id: String(entry?.id || "").trim() || `pdf-entry-${normalized.length + 1}`,
+      value,
+      matches,
+      exact: Boolean(entry?.exact),
+      maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
+      maxWidth: Number(entry?.maxWidth || 210),
+      maxLines: Math.max(1, Number(entry?.maxLines || 2)),
+      pageOffset: Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null,
+      dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
+      dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
+      size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
+      lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
+      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
+      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
+        ? String(entry.align).toLowerCase()
+        : "left",
+      maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
+    });
+  }
+
+  return normalized;
+}
+
+function drawFillEntriesOnPage(page, font, items, entries, pageOffset) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return;
+  }
+  const safeItems = Array.isArray(items) ? items : [];
+  const usedAnchors = new Set();
+
+  for (const entry of entries) {
+    const entryPageOffset = Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null;
+    if (entryPageOffset !== null && entryPageOffset !== pageOffset) {
+      continue;
+    }
+    const value = String(entry?.value || "").trim();
+    if (!value) {
+      continue;
+    }
+
+    const rule = {
+      matches: Array.isArray(entry?.matches) ? entry.matches : [],
+      exact: Boolean(entry?.exact),
+      maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
+      maxWidth: Number(entry?.maxWidth || 210),
+      maxLines: Math.max(1, Number(entry?.maxLines || 2)),
+      dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
+      dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
+      size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
+      lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
+      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
+      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
+        ? String(entry.align).toLowerCase()
+        : "left",
+      maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
+    };
+
+    if (rule.x !== null && rule.y !== null) {
+      drawTextAt(page, font, value, {
+        x: rule.x,
+        y: rule.y,
+        maxWidth: rule.maxWidth,
+        maxLines: rule.maxLines,
+        size: rule.size,
+        lineHeight: rule.lineHeight || undefined,
+        align: rule.align,
+        maxChars: rule.maxChars || undefined
+      });
+      continue;
+    }
+
+    if (rule.matches.length === 0) {
+      continue;
+    }
+
+    let hitCount = 0;
+    for (const item of safeItems) {
+      if (!matchItemWithRule(item.norm, rule)) {
+        continue;
+      }
+      const anchorKey = `${Math.round(Number(item.x || 0))}:${Math.round(Number(item.y || 0))}`;
+      if (usedAnchors.has(anchorKey)) {
+        continue;
+      }
+      drawRuleValue(page, font, value, item, rule);
+      usedAnchors.add(anchorKey);
+      hitCount += 1;
+      if (hitCount >= rule.maxPerPage) {
+        break;
+      }
+    }
+  }
+}
+
 function wrapText(font, text, size, maxWidth) {
   if (!maxWidth) {
     return [text];
@@ -676,6 +797,7 @@ async function generateClinicalPdf(options) {
   const patient = options?.patient && typeof options.patient === "object" ? options.patient : {};
   const dictionaries = options?.dictionaries && typeof options.dictionaries === "object" ? options.dictionaries : {};
   const context = buildContext(patient, dictionaries, selected.formatId, options?.clinicalContext);
+  const clinicalFillEntries = normalizeFillEntries(options?.clinicalFillEntries);
 
   const sourcePdf = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const targetPdf = await PDFDocument.create();
@@ -688,40 +810,17 @@ async function generateClinicalPdf(options) {
   copiedPages.forEach((page) => targetPdf.addPage(page));
 
   const regularFont = await targetPdf.embedFont(StandardFonts.Helvetica);
-  const rules = LABEL_RULES;
 
   copiedPages.forEach((targetPage, idx) => {
     const sourcePageNo = sourcePageNumbers[idx];
     const items = textData.pages[sourcePageNo] || [];
     const isIdentificationPage = sourcePageNo === selected.start;
+    const pageOffset = sourcePageNo - selected.start;
 
-    if (isIdentificationPage) {
+    if (isIdentificationPage && IDENTIFICATION_LAYOUT_FORMATS.has(selected.formatId)) {
       drawIdentificationBlock(targetPage, regularFont, context);
     }
-
-    for (const rule of rules) {
-      if (isIdentificationPage && shouldSkipRuleOnIdentificationPage(rule)) {
-        continue;
-      }
-      const rawValue = rule.mark ? Boolean(rule.mark(context)) : context[rule.value];
-      const value = rule.mark ? (rawValue ? "X" : "") : String(rawValue || "").trim();
-      if (!value) {
-        continue;
-      }
-
-      let hitCount = 0;
-      const maxPerPage = rule.maxPerPage || 1;
-      for (const item of items) {
-        if (!matchItemWithRule(item.norm, rule)) {
-          continue;
-        }
-        drawRuleValue(targetPage, regularFont, value, item, rule);
-        hitCount += 1;
-        if (hitCount >= maxPerPage) {
-          break;
-        }
-      }
-    }
+    drawFillEntriesOnPage(targetPage, regularFont, items, clinicalFillEntries, pageOffset);
   });
 
   const pdfBytes = await targetPdf.save();

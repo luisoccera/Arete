@@ -1,6 +1,9 @@
 "use strict";
 
 const STORAGE_KEY = "arete_data_v1";
+const AUTH_TOKEN_KEY = "arete_auth_token_v1";
+const AUTH_LOCAL_USERS_KEY = "arete_auth_local_users_v1";
+const AUTH_LOCAL_RESET_KEY = "arete_auth_local_reset_v1";
 const DENTITION_LAYOUTS = {
   adult: {
     label: "Denticion adulta comun",
@@ -372,8 +375,227 @@ const CLINICAL_IDENTIFICATION_KEYS = new Set([
   "lastMedicalConsult"
 ]);
 
+const CLINICAL_IDENTIFICATION_LAYOUT_FORMATS = new Set([
+  "f1-estomatologica",
+  "f11-odontopediatria"
+]);
+
+const CLINICAL_HEADER_FILL_RULES = [
+  {
+    id: "header-record-ref",
+    valueKey: "recordReference",
+    matches: ["expediente num.", "folio de la hoja de especialidad", "folio"],
+    maxWidth: 175,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-full-name",
+    valueKey: "fullName",
+    matches: ["nombre del paciente", "nombre"],
+    maxWidth: 220,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-lastname-father",
+    valueKey: "lastNameFather",
+    matches: ["apellido paterno"],
+    maxWidth: 90,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-lastname-mother",
+    valueKey: "lastNameMother",
+    matches: ["apellido materno"],
+    maxWidth: 95,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-firstnames",
+    valueKey: "firstNames",
+    matches: ["nombre(s)", "nombre preferido"],
+    maxWidth: 130,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-dentist",
+    valueKey: "dentistName",
+    matches: [
+      "nombre del cd (tratante)",
+      "nombre del cd",
+      "nombre cd",
+      "nombre del medico familiar",
+      "nombre del medico pediatra familiar",
+      "remitido por",
+      "referido por"
+    ],
+    maxWidth: 190,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-sex",
+    valueKey: "sexLabel",
+    matches: ["sexo", "genero", "género"],
+    maxWidth: 70,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-age",
+    valueKey: "ageText",
+    matches: ["edad", "edad:"],
+    maxWidth: 38,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-address",
+    valueKey: "location",
+    matches: ["direccion", "domicilio, calle y numero", "domicilio: calle"],
+    maxWidth: 220,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-phone",
+    valueKey: "phone",
+    matches: ["tel.", "telefono", "teléfono"],
+    maxWidth: 92,
+    maxLines: 1,
+    pageOffset: 0
+  },
+  {
+    id: "header-occupation",
+    valueKey: "occupation",
+    matches: ["ocupacion", "ocupación"],
+    maxWidth: 130,
+    maxLines: 1,
+    pageOffset: 0
+  }
+];
+
+const CLINICAL_FIELD_PDF_RULES = {
+  "f1-estomatologica": {
+    motivo_consulta: { matches: ["padecimiento actual", "motivo de consulta"], maxWidth: 230, maxLines: 3, pageOffset: 1 },
+    antecedentes_estomatologicos: { matches: ["antecedentes personales patologicos", "antecedentes personales y familiares"], maxWidth: 230, maxLines: 3, pageOffset: 1 },
+    diagnostico_estomatologico: { matches: ["diagnostico"], maxWidth: 220, maxLines: 2 },
+    plan_estomatologico: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3 },
+    pronostico_estomatologico: { matches: ["pronostico"], maxWidth: 210, maxLines: 2 },
+    observaciones_f1: { matches: ["observaciones"], maxWidth: 230, maxLines: 3 }
+  },
+  "f2-preventiva": {
+    riesgo_caries: { matches: ["indice de placa actual"], maxWidth: 120, maxLines: 1, pageOffset: 0 },
+    indice_placa: { matches: ["pastilla", "reveladora"], maxWidth: 110, maxLines: 1, pageOffset: 0 },
+    tecnica_cepillado: { matches: ["tecnica de", "cepillado"], maxWidth: 150, maxLines: 2, pageOffset: 0 },
+    fluorizacion: { matches: ["aplicacion de fluor"], maxWidth: 140, maxLines: 2, pageOffset: 0 },
+    recomendaciones_preventivas: { matches: ["profilaxia u", "odontoxesis"], maxWidth: 140, maxLines: 2, pageOffset: 0 },
+    seguimiento_preventivo: { matches: ["termino"], maxWidth: 110, maxLines: 1, pageOffset: 0 }
+  },
+  "f3-operatoria": {
+    pieza_operatoria: { matches: ["odontograma"], maxWidth: 120, maxLines: 1, pageOffset: 0 },
+    diagnostico_operatorio: { matches: ["odontograma de evolucion"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    material_restaurador: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    tecnica_operatoria: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    control_operatorio: { matches: ["nombre y firma de conformidad"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    pronostico_operatorio: { matches: ["fecha"], maxWidth: 120, maxLines: 1, pageOffset: 2 }
+  },
+  "f4-protesis-fija": {
+    motivo_protesis_fija: { matches: ["evaluacion clinica"], maxWidth: 220, maxLines: 3, pageOffset: 0 },
+    pilares_protesis: { matches: ["dientes pilares"], maxWidth: 180, maxLines: 2, pageOffset: 1 },
+    diagnostico_protesis_fija: { matches: ["interpretacion radiografica"], maxWidth: 220, maxLines: 3, pageOffset: 0 },
+    plan_protesis_fija: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 1 },
+    pruebas_protesis_fija: { matches: ["procedimiento"], maxWidth: 210, maxLines: 3, pageOffset: 1 },
+    observaciones_protesis_fija: { matches: ["diseno de la restauracion protesica"], maxWidth: 210, maxLines: 2, pageOffset: 1 }
+  },
+  "f5-protesis-removible": {
+    clasificacion_kennedy: { matches: ["clasificacion de kennedy"], maxWidth: 170, maxLines: 1, pageOffset: 0 },
+    zona_desdentada: { matches: ["area desdentada", "region desdentada"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    diseno_protesis_removible: { matches: ["diseno de la restauracion protesica"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    elementos_retencion: { matches: ["tipos de ganchos", "retencion"], maxWidth: 220, maxLines: 3, pageOffset: 1 },
+    indicaciones_protesis_removible: { matches: ["entrega de protesis e indicaciones"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    pronostico_protesis_removible: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 2, pageOffset: 1 }
+  },
+  "f6-prostodoncia": {
+    estado_reborde: { matches: ["estado del reborde alveolar"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    dimension_vertical: { matches: ["base de registro y prueba de rodillos"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    plan_prostodoncia: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 0 },
+    pruebas_prostodoncia: { matches: ["prueba de dientes y oclusion"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    adaptacion_prostodoncia: { matches: ["modelos de trabajo"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    pronostico_prostodoncia: { matches: ["terminado"], maxWidth: 200, maxLines: 2, pageOffset: 0 }
+  },
+  "f7-cirugia-bucal": {
+    motivo_cirugia: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 3, pageOffset: 0 },
+    diagnostico_cirugia: { matches: ["diagnostico"], maxWidth: 220, maxLines: 3, pageOffset: 1 },
+    procedimiento_cirugia: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 1 },
+    medicacion_cirugia: { matches: ["alergias a medicamentos o anestesicos"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    cuidados_posoperatorios: { matches: ["indicaciones posquirurgicas"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    pronostico_cirugia: { matches: ["pronostico"], maxWidth: 210, maxLines: 2, pageOffset: 1 }
+  },
+  "f8-periodoncia": {
+    diagnostico_periodontal: { matches: ["periodontograma de diagnostico"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    profundidad_bolsas: { matches: ["antecedentes personales patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    sangrado_periodontal: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    plan_periodontal: { matches: ["exploracion bucal"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    fase_mantenimiento: { matches: ["antecedentes personales no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    pronostico_periodontal: { matches: ["medicamentos que utiliza actualmente"], maxWidth: 220, maxLines: 2, pageOffset: 1 }
+  },
+  "f9-endodoncia": {
+    pieza_endodoncia: { matches: ["dientes que ha de tratarse"], maxWidth: 180, maxLines: 1, pageOffset: 0 },
+    diagnostico_pulpar: { matches: ["diagnostico pulpar"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    pruebas_endodoncia: { matches: ["pruebas de sensibilidad pulpar"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    tecnica_endodoncia: { matches: ["tratamiento"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    control_endodoncia: { matches: ["interpretacion radiografica"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    pronostico_endodoncia: { matches: ["diagnostico periapical"], maxWidth: 220, maxLines: 2, pageOffset: 2 }
+  },
+  "f10-ortodoncia": {
+    analisis_facial: { matches: ["motivo de la consulta"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    diagnostico_oclusal: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    objetivo_ortodoncia: { matches: ["ultimo examen dental"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    plan_ortodontico: { matches: ["antecedentes patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    seguimiento_ortodoncia: { matches: ["antecedentes no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    pronostico_ortodoncia: { matches: ["examen de la cavidad bucal"], maxWidth: 220, maxLines: 2, pageOffset: 2 }
+  },
+  "f11-odontopediatria": {
+    responsable_nino: { matches: ["antecedentes hereditarios y familiares"], maxWidth: 220, maxLines: 2, pageOffset: 0 },
+    conducta_paciente_pediatrico: { matches: ["antecedentes personales no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1 },
+    diagnostico_odontopediatria: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    plan_odontopediatria: { matches: ["interrogatorio por aparatos y sistemas"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    indicaciones_tutor: { matches: ["antecedentes alergicos"], maxWidth: 220, maxLines: 2, pageOffset: 2 },
+    pronostico_odontopediatria: { matches: ["sistema endocrino"], maxWidth: 220, maxLines: 2, pageOffset: 2 }
+  }
+};
+
 const el = {
+  authShell: document.getElementById("authShell"),
+  appShell: document.getElementById("appShell"),
+  authTabs: Array.from(document.querySelectorAll("[data-auth-tab]")),
+  authViews: Array.from(document.querySelectorAll("[data-auth-view]")),
+  loginForm: document.getElementById("loginForm"),
+  loginIdentifier: document.getElementById("loginIdentifier"),
+  loginPassword: document.getElementById("loginPassword"),
+  registerForm: document.getElementById("registerForm"),
+  registerName: document.getElementById("registerName"),
+  registerEmail: document.getElementById("registerEmail"),
+  registerUsername: document.getElementById("registerUsername"),
+  registerPassword: document.getElementById("registerPassword"),
+  registerPasswordConfirm: document.getElementById("registerPasswordConfirm"),
+  recoverRequestForm: document.getElementById("recoverRequestForm"),
+  recoverIdentifier: document.getElementById("recoverIdentifier"),
+  recoverResetForm: document.getElementById("recoverResetForm"),
+  recoverCode: document.getElementById("recoverCode"),
+  recoverNewPassword: document.getElementById("recoverNewPassword"),
+  recoverNewPasswordConfirm: document.getElementById("recoverNewPasswordConfirm"),
+  authMessage: document.getElementById("authMessage"),
+  authUserBadge: document.getElementById("authUserBadge"),
+  authUserLabel: document.getElementById("authUserLabel"),
+  logoutBtn: document.getElementById("logoutBtn"),
   newPatientBtn: document.getElementById("newPatientBtn"),
+  openPatientWorkspaceBtn: document.getElementById("openPatientWorkspaceBtn"),
   openPathologiesBtn: document.getElementById("openPathologiesBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
@@ -463,22 +685,35 @@ const apiBaseUrl = resolveApiBaseUrl();
 let clientPdfModulesPromise = null;
 let clientTemplateBytesPromise = null;
 let clientTemplateTextPromise = null;
+let authToken = stringOrEmpty(localStorage.getItem(AUTH_TOKEN_KEY));
+let currentAuthUser = null;
+let authBackendEnabled = false;
+let authView = "login";
 
-init();
+void init();
 
-function init() {
+async function init() {
   bindEvents();
+  bindAuthEvents();
+  setAppLocked(true);
+  setAuthView("login");
   setActiveView("home");
   renderAll();
   startNewPatient(false);
-  initializeBackendStorage();
+  await initializeAuth();
 }
 
 function bindEvents() {
   el.newPatientBtn.addEventListener("click", () => {
-    setActiveView("home");
+    setActiveView("patient");
     startNewPatient(true);
   });
+  if (el.openPatientWorkspaceBtn) {
+    el.openPatientWorkspaceBtn.addEventListener("click", () => {
+      setActiveView("patient");
+      startNewPatient(true);
+    });
+  }
   if (el.openPathologiesBtn) {
     el.openPathologiesBtn.addEventListener("click", focusPathologiesSection);
   }
@@ -486,6 +721,9 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
       setActiveView(targetView);
+      if (targetView === "patient") {
+        setActivePatientSubview("profile");
+      }
     });
   }
   for (const button of el.patientSubTabs) {
@@ -651,8 +889,551 @@ function bindEvents() {
   }
 }
 
+function bindAuthEvents() {
+  if (!el.authShell) {
+    return;
+  }
+
+  for (const button of el.authTabs) {
+    button.addEventListener("click", () => {
+      const view = button.getAttribute("data-auth-tab");
+      setAuthView(view || "login");
+    });
+  }
+
+  if (el.logoutBtn) {
+    el.logoutBtn.addEventListener("click", () => {
+      void logoutCurrentUser();
+    });
+  }
+
+  if (el.loginForm) {
+    el.loginForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void loginWithAuthForm();
+    });
+  }
+  if (el.registerForm) {
+    el.registerForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void registerWithAuthForm();
+    });
+  }
+  if (el.recoverRequestForm) {
+    el.recoverRequestForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void requestPasswordRecovery();
+    });
+  }
+  if (el.recoverResetForm) {
+    el.recoverResetForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      void resetPasswordFromRecoveryCode();
+    });
+  }
+}
+
+function setAuthView(view) {
+  const validViews = new Set(["login", "register", "recover"]);
+  authView = validViews.has(view) ? view : "login";
+
+  for (const button of el.authTabs || []) {
+    const isActive = button.getAttribute("data-auth-tab") === authView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  for (const section of el.authViews || []) {
+    const isActive = section.getAttribute("data-auth-view") === authView;
+    section.classList.toggle("is-active", isActive);
+    section.hidden = !isActive;
+  }
+}
+
+function setAuthMessage(message, mode) {
+  if (!el.authMessage) {
+    return;
+  }
+  const text = stringOrEmpty(message);
+  el.authMessage.textContent = text;
+  el.authMessage.dataset.mode = mode || (text ? "ok" : "");
+}
+
+function setAppLocked(locked) {
+  const isLocked = Boolean(locked);
+  if (el.appShell) {
+    el.appShell.classList.toggle("is-locked", isLocked);
+  }
+  if (el.authShell) {
+    el.authShell.classList.toggle("is-hidden", !isLocked);
+  }
+  if (isLocked) {
+    setFeedback("Inicia sesión para acceder al sistema.");
+  }
+}
+
+function setAuthenticatedUser(user, token) {
+  authToken = stringOrEmpty(token);
+  currentAuthUser = user && typeof user === "object" ? user : null;
+
+  if (authToken) {
+    localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+
+  const displayName = stringOrEmpty(currentAuthUser?.name)
+    || stringOrEmpty(currentAuthUser?.username)
+    || stringOrEmpty(currentAuthUser?.email)
+    || "Usuario";
+
+  if (el.authUserBadge) {
+    el.authUserBadge.hidden = !currentAuthUser;
+  }
+  if (el.authUserLabel) {
+    el.authUserLabel.textContent = displayName;
+  }
+}
+
+async function initializeAuth() {
+  authBackendEnabled = await isBackendAuthReachable();
+
+  if (authBackendEnabled) {
+    const restored = await tryRestoreBackendSession();
+    if (restored) {
+      setAppLocked(false);
+      await initializeBackendStorage();
+      setAuthMessage("");
+      setFeedback(`Sesión activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
+      return;
+    }
+  } else {
+    const restoredLocal = tryRestoreLocalSession();
+    if (restoredLocal) {
+      setAppLocked(false);
+      await initializeBackendStorage();
+      setAuthMessage("");
+      setFeedback(`Sesión local activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
+      return;
+    }
+    setAuthMessage("Modo local activo (sin backend). Puedes crear cuenta y entrar desde este navegador.", "ok");
+  }
+
+  setAuthenticatedUser(null, "");
+  setAppLocked(true);
+}
+
+async function isBackendAuthReachable() {
+  if (!apiBaseUrl) {
+    return false;
+  }
+  try {
+    const response = await apiRequest("/api/health", { method: "GET" }, 3200);
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function tryRestoreBackendSession() {
+  if (!authToken || !apiBaseUrl) {
+    return false;
+  }
+  try {
+    const response = await apiRequest(
+      "/api/auth/me",
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${authToken}`
+        }
+      },
+      5000
+    );
+    if (!response.ok) {
+      return false;
+    }
+    const payload = await response.json();
+    if (!payload?.user) {
+      return false;
+    }
+    setAuthenticatedUser(payload.user, authToken);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tryRestoreLocalSession() {
+  const token = stringOrEmpty(localStorage.getItem(AUTH_TOKEN_KEY));
+  if (!token) {
+    return false;
+  }
+  const users = readLocalAuthUsers();
+  const found = users.find((entry) => entry.id === token);
+  if (!found) {
+    return false;
+  }
+  setAuthenticatedUser(sanitizeLocalUser(found), token);
+  return true;
+}
+
+async function loginWithAuthForm() {
+  const identifier = stringOrEmpty(el.loginIdentifier?.value);
+  const password = stringOrEmpty(el.loginPassword?.value);
+  if (!identifier || !password) {
+    setAuthMessage("Escribe usuario/correo y contraseña.", "error");
+    return;
+  }
+
+  setAuthMessage("Validando acceso...");
+  try {
+    if (authBackendEnabled) {
+      const response = await apiRequest(
+        "/api/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, password })
+        },
+        10000
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.detail || "No se pudo iniciar sesión.");
+      }
+      setAuthenticatedUser(payload.user, payload.token);
+    } else {
+      const localResult = localLogin(identifier, password);
+      setAuthenticatedUser(localResult.user, localResult.token);
+    }
+
+    setAppLocked(false);
+    await initializeBackendStorage();
+    setAuthMessage("");
+    setFeedback(`Bienvenido, ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
+    if (el.loginForm) {
+      el.loginForm.reset();
+    }
+  } catch (error) {
+    setAuthMessage(error?.message || "Acceso inválido.", "error");
+  }
+}
+
+async function registerWithAuthForm() {
+  const name = stringOrEmpty(el.registerName?.value);
+  const email = stringOrEmpty(el.registerEmail?.value).toLowerCase();
+  const username = stringOrEmpty(el.registerUsername?.value).toLowerCase();
+  const password = stringOrEmpty(el.registerPassword?.value);
+  const confirmPassword = stringOrEmpty(el.registerPasswordConfirm?.value);
+
+  if (!name || !email || !username || !password) {
+    setAuthMessage("Completa nombre, correo, usuario y contraseña.", "error");
+    return;
+  }
+  if (password.length < 8) {
+    setAuthMessage("La contraseña debe tener al menos 8 caracteres.", "error");
+    return;
+  }
+  if (password !== confirmPassword) {
+    setAuthMessage("La confirmación de contraseña no coincide.", "error");
+    return;
+  }
+
+  setAuthMessage("Creando cuenta...");
+  try {
+    if (authBackendEnabled) {
+      const response = await apiRequest(
+        "/api/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, username, password })
+        },
+        10000
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.detail || "No se pudo crear la cuenta.");
+      }
+      setAuthenticatedUser(payload.user, payload.token);
+    } else {
+      const localResult = localRegister({ name, email, username, password });
+      setAuthenticatedUser(localResult.user, localResult.token);
+    }
+
+    setAppLocked(false);
+    await initializeBackendStorage();
+    if (el.registerForm) {
+      el.registerForm.reset();
+    }
+    setAuthMessage("");
+    setFeedback(`Cuenta creada para ${stringOrEmpty(currentAuthUser?.name)}.`);
+  } catch (error) {
+    setAuthMessage(error?.message || "No se pudo registrar la cuenta.", "error");
+  }
+}
+
+async function requestPasswordRecovery() {
+  const identifier = stringOrEmpty(el.recoverIdentifier?.value);
+  if (!identifier) {
+    setAuthMessage("Escribe correo o usuario para recuperar contraseña.", "error");
+    return;
+  }
+
+  setAuthMessage("Generando código de recuperación...");
+  try {
+    if (authBackendEnabled) {
+      const response = await apiRequest(
+        "/api/auth/forgot",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier })
+        },
+        10000
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.detail || "No se pudo generar el código.");
+      }
+      const helperCode = stringOrEmpty(payload?.recoveryCode);
+      if (helperCode) {
+        setAuthMessage(`Código generado: ${helperCode}. Úsalo abajo para restablecer contraseña.`, "ok");
+      } else {
+        setAuthMessage("Código de recuperación enviado. Revisa tu método configurado.", "ok");
+      }
+    } else {
+      const localCode = localRequestRecoveryCode(identifier);
+      setAuthMessage(`Código local de recuperación: ${localCode}.`, "ok");
+    }
+  } catch (error) {
+    setAuthMessage(error?.message || "No se pudo generar el código de recuperación.", "error");
+  }
+}
+
+async function resetPasswordFromRecoveryCode() {
+  const identifier = stringOrEmpty(el.recoverIdentifier?.value);
+  const code = stringOrEmpty(el.recoverCode?.value);
+  const newPassword = stringOrEmpty(el.recoverNewPassword?.value);
+  const confirmPassword = stringOrEmpty(el.recoverNewPasswordConfirm?.value);
+
+  if (!identifier || !code || !newPassword) {
+    setAuthMessage("Completa correo/usuario, código y nueva contraseña.", "error");
+    return;
+  }
+  if (newPassword.length < 8) {
+    setAuthMessage("La nueva contraseña debe tener al menos 8 caracteres.", "error");
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    setAuthMessage("La confirmación de la nueva contraseña no coincide.", "error");
+    return;
+  }
+
+  setAuthMessage("Actualizando contraseña...");
+  try {
+    if (authBackendEnabled) {
+      const response = await apiRequest(
+        "/api/auth/reset",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, code, newPassword })
+        },
+        10000
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.detail || "No se pudo restablecer la contraseña.");
+      }
+      setAuthenticatedUser(payload.user, payload.token);
+    } else {
+      const localResult = localResetPassword({ identifier, code, newPassword });
+      setAuthenticatedUser(localResult.user, localResult.token);
+    }
+
+    setAppLocked(false);
+    await initializeBackendStorage();
+    if (el.recoverResetForm) {
+      el.recoverResetForm.reset();
+    }
+    setAuthMessage("Contraseña restablecida correctamente.", "ok");
+    setFeedback("Contraseña actualizada. Sesión iniciada.");
+  } catch (error) {
+    setAuthMessage(error?.message || "No se pudo restablecer la contraseña.", "error");
+  }
+}
+
+async function logoutCurrentUser() {
+  try {
+    if (authBackendEnabled && authToken) {
+      await apiRequest(
+        "/api/auth/logout",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` }
+        },
+        4500
+      );
+    }
+  } catch {
+    // No bloquear cierre local si falla backend
+  }
+
+  setAuthenticatedUser(null, "");
+  setAppLocked(true);
+  setAuthView("login");
+  setAuthMessage("Sesión cerrada. Vuelve a iniciar sesión para continuar.", "ok");
+  setFeedback("Sesión cerrada.");
+}
+
+function readLocalAuthUsers() {
+  try {
+    const raw = localStorage.getItem(AUTH_LOCAL_USERS_KEY);
+    const parsed = JSON.parse(raw || "[]");
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((entry) => entry && typeof entry === "object");
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalAuthUsers(users) {
+  localStorage.setItem(AUTH_LOCAL_USERS_KEY, JSON.stringify(Array.isArray(users) ? users : []));
+}
+
+function sanitizeLocalUser(user) {
+  return {
+    id: stringOrEmpty(user?.id),
+    name: stringOrEmpty(user?.name),
+    email: stringOrEmpty(user?.email).toLowerCase(),
+    username: stringOrEmpty(user?.username).toLowerCase()
+  };
+}
+
+function localRegister({ name, email, username, password }) {
+  const users = readLocalAuthUsers();
+  const hasEmail = users.some((entry) => stringOrEmpty(entry.email).toLowerCase() === email);
+  if (hasEmail) {
+    throw new Error("Ese correo ya está registrado.");
+  }
+  const hasUsername = users.some((entry) => stringOrEmpty(entry.username).toLowerCase() === username);
+  if (hasUsername) {
+    throw new Error("Ese nombre de usuario ya existe.");
+  }
+
+  const user = {
+    id: generateId("usr"),
+    name,
+    email,
+    username,
+    password,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  users.push(user);
+  writeLocalAuthUsers(users);
+  return {
+    user: sanitizeLocalUser(user),
+    token: user.id
+  };
+}
+
+function localLogin(identifier, password) {
+  const users = readLocalAuthUsers();
+  const needle = identifier.toLowerCase();
+  const found = users.find((entry) => {
+    const email = stringOrEmpty(entry.email).toLowerCase();
+    const username = stringOrEmpty(entry.username).toLowerCase();
+    return email === needle || username === needle;
+  });
+  if (!found || stringOrEmpty(found.password) !== password) {
+    throw new Error("Credenciales inválidas.");
+  }
+  return {
+    user: sanitizeLocalUser(found),
+    token: found.id
+  };
+}
+
+function readLocalRecoveryStore() {
+  try {
+    const raw = localStorage.getItem(AUTH_LOCAL_RESET_KEY);
+    const parsed = JSON.parse(raw || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalRecoveryStore(store) {
+  localStorage.setItem(AUTH_LOCAL_RESET_KEY, JSON.stringify(store && typeof store === "object" ? store : {}));
+}
+
+function localRequestRecoveryCode(identifier) {
+  const users = readLocalAuthUsers();
+  const needle = identifier.toLowerCase();
+  const found = users.find((entry) => {
+    const email = stringOrEmpty(entry.email).toLowerCase();
+    const username = stringOrEmpty(entry.username).toLowerCase();
+    return email === needle || username === needle;
+  });
+  if (!found) {
+    throw new Error("No existe una cuenta con ese correo/usuario.");
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const store = readLocalRecoveryStore();
+  store[found.id] = {
+    code,
+    expiresAt: Date.now() + 15 * 60 * 1000
+  };
+  writeLocalRecoveryStore(store);
+  return code;
+}
+
+function localResetPassword({ identifier, code, newPassword }) {
+  const users = readLocalAuthUsers();
+  const needle = identifier.toLowerCase();
+  const foundIndex = users.findIndex((entry) => {
+    const email = stringOrEmpty(entry.email).toLowerCase();
+    const username = stringOrEmpty(entry.username).toLowerCase();
+    return email === needle || username === needle;
+  });
+  if (foundIndex < 0) {
+    throw new Error("No existe una cuenta con ese correo/usuario.");
+  }
+
+  const found = users[foundIndex];
+  const store = readLocalRecoveryStore();
+  const recovery = store[found.id];
+  if (!recovery || String(recovery.code) !== String(code)) {
+    throw new Error("Código de recuperación incorrecto.");
+  }
+  if (Number(recovery.expiresAt || 0) < Date.now()) {
+    throw new Error("El código de recuperación expiró.");
+  }
+
+  users[foundIndex] = {
+    ...found,
+    password: newPassword,
+    updatedAt: new Date().toISOString()
+  };
+  writeLocalAuthUsers(users);
+  delete store[found.id];
+  writeLocalRecoveryStore(store);
+
+  return {
+    user: sanitizeLocalUser(users[foundIndex]),
+    token: users[foundIndex].id
+  };
+}
+
 function setActiveView(view) {
-  const validViews = new Set(["home", "registry", "upcoming"]);
+  const validViews = new Set(["home", "patient", "registry", "upcoming"]);
   const nextView = validViews.has(view) ? view : "home";
   activeView = nextView;
 
@@ -733,7 +1514,6 @@ function createEmptyPatient() {
     treatmentStart: "",
     brushTimes: "",
     flossHabit: "",
-    hasCaries: "",
     otherConditions: "",
     clinicalFormData: createEmptyClinicalFormData(),
     diseaseIds: [],
@@ -878,7 +1658,6 @@ function normalizePatient(rawPatient) {
   );
   patient.treatmentStart = stringOrEmpty(patient.treatmentStart);
   patient.flossHabit = stringOrEmpty(patient.flossHabit);
-  patient.hasCaries = stringOrEmpty(patient.hasCaries);
   patient.otherConditions = stringOrEmpty(patient.otherConditions);
   patient.createdAt = stringOrEmpty(patient.createdAt);
   patient.updatedAt = stringOrEmpty(patient.updatedAt);
@@ -1153,6 +1932,9 @@ async function initializeBackendStorage() {
   if (!apiBaseUrl) {
     return;
   }
+  if (!authToken) {
+    return;
+  }
 
   try {
     const healthResponse = await apiRequest("/api/health", { method: "GET" }, 3500);
@@ -1163,6 +1945,11 @@ async function initializeBackendStorage() {
     storageMode = "backend";
     const stateResponse = await apiRequest("/api/state", { method: "GET" }, 5000);
     if (!stateResponse.ok) {
+      if (stateResponse.status === 401 || stateResponse.status === 403) {
+        storageMode = "local";
+        setFeedback("Tu sesión no está autorizada para leer datos del backend.", "error");
+        return;
+      }
       setFeedback("Backend detectado, pero no se pudo leer el estado inicial.", "error");
       return;
     }
@@ -1228,8 +2015,15 @@ async function apiRequest(pathname, options, timeoutMs) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs || 5000);
   try {
+    const requestOptions = options && typeof options === "object" ? { ...options } : {};
+    const headers = new Headers(requestOptions.headers || {});
+    if (authToken && pathname.startsWith("/api/") && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${authToken}`);
+    }
+    requestOptions.headers = headers;
+
     return await fetch(`${apiBaseUrl}${pathname}`, {
-      ...options,
+      ...requestOptions,
       signal: controller.signal
     });
   } finally {
@@ -1985,7 +2779,7 @@ function applyOdontoMark(bucket, key) {
       description: `Se agrego "${statusName}" en ${targetLabel}.`,
       statusIds: [selectedStatusId]
     });
-    setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores en filas.`);
+    setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores al mismo tiempo.`);
   }
 
   persistDraftPatientIfEditing();
@@ -2061,7 +2855,7 @@ function openPatient(id) {
     return;
   }
 
-  setActiveView("home");
+  setActiveView("patient");
   setActivePatientSubview("profile");
   editingPatientId = id;
   draftPatient = deepClone(found);
@@ -2562,7 +3356,7 @@ function hydrateFormFromDraft() {
 }
 
 function focusPathologiesSection() {
-  setActiveView("home");
+  setActiveView("patient");
   setActivePatientSubview("pathologies");
   if (!el.pathologiesCard) {
     return;
@@ -2776,14 +3570,26 @@ function triggerPdfDownload(blob, fileName) {
 
 async function requestOfficialClinicalPdf() {
   const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
+  const normalizedPatient = normalizePatient(draftPatient);
+  const dictionaries = {
+    diseases: Array.isArray(state.diseases) ? state.diseases : [],
+    toothStatuses: Array.isArray(state.toothStatuses) ? state.toothStatuses : []
+  };
+  const clinicalContext = buildClinicalContextFromForm(normalizedPatient, recordType.id);
+  const pdfContext = buildClinicalPdfContext(
+    normalizedPatient,
+    dictionaries,
+    recordType.id,
+    clinicalContext
+  );
+  const clinicalFillEntries = buildClinicalPdfFillEntries(normalizedPatient, recordType.id, pdfContext);
+
   const payload = {
     formatId: recordType.id,
-    patient: normalizePatient(draftPatient),
-    clinicalContext: buildClinicalContextFromForm(draftPatient, recordType.id),
-    dictionaries: {
-      diseases: Array.isArray(state.diseases) ? state.diseases : [],
-      toothStatuses: Array.isArray(state.toothStatuses) ? state.toothStatuses : []
-    }
+    patient: normalizedPatient,
+    clinicalContext,
+    clinicalFillEntries,
+    dictionaries
   };
 
   let backendError = "";
@@ -2842,6 +3648,7 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
     selected.formatId,
     payload?.clinicalContext
   );
+  const clinicalFillEntries = normalizeClinicalFillEntries(payload?.clinicalFillEntries);
 
   const sourcePdf = await pdfLib.PDFDocument.load(templateBytes, { ignoreEncryption: true });
   const targetPdf = await pdfLib.PDFDocument.create();
@@ -2858,34 +3665,12 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
     const sourcePageNo = sourcePageNumbers[idx];
     const items = textData.pages[sourcePageNo] || [];
     const isIdentificationPage = sourcePageNo === selected.start;
+    const pageOffset = sourcePageNo - selected.start;
 
-    if (isIdentificationPage) {
+    if (isIdentificationPage && CLINICAL_IDENTIFICATION_LAYOUT_FORMATS.has(selected.formatId)) {
       drawClinicalIdentificationBlock(page, font, context, pdfLib);
     }
-
-    for (const rule of CLINICAL_PDF_LABEL_RULES) {
-      if (isIdentificationPage && shouldSkipClinicalRuleOnIdentificationPage(rule)) {
-        continue;
-      }
-      const rawValue = rule.mark ? Boolean(rule.mark(context)) : context[rule.value];
-      const value = rule.mark ? (rawValue ? "X" : "") : String(rawValue || "").trim();
-      if (!value) {
-        continue;
-      }
-
-      let hits = 0;
-      const maxHits = rule.maxPerPage || 1;
-      for (const item of items) {
-        if (!matchClinicalPdfItem(item.norm, rule)) {
-          continue;
-        }
-        drawClinicalPdfRule(page, font, value, item, rule, pdfLib);
-        hits += 1;
-        if (hits >= maxHits) {
-          break;
-        }
-      }
-    }
+    drawClinicalFillEntriesOnPage(page, font, items, clinicalFillEntries, pageOffset, pdfLib);
   });
 
   const pdfBytes = await targetPdf.save();
@@ -3251,6 +4036,132 @@ function buildClinicalContextFromForm(patientInput, formatId) {
   };
 }
 
+function getClinicalFieldPdfRule(formatId, fieldId) {
+  const formatRules = CLINICAL_FIELD_PDF_RULES[normalizeClinicalRecordType(formatId)] || {};
+  return formatRules[fieldId] && typeof formatRules[fieldId] === "object"
+    ? formatRules[fieldId]
+    : null;
+}
+
+function normalizeClinicalFillEntries(rawEntries) {
+  if (!Array.isArray(rawEntries)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const entry of rawEntries) {
+    const value = stringOrEmpty(entry?.value);
+    if (!value) {
+      continue;
+    }
+    const matchesRaw = Array.isArray(entry?.matches)
+      ? entry.matches
+      : (entry?.match ? [entry.match] : []);
+    const matches = matchesRaw.map((token) => stringOrEmpty(token)).filter(Boolean);
+    if (matches.length === 0) {
+      continue;
+    }
+
+    normalized.push({
+      id: stringOrEmpty(entry?.id) || generateId("pdf-entry"),
+      value,
+      matches,
+      exact: Boolean(entry?.exact),
+      maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
+      maxWidth: Number(entry?.maxWidth || 210),
+      maxLines: Math.max(1, Number(entry?.maxLines || 2)),
+      pageOffset: Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null,
+      dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
+      dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
+      size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
+      lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
+      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
+      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
+        ? String(entry.align).toLowerCase()
+        : "left",
+      maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
+    });
+  }
+
+  return normalized;
+}
+
+function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
+  const patient = normalizePatient(patientInput || {});
+  const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
+  const schema = getClinicalFormSchema(safeFormat);
+  const values = patient.clinicalFormData?.[safeFormat] || {};
+  const context = contextInput && typeof contextInput === "object"
+    ? contextInput
+    : buildClinicalPdfContext(patient, { diseases: state.diseases, toothStatuses: state.toothStatuses }, safeFormat);
+
+  const entries = [];
+
+  if (!CLINICAL_IDENTIFICATION_LAYOUT_FORMATS.has(safeFormat)) {
+    for (const headerRule of CLINICAL_HEADER_FILL_RULES) {
+      const value = stringOrEmpty(context?.[headerRule.valueKey]);
+      if (!value) {
+        continue;
+      }
+      entries.push({
+        id: headerRule.id,
+        value,
+        matches: Array.isArray(headerRule.matches) ? headerRule.matches : [],
+        exact: false,
+        maxPerPage: 1,
+        maxWidth: Number(headerRule.maxWidth || 200),
+        maxLines: Number(headerRule.maxLines || 1),
+        pageOffset: Number.isFinite(Number(headerRule.pageOffset)) ? Number(headerRule.pageOffset) : 0,
+        dx: Number.isFinite(Number(headerRule.dx)) ? Number(headerRule.dx) : 6,
+        dy: Number.isFinite(Number(headerRule.dy)) ? Number(headerRule.dy) : -1,
+        size: Number.isFinite(Number(headerRule.size)) ? Number(headerRule.size) : 7.4,
+        lineHeight: Number.isFinite(Number(headerRule.lineHeight)) ? Number(headerRule.lineHeight) : null,
+        x: Number.isFinite(Number(headerRule.x)) ? Number(headerRule.x) : null,
+        y: Number.isFinite(Number(headerRule.y)) ? Number(headerRule.y) : null,
+        align: ["left", "center", "right"].includes(String(headerRule.align || "").toLowerCase())
+          ? String(headerRule.align).toLowerCase()
+          : "left",
+        maxChars: Number.isFinite(Number(headerRule.maxChars)) ? Number(headerRule.maxChars) : null
+      });
+    }
+  }
+
+  for (const field of schema.fields) {
+    const value = stringOrEmpty(values[field.id]);
+    if (!value) {
+      continue;
+    }
+    const pdfRule = getClinicalFieldPdfRule(safeFormat, field.id);
+    const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
+      ? pdfRule.matches
+      : [field.label];
+
+    entries.push({
+      id: `field-${safeFormat}-${field.id}`,
+      value,
+      matches,
+      exact: Boolean(pdfRule?.exact),
+      maxPerPage: Math.max(1, Number(pdfRule?.maxPerPage || 1)),
+      maxWidth: Number(pdfRule?.maxWidth || 220),
+      maxLines: Math.max(1, Number(pdfRule?.maxLines || 2)),
+      pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
+      dx: Number.isFinite(Number(pdfRule?.dx)) ? Number(pdfRule.dx) : 6,
+      dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : -1,
+      size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 7.4,
+      lineHeight: Number.isFinite(Number(pdfRule?.lineHeight)) ? Number(pdfRule.lineHeight) : null,
+      x: Number.isFinite(Number(pdfRule?.x)) ? Number(pdfRule.x) : null,
+      y: Number.isFinite(Number(pdfRule?.y)) ? Number(pdfRule.y) : null,
+      align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
+        ? String(pdfRule.align).toLowerCase()
+        : "left",
+      maxChars: Number.isFinite(Number(pdfRule?.maxChars)) ? Number(pdfRule.maxChars) : null
+    });
+  }
+
+  return normalizeClinicalFillEntries(entries);
+}
+
 function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalContextInput) {
   const patient = normalizePatient(patientInput || {});
   let explicitFirstNames = stringOrEmpty(patient.name);
@@ -3398,6 +4309,77 @@ function matchClinicalPdfItem(itemNorm, rule) {
   return false;
 }
 
+function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, pdfLib) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return;
+  }
+  const safeItems = Array.isArray(items) ? items : [];
+  const usedAnchors = new Set();
+
+  for (const entry of entries) {
+    const entryPageOffset = Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null;
+    if (entryPageOffset !== null && entryPageOffset !== pageOffset) {
+      continue;
+    }
+    const value = stringOrEmpty(entry?.value);
+    if (!value) {
+      continue;
+    }
+    const rule = {
+      matches: Array.isArray(entry?.matches) ? entry.matches : [],
+      exact: Boolean(entry?.exact),
+      maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
+      maxWidth: Number(entry?.maxWidth || 210),
+      maxLines: Math.max(1, Number(entry?.maxLines || 2)),
+      dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
+      dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
+      size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
+      lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
+      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
+      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
+        ? String(entry.align).toLowerCase()
+        : "left",
+      maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
+    };
+
+    if (rule.x !== null && rule.y !== null) {
+      drawClinicalTextAt(page, font, value, {
+        x: rule.x,
+        y: rule.y,
+        maxWidth: rule.maxWidth,
+        maxLines: rule.maxLines,
+        size: rule.size,
+        lineHeight: rule.lineHeight || undefined,
+        align: rule.align,
+        maxChars: rule.maxChars || undefined
+      }, pdfLib);
+      continue;
+    }
+
+    if (!Array.isArray(rule.matches) || rule.matches.length === 0) {
+      continue;
+    }
+
+    let hits = 0;
+    for (const item of safeItems) {
+      if (!matchClinicalPdfItem(item.norm, rule)) {
+        continue;
+      }
+      const anchorKey = `${Math.round(Number(item.x || 0))}:${Math.round(Number(item.y || 0))}`;
+      if (usedAnchors.has(anchorKey)) {
+        continue;
+      }
+      drawClinicalPdfRule(page, font, value, item, rule, pdfLib);
+      usedAnchors.add(anchorKey);
+      hits += 1;
+      if (hits >= rule.maxPerPage) {
+        break;
+      }
+    }
+  }
+}
+
 function wrapClinicalPdfText(font, text, size, maxWidth) {
   if (!maxWidth) {
     return [text];
@@ -3489,16 +4471,6 @@ function drawClinicalMark(page, font, enabled, x, y, size, pdfLib) {
     font,
     color: pdfLib.rgb(0, 0, 0)
   });
-}
-
-function shouldSkipClinicalRuleOnIdentificationPage(rule) {
-  if (!rule) {
-    return false;
-  }
-  if (rule.mark) {
-    return true;
-  }
-  return CLINICAL_IDENTIFICATION_KEYS.has(String(rule.value || ""));
 }
 
 function drawClinicalIdentificationBlock(page, font, context, pdfLib) {

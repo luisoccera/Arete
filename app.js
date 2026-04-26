@@ -4,12 +4,26 @@ const STORAGE_KEY = "arete_data_v1";
 const AUTH_TOKEN_KEY = "arete_auth_token_v1";
 const AUTH_LOCAL_USERS_KEY = "arete_auth_local_users_v1";
 const AUTH_LOCAL_RESET_KEY = "arete_auth_local_reset_v1";
-const DEMO_TEST_ACCOUNT = {
-  name: "Usuario Prueba Arete",
-  email: "demo@arete.app",
-  username: "demoarete",
-  password: "AreteDemo123!"
-};
+const DEMO_TEST_ACCOUNTS = [
+  {
+    name: "Usuario Prueba Arete 1",
+    email: "demo@arete.app",
+    username: "demoarete",
+    password: "AreteDemo123!"
+  },
+  {
+    name: "Usuario Prueba Arete 2",
+    email: "demo2@arete.app",
+    username: "demoarete2",
+    password: "AreteDemo456!"
+  },
+  {
+    name: "Usuario Prueba Arete 3",
+    email: "demo3@arete.app",
+    username: "demoarete3",
+    password: "AreteDemo789!"
+  }
+];
 const DENTITION_LAYOUTS = {
   adult: {
     label: "Denticion adulta comun",
@@ -1014,7 +1028,7 @@ async function initializeAuth() {
       return;
     }
   } else {
-    ensureLocalDemoAccount();
+    ensureLocalDemoAccounts();
     const restoredLocal = tryRestoreLocalSession();
     if (restoredLocal) {
       setAppLocked(false);
@@ -1023,7 +1037,7 @@ async function initializeAuth() {
       setFeedback(`Sesión local activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
       return;
     }
-    setAuthMessage("Modo local activo (sin backend). Usuario demo: demoarete | Clave: AreteDemo123!", "ok");
+    setAuthMessage("Modo local activo (sin backend). Usuarios demo: demoarete, demoarete2 y demoarete3.", "ok");
   }
 
   setAuthenticatedUser(null, "");
@@ -1308,29 +1322,37 @@ function readLocalAuthUsers() {
   }
 }
 
-function ensureLocalDemoAccount() {
+function ensureLocalDemoAccounts() {
   const users = readLocalAuthUsers();
-  const demoEmail = DEMO_TEST_ACCOUNT.email.toLowerCase();
-  const demoUsername = DEMO_TEST_ACCOUNT.username.toLowerCase();
-  const alreadyExists = users.some((entry) => {
-    const email = stringOrEmpty(entry?.email).toLowerCase();
-    const username = stringOrEmpty(entry?.username).toLowerCase();
-    return email === demoEmail || username === demoUsername;
-  });
-  if (alreadyExists) {
-    return;
+  let changed = false;
+
+  for (const account of DEMO_TEST_ACCOUNTS) {
+    const demoEmail = String(account.email || "").toLowerCase();
+    const demoUsername = String(account.username || "").toLowerCase();
+    const alreadyExists = users.some((entry) => {
+      const email = stringOrEmpty(entry?.email).toLowerCase();
+      const username = stringOrEmpty(entry?.username).toLowerCase();
+      return email === demoEmail || username === demoUsername;
+    });
+    if (alreadyExists) {
+      continue;
+    }
+
+    users.push({
+      id: generateId("usr"),
+      name: String(account.name || "").trim(),
+      email: demoEmail,
+      username: demoUsername,
+      password: String(account.password || ""),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    changed = true;
   }
 
-  users.push({
-    id: generateId("usr"),
-    name: DEMO_TEST_ACCOUNT.name,
-    email: demoEmail,
-    username: demoUsername,
-    password: DEMO_TEST_ACCOUNT.password,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  });
-  writeLocalAuthUsers(users);
+  if (changed) {
+    writeLocalAuthUsers(users);
+  }
 }
 
 function writeLocalAuthUsers(users) {

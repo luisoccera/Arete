@@ -17,12 +17,26 @@ const CLINICAL_TEMPLATE_FILE = path.join(ROOT_DIR, "data", "uv-historias.pdf");
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
-const DEMO_ACCOUNT = {
-  name: "Usuario Prueba Arete",
-  email: "demo@arete.app",
-  username: "demoarete",
-  password: "AreteDemo123!"
-};
+const DEMO_ACCOUNTS = [
+  {
+    name: "Usuario Prueba Arete 1",
+    email: "demo@arete.app",
+    username: "demoarete",
+    password: "AreteDemo123!"
+  },
+  {
+    name: "Usuario Prueba Arete 2",
+    email: "demo2@arete.app",
+    username: "demoarete2",
+    password: "AreteDemo456!"
+  },
+  {
+    name: "Usuario Prueba Arete 3",
+    email: "demo3@arete.app",
+    username: "demoarete3",
+    password: "AreteDemo789!"
+  }
+];
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -261,34 +275,42 @@ function writeUsersStore(store) {
   });
 }
 
-function ensureDemoUser() {
+function ensureDemoUsers() {
   const usersStore = getUsersStore();
   const users = Array.isArray(usersStore.users) ? usersStore.users : [];
-  const demoEmail = normalizeEmail(DEMO_ACCOUNT.email);
-  const demoUsername = normalizeUsername(DEMO_ACCOUNT.username);
-  const existing = users.find((entry) => {
-    const email = normalizeEmail(entry?.email);
-    const username = normalizeUsername(entry?.username);
-    return email === demoEmail || username === demoUsername;
-  });
-  if (existing) {
-    return;
+  let changed = false;
+
+  for (const account of DEMO_ACCOUNTS) {
+    const demoEmail = normalizeEmail(account.email);
+    const demoUsername = normalizeUsername(account.username);
+    const existing = users.find((entry) => {
+      const email = normalizeEmail(entry?.email);
+      const username = normalizeUsername(entry?.username);
+      return email === demoEmail || username === demoUsername;
+    });
+    if (existing) {
+      continue;
+    }
+
+    const pwd = hashPassword(account.password);
+    users.push({
+      id: createId("usr"),
+      name: account.name,
+      email: demoEmail,
+      username: demoUsername,
+      passwordSalt: pwd.salt,
+      passwordDigest: pwd.digest,
+      recoveryCode: "",
+      recoveryExpiresAt: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+    changed = true;
   }
 
-  const pwd = hashPassword(DEMO_ACCOUNT.password);
-  users.push({
-    id: createId("usr"),
-    name: DEMO_ACCOUNT.name,
-    email: demoEmail,
-    username: demoUsername,
-    passwordSalt: pwd.salt,
-    passwordDigest: pwd.digest,
-    recoveryCode: "",
-    recoveryExpiresAt: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  });
-  writeUsersStore(usersStore);
+  if (changed) {
+    writeUsersStore(usersStore);
+  }
 }
 
 function getSessionsStore() {
@@ -793,7 +815,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-ensureDemoUser();
+ensureDemoUsers();
 
 server.listen(PORT, () => {
   console.log(`Arete backend+frontend activo en http://localhost:${PORT}`);

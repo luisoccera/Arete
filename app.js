@@ -3748,6 +3748,7 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
   copiedPages.forEach((page) => targetPdf.addPage(page));
 
   const font = await targetPdf.embedFont(pdfLib.StandardFonts.Helvetica);
+  const renderedEntryIds = new Set();
   copiedPages.forEach((page, idx) => {
     const sourcePageNo = sourcePageNumbers[idx];
     const items = textData.pages[sourcePageNo] || [];
@@ -3757,7 +3758,7 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
     if (isIdentificationPage && CLINICAL_IDENTIFICATION_LAYOUT_FORMATS.has(selected.formatId)) {
       drawClinicalIdentificationBlock(page, font, context, pdfLib);
     }
-    drawClinicalFillEntriesOnPage(page, font, items, clinicalFillEntries, pageOffset, pdfLib);
+    drawClinicalFillEntriesOnPage(page, font, items, clinicalFillEntries, pageOffset, renderedEntryIds, pdfLib);
   });
 
   const pdfBytes = await targetPdf.save();
@@ -3968,6 +3969,14 @@ function normalizeClinicalPdfText(value) {
     .trim();
 }
 
+function toOptionalClinicalNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 function parseDatePartsForClinicalPdf(value) {
   const text = String(value || "").trim();
   if (!text) {
@@ -4162,8 +4171,8 @@ function normalizeClinicalFillEntries(rawEntries) {
       dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
       size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
-      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      x: toOptionalClinicalNumber(entry?.x),
+      y: toOptionalClinicalNumber(entry?.y),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -4237,8 +4246,8 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : -1,
       size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 7.4,
       lineHeight: Number.isFinite(Number(pdfRule?.lineHeight)) ? Number(pdfRule.lineHeight) : null,
-      x: Number.isFinite(Number(pdfRule?.x)) ? Number(pdfRule.x) : null,
-      y: Number.isFinite(Number(pdfRule?.y)) ? Number(pdfRule.y) : null,
+      x: toOptionalClinicalNumber(pdfRule?.x),
+      y: toOptionalClinicalNumber(pdfRule?.y),
       align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
         ? String(pdfRule.align).toLowerCase()
         : "left",
@@ -4379,31 +4388,57 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   return context;
 }
 
-function matchClinicalPdfItem(itemNorm, rule) {
+function getClinicalPdfMatchScore(itemNormInput, rule) {
+  const itemNorm = normalizeClinicalPdfText(itemNormInput);
+  if (!itemNorm) {
+    return 0;
+  }
+
+  let bestScore = 0;
   for (const raw of rule.matches || []) {
     const token = normalizeClinicalPdfText(raw);
     if (!token) {
       continue;
     }
+    const tokenWords = token.split(" ").filter(Boolean);
+    const genericSingleWord = tokenWords.length === 1 && token.length <= 14;
+
     if (rule.exact) {
       if (itemNorm === token) {
-        return true;
+        bestScore = Math.max(bestScore, 4);
       }
-    } else if (itemNorm.includes(token)) {
-      return true;
+      continue;
+    }
+
+    if (itemNorm === token) {
+      bestScore = Math.max(bestScore, 4);
+      continue;
+    }
+    if (itemNorm.startsWith(token)) {
+      bestScore = Math.max(bestScore, 3);
+      continue;
+    }
+    if (!genericSingleWord && itemNorm.includes(token)) {
+      bestScore = Math.max(bestScore, 2);
     }
   }
-  return false;
+
+  return bestScore;
 }
 
-function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, pdfLib) {
+function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, renderedEntryIds, pdfLib) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return;
   }
   const safeItems = Array.isArray(items) ? items : [];
   const usedAnchors = new Set();
+  const rendered = renderedEntryIds instanceof Set ? renderedEntryIds : new Set();
 
   for (const entry of entries) {
+    const entryId = stringOrEmpty(entry?.id);
+    if (entryId && rendered.has(entryId)) {
+      continue;
+    }
     const entryPageOffset = Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null;
     if (entryPageOffset !== null && entryPageOffset !== pageOffset) {
       continue;
@@ -4422,8 +4457,8 @@ function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, p
       dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
       size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
-      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      x: toOptionalClinicalNumber(entry?.x),
+      y: toOptionalClinicalNumber(entry?.y),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -4441,6 +4476,9 @@ function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, p
         align: rule.align,
         maxChars: rule.maxChars || undefined
       }, pdfLib);
+      if (entryId) {
+        rendered.add(entryId);
+      }
       continue;
     }
 
@@ -4448,21 +4486,40 @@ function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, p
       continue;
     }
 
-    let hits = 0;
+    const candidates = [];
     for (const item of safeItems) {
-      if (!matchClinicalPdfItem(item.norm, rule)) {
+      const score = getClinicalPdfMatchScore(item.norm, rule);
+      if (score <= 0) {
         continue;
       }
-      const anchorKey = `${Math.round(Number(item.x || 0))}:${Math.round(Number(item.y || 0))}`;
-      if (usedAnchors.has(anchorKey)) {
+      const x = Number(item.x || 0);
+      const y = Number(item.y || 0);
+      if (x < 20 || y < 20) {
         continue;
       }
-      drawClinicalPdfRule(page, font, value, item, rule, pdfLib);
-      usedAnchors.add(anchorKey);
+      candidates.push({
+        ...item,
+        score,
+        anchorKey: `${Math.round(x)}:${Math.round(y)}`
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
+
+    let hits = 0;
+    for (const candidate of candidates) {
+      if (usedAnchors.has(candidate.anchorKey)) {
+        continue;
+      }
+      drawClinicalPdfRule(page, font, value, candidate, rule, pdfLib);
+      usedAnchors.add(candidate.anchorKey);
       hits += 1;
       if (hits >= rule.maxPerPage) {
         break;
       }
+    }
+    if (hits > 0 && entryId) {
+      rendered.add(entryId);
     }
   }
 }
@@ -4607,11 +4664,21 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
 }
 
 function drawClinicalPdfRule(page, font, value, item, rule, pdfLib) {
-  const size = rule.size || 7.4;
-  let x = (item.x || 0) + (item.w || 0) + (rule.dx || 6);
-  const y = (item.y || 0) + (rule.dy || -1);
-  const maxWidth = rule.maxWidth || 190;
   const pageWidth = page.getWidth();
+  const size = rule.size || 7.4;
+  const anchorX = Number(item?.x);
+  const anchorY = Number(item?.y);
+  const anchorW = Number(item?.w);
+  const dx = Number.isFinite(Number(rule?.dx)) ? Number(rule.dx) : 6;
+  const dy = Number.isFinite(Number(rule?.dy)) ? Number(rule.dy) : -1;
+
+  let x = (Number.isFinite(anchorX) ? anchorX : 0) + (Number.isFinite(anchorW) ? anchorW : 0) + dx;
+  const y = (Number.isFinite(anchorY) ? anchorY : 0) + dy;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 20 || y < 20) {
+    return;
+  }
+
+  const maxWidth = rule.maxWidth || 190;
   if (x > pageWidth - 40) {
     x = Math.max(40, pageWidth - (maxWidth + 16));
   }

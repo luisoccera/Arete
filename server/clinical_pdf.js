@@ -129,6 +129,14 @@ function normalizeText(value) {
     .trim();
 }
 
+function toOptionalNumber(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+}
+
 function parseDateParts(value) {
   const text = String(value || "").trim();
   if (!text) {
@@ -420,21 +428,42 @@ function resolveFormatRange(formatId, totalPages) {
   return { formatId: id, start, end };
 }
 
-function matchItemWithRule(itemNorm, rule) {
+function getPdfMatchScore(itemNormInput, rule) {
+  const itemNorm = normalizeText(itemNormInput);
+  if (!itemNorm) {
+    return 0;
+  }
+
+  let bestScore = 0;
   for (const rawMatch of rule.matches || []) {
     const token = normalizeText(rawMatch);
     if (!token) {
       continue;
     }
+    const tokenWords = token.split(" ").filter(Boolean);
+    const genericSingleWord = tokenWords.length === 1 && token.length <= 14;
+
     if (rule.exact) {
       if (itemNorm === token) {
-        return true;
+        bestScore = Math.max(bestScore, 4);
       }
-    } else if (itemNorm.includes(token)) {
-      return true;
+      continue;
+    }
+
+    if (itemNorm === token) {
+      bestScore = Math.max(bestScore, 4);
+      continue;
+    }
+    if (itemNorm.startsWith(token)) {
+      bestScore = Math.max(bestScore, 3);
+      continue;
+    }
+    if (!genericSingleWord && itemNorm.includes(token)) {
+      bestScore = Math.max(bestScore, 2);
     }
   }
-  return false;
+
+  return bestScore;
 }
 
 function normalizeFillEntries(rawEntries) {
@@ -469,8 +498,8 @@ function normalizeFillEntries(rawEntries) {
       dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
       size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
-      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      x: toOptionalNumber(entry?.x),
+      y: toOptionalNumber(entry?.y),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -481,14 +510,19 @@ function normalizeFillEntries(rawEntries) {
   return normalized;
 }
 
-function drawFillEntriesOnPage(page, font, items, entries, pageOffset) {
+function drawFillEntriesOnPage(page, font, items, entries, pageOffset, renderedEntryIds) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return;
   }
   const safeItems = Array.isArray(items) ? items : [];
   const usedAnchors = new Set();
+  const rendered = renderedEntryIds instanceof Set ? renderedEntryIds : new Set();
 
   for (const entry of entries) {
+    const entryId = String(entry?.id || "").trim();
+    if (entryId && rendered.has(entryId)) {
+      continue;
+    }
     const entryPageOffset = Number.isFinite(Number(entry?.pageOffset)) ? Number(entry.pageOffset) : null;
     if (entryPageOffset !== null && entryPageOffset !== pageOffset) {
       continue;
@@ -508,8 +542,8 @@ function drawFillEntriesOnPage(page, font, items, entries, pageOffset) {
       dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
       size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: Number.isFinite(Number(entry?.x)) ? Number(entry.x) : null,
-      y: Number.isFinite(Number(entry?.y)) ? Number(entry.y) : null,
+      x: toOptionalNumber(entry?.x),
+      y: toOptionalNumber(entry?.y),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -527,6 +561,9 @@ function drawFillEntriesOnPage(page, font, items, entries, pageOffset) {
         align: rule.align,
         maxChars: rule.maxChars || undefined
       });
+      if (entryId) {
+        rendered.add(entryId);
+      }
       continue;
     }
 
@@ -534,21 +571,40 @@ function drawFillEntriesOnPage(page, font, items, entries, pageOffset) {
       continue;
     }
 
-    let hitCount = 0;
+    const candidates = [];
     for (const item of safeItems) {
-      if (!matchItemWithRule(item.norm, rule)) {
+      const score = getPdfMatchScore(item.norm, rule);
+      if (score <= 0) {
         continue;
       }
-      const anchorKey = `${Math.round(Number(item.x || 0))}:${Math.round(Number(item.y || 0))}`;
-      if (usedAnchors.has(anchorKey)) {
+      const x = Number(item.x || 0);
+      const y = Number(item.y || 0);
+      if (x < 20 || y < 20) {
         continue;
       }
-      drawRuleValue(page, font, value, item, rule);
-      usedAnchors.add(anchorKey);
+      candidates.push({
+        ...item,
+        score,
+        anchorKey: `${Math.round(x)}:${Math.round(y)}`
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
+
+    let hitCount = 0;
+    for (const candidate of candidates) {
+      if (usedAnchors.has(candidate.anchorKey)) {
+        continue;
+      }
+      drawRuleValue(page, font, value, candidate, rule);
+      usedAnchors.add(candidate.anchorKey);
       hitCount += 1;
       if (hitCount >= rule.maxPerPage) {
         break;
       }
+    }
+    if (hitCount > 0 && entryId) {
+      rendered.add(entryId);
     }
   }
 }
@@ -705,8 +761,17 @@ function drawIdentificationBlock(page, font, context) {
 function drawRuleValue(page, font, value, item, rule) {
   const pageWidth = page.getWidth();
   const size = rule.size || 7.4;
-  let x = (item.x || 0) + (item.w || 0) + (rule.dx || 6);
-  const y = (item.y || 0) + (rule.dy || -1);
+  const anchorX = Number(item?.x);
+  const anchorY = Number(item?.y);
+  const anchorW = Number(item?.w);
+  const dx = Number.isFinite(Number(rule?.dx)) ? Number(rule.dx) : 6;
+  const dy = Number.isFinite(Number(rule?.dy)) ? Number(rule.dy) : -1;
+
+  let x = (Number.isFinite(anchorX) ? anchorX : 0) + (Number.isFinite(anchorW) ? anchorW : 0) + dx;
+  const y = (Number.isFinite(anchorY) ? anchorY : 0) + dy;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 20 || y < 20) {
+    return;
+  }
 
   const maxWidth = rule.maxWidth || 190;
   if (x > pageWidth - 40) {
@@ -810,6 +875,7 @@ async function generateClinicalPdf(options) {
   copiedPages.forEach((page) => targetPdf.addPage(page));
 
   const regularFont = await targetPdf.embedFont(StandardFonts.Helvetica);
+  const renderedEntryIds = new Set();
 
   copiedPages.forEach((targetPage, idx) => {
     const sourcePageNo = sourcePageNumbers[idx];
@@ -820,7 +886,7 @@ async function generateClinicalPdf(options) {
     if (isIdentificationPage && IDENTIFICATION_LAYOUT_FORMATS.has(selected.formatId)) {
       drawIdentificationBlock(targetPage, regularFont, context);
     }
-    drawFillEntriesOnPage(targetPage, regularFont, items, clinicalFillEntries, pageOffset);
+    drawFillEntriesOnPage(targetPage, regularFont, items, clinicalFillEntries, pageOffset, renderedEntryIds);
   });
 
   const pdfBytes = await targetPdf.save();

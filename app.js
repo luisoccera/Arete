@@ -4,6 +4,12 @@ const STORAGE_KEY = "arete_data_v1";
 const AUTH_TOKEN_KEY = "arete_auth_token_v1";
 const AUTH_LOCAL_USERS_KEY = "arete_auth_local_users_v1";
 const AUTH_LOCAL_RESET_KEY = "arete_auth_local_reset_v1";
+const DEMO_TEST_ACCOUNT = {
+  name: "Usuario Prueba Arete",
+  email: "demo@arete.app",
+  username: "demoarete",
+  password: "AreteDemo123!"
+};
 const DENTITION_LAYOUTS = {
   adult: {
     label: "Denticion adulta comun",
@@ -1008,6 +1014,7 @@ async function initializeAuth() {
       return;
     }
   } else {
+    ensureLocalDemoAccount();
     const restoredLocal = tryRestoreLocalSession();
     if (restoredLocal) {
       setAppLocked(false);
@@ -1016,7 +1023,7 @@ async function initializeAuth() {
       setFeedback(`Sesión local activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
       return;
     }
-    setAuthMessage("Modo local activo (sin backend). Puedes crear cuenta y entrar desde este navegador.", "ok");
+    setAuthMessage("Modo local activo (sin backend). Usuario demo: demoarete | Clave: AreteDemo123!", "ok");
   }
 
   setAuthenticatedUser(null, "");
@@ -1299,6 +1306,31 @@ function readLocalAuthUsers() {
   } catch {
     return [];
   }
+}
+
+function ensureLocalDemoAccount() {
+  const users = readLocalAuthUsers();
+  const demoEmail = DEMO_TEST_ACCOUNT.email.toLowerCase();
+  const demoUsername = DEMO_TEST_ACCOUNT.username.toLowerCase();
+  const alreadyExists = users.some((entry) => {
+    const email = stringOrEmpty(entry?.email).toLowerCase();
+    const username = stringOrEmpty(entry?.username).toLowerCase();
+    return email === demoEmail || username === demoUsername;
+  });
+  if (alreadyExists) {
+    return;
+  }
+
+  users.push({
+    id: generateId("usr"),
+    name: DEMO_TEST_ACCOUNT.name,
+    email: demoEmail,
+    username: demoUsername,
+    password: DEMO_TEST_ACCOUNT.password,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  });
+  writeLocalAuthUsers(users);
 }
 
 function writeLocalAuthUsers(users) {

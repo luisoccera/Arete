@@ -5,6 +5,7 @@
   --text-main: #2f261d;
   --text-soft: #6f6558;
   --ink: #2c241b;
+  --radius-ui: 14px;
 }
 
 *,
@@ -393,10 +394,13 @@ input[type="text"],
 input[type="number"],
 input[type="date"],
 input[type="tel"],
+input[type="email"],
+input[type="password"],
+input[type="time"],
 textarea,
 select {
   width: 100%;
-  border-radius: 10px;
+  border-radius: var(--radius-ui);
   border: 1px solid #2a4f69;
   background: #0a1b2af2;
   color: var(--text-main);
@@ -1312,6 +1316,9 @@ input[type="text"],
 input[type="number"],
 input[type="date"],
 input[type="tel"],
+input[type="email"],
+input[type="password"],
+input[type="time"],
 textarea,
 select {
   border-color: #d4bda1;
@@ -1476,6 +1483,43 @@ td {
 
 #feedbackMessage[data-mode="ok"] {
   color: #387a53;
+}
+
+/* Uniformidad visual de recuadros */
+.auth-card,
+.hero,
+.panel,
+.app-footer,
+.card,
+.table-wrap,
+.upcoming-item,
+.history-item,
+.appointment-item,
+.tag-label,
+.catalog-item,
+.media-item,
+.status-picker,
+.jaw-canvas,
+.jaw-backdrop,
+.zone-btn,
+.btn,
+.auth-tab,
+.view-tab,
+.patient-subtab,
+.table-btn,
+.catalog-btn,
+.dentition-btn,
+input[type="search"],
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="tel"],
+input[type="email"],
+input[type="password"],
+input[type="time"],
+textarea,
+select {
+  border-radius: var(--radius-ui);
 }
 
 @keyframes rise-in {

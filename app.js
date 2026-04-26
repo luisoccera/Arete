@@ -487,12 +487,12 @@ const CLINICAL_HEADER_FILL_RULES = [
 
 const CLINICAL_FIELD_PDF_RULES = {
   "f1-estomatologica": {
-    motivo_consulta: { matches: ["padecimiento actual", "motivo de consulta"], maxWidth: 230, maxLines: 3, pageOffset: 1 },
-    antecedentes_estomatologicos: { matches: ["antecedentes personales patologicos", "antecedentes personales y familiares"], maxWidth: 230, maxLines: 3, pageOffset: 1 },
-    diagnostico_estomatologico: { matches: ["diagnostico"], maxWidth: 220, maxLines: 2 },
-    plan_estomatologico: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3 },
-    pronostico_estomatologico: { matches: ["pronostico"], maxWidth: 210, maxLines: 2 },
-    observaciones_f1: { matches: ["observaciones"], maxWidth: 230, maxLines: 3 }
+    motivo_consulta: { matches: ["padecimiento actual", "motivo de consulta"], maxWidth: 360, maxLines: 3, pageOffset: 1, x: 148, y: 234.2, dx: 0 },
+    antecedentes_estomatologicos: { matches: ["antecedentes personales patologicos", "antecedentes personales y familiares"], maxWidth: 280, maxLines: 3, pageOffset: 1, x: 265, y: 658.2, dx: 0 },
+    diagnostico_estomatologico: { matches: ["diagnostico"], maxWidth: 380, maxLines: 2, pageOffset: 8, x: 126, y: 659.6, dx: 0 },
+    plan_estomatologico: { matches: ["plan de tratamiento"], maxWidth: 330, maxLines: 3, pageOffset: 8, x: 176, y: 571.6, dx: 0 },
+    pronostico_estomatologico: { matches: ["pronostico"], maxWidth: 330, maxLines: 2, pageOffset: 8, x: 176, y: 523.6, dx: 0 },
+    observaciones_f1: { matches: ["observaciones"], maxWidth: 330, maxLines: 3, pageOffset: 8, x: 176, y: 475.6, dx: 0 }
   },
   "f2-preventiva": {
     riesgo_caries: { matches: ["indice de placa actual"], maxWidth: 120, maxLines: 1, pageOffset: 0 },
@@ -4056,6 +4056,18 @@ function truncateClinicalText(value, max) {
   return `${text.slice(0, max - 1)}…`;
 }
 
+function normalizeClinicalNumericText(value, maxLength) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const digits = text.replace(/\D+/g, "");
+  if (!digits) {
+    return "";
+  }
+  return digits.slice(0, Math.max(1, Number(maxLength || digits.length)));
+}
+
 function summarizeClinicalList(items, maxItems) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
   if (list.length === 0) {
@@ -4297,6 +4309,8 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   const consultationReason = String(patient.otherConditions || "").trim() || String(patient.medications || "").trim();
   const background = [patient.allergies, patient.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
   const clinicalContext = clinicalContextInput || buildClinicalContextFromForm(patient, formatId);
+  const rawAgeMonths = String(patient.ageMonths || patient.months || "").trim();
+  const ageMonths = /^\d{1,2}$/.test(rawAgeMonths) ? rawAgeMonths : "";
 
   const context = {
     fullName,
@@ -4306,7 +4320,7 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     recordReference: stringOrEmpty(patient.clinicalRecordReference),
     ageText: String(patient.age || "").trim(),
     ageYears: String(patient.age || "").trim(),
-    ageMonths: "",
+    ageMonths,
     sexLabel: String(patient.sex || "").trim(),
     isMale,
     isFemale,
@@ -4326,7 +4340,7 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     occupationAlt: String(patient.occupation || "").trim(),
     civilStatus: "No especificado",
     phone: String(patient.phone || "").trim(),
-    doctorPhone: String(patient.phone || "").trim(),
+    doctorPhone: String(patient.doctorPhone || patient.familyDoctorPhone || "").trim(),
     dentistName: String(patient.dentistName || "").trim(),
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
@@ -4618,19 +4632,22 @@ function drawClinicalMark(page, font, enabled, x, y, size, pdfLib) {
 }
 
 function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
-  const ageValue = String(context.ageYears || context.ageText || "").trim();
-  const monthsValue = String(context.ageMonths || "").trim();
+  const ageValue = normalizeClinicalNumericText(context.ageYears || context.ageText, 3);
+  const monthsValue = normalizeClinicalNumericText(context.ageMonths, 2);
   const birthPlace = String(context.locationShort || context.location || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
   const lastConsult = String(context.lastMedicalConsult || "").trim();
+  const consultDay = normalizeClinicalNumericText(context.consultDay, 2);
+  const consultMonth = normalizeClinicalNumericText(context.consultMonth, 2);
+  const consultYear = normalizeClinicalNumericText(context.consultYear, 4);
 
   drawClinicalTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 }, pdfLib);
   drawClinicalTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 }, pdfLib);
   drawClinicalTextAt(page, font, context.lastNameMother, { x: 287, y: 386.1, maxWidth: 86, size: 8.2, maxLines: 1, maxChars: 30 }, pdfLib);
   drawClinicalTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 }, pdfLib);
 
-  drawClinicalTextAt(page, font, ageValue, { x: 447, y: 397.2, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 5 }, pdfLib);
-  drawClinicalTextAt(page, font, monthsValue, { x: 538, y: 397.2, maxWidth: 32, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, ageValue, { x: 441, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 3 }, pdfLib);
+  drawClinicalTextAt(page, font, monthsValue, { x: 521, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
 
   drawClinicalMark(page, font, context.isMale, 250.5, 364.2, 10, pdfLib);
   drawClinicalMark(page, font, context.isFemale, 377.5, 364.2, 10, pdfLib);
@@ -4655,12 +4672,12 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, context.phone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 }, pdfLib);
-  drawClinicalTextAt(page, font, context.doctorPhone || context.phone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
+  drawClinicalTextAt(page, font, context.doctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 }, pdfLib);
 
-  drawClinicalTextAt(page, font, context.consultDay, { x: 486, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, context.consultMonth, { x: 511, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, context.consultYear, { x: 538, y: 451.8, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, consultDay, { x: 485, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultMonth, { x: 509, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultYear, { x: 535, y: 451.4, maxWidth: 24, size: 8, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function drawClinicalPdfRule(page, font, value, item, rule, pdfLib) {

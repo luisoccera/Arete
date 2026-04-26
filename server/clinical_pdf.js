@@ -220,6 +220,18 @@ function truncate(value, max) {
   return `${text.slice(0, max - 1)}…`;
 }
 
+function normalizeNumericText(value, maxLength) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  const digits = text.replace(/\D+/g, "");
+  if (!digits) {
+    return "";
+  }
+  return digits.slice(0, Math.max(1, Number(maxLength || digits.length)));
+}
+
 function summarizeList(items, maxItems) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
   if (list.length === 0) {
@@ -334,6 +346,9 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const background = [p.allergies, p.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
   const clinicalContext = normalizeClinicalContext(clinicalContextInput);
 
+  const rawAgeMonths = String(p.ageMonths || p.months || "").trim();
+  const ageMonths = /^\d{1,2}$/.test(rawAgeMonths) ? rawAgeMonths : "";
+
   const context = {
     formatId,
     fullName: name,
@@ -343,7 +358,7 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     recordReference: String(p.clinicalRecordReference || "").trim(),
     ageText: String(p.age || "").trim(),
     ageYears: String(p.age || "").trim(),
-    ageMonths: "",
+    ageMonths,
     sexLabel: String(p.sex || "").trim(),
     isMale,
     isFemale,
@@ -363,7 +378,7 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     occupationAlt: String(p.occupation || "").trim(),
     civilStatus: "No especificado",
     phone: String(p.phone || "").trim(),
-    doctorPhone: String(p.phone || "").trim(),
+    doctorPhone: String(p.doctorPhone || p.familyDoctorPhone || "").trim(),
     dentistName: String(p.dentistName || "").trim(),
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
@@ -713,19 +728,22 @@ function shouldSkipRuleOnIdentificationPage(rule) {
 }
 
 function drawIdentificationBlock(page, font, context) {
-  const ageValue = String(context.ageYears || context.ageText || "").trim();
-  const monthsValue = String(context.ageMonths || "").trim();
+  const ageValue = normalizeNumericText(context.ageYears || context.ageText, 3);
+  const monthsValue = normalizeNumericText(context.ageMonths, 2);
   const birthPlace = String(context.locationShort || context.location || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
   const lastConsult = String(context.lastMedicalConsult || "").trim();
+  const consultDay = normalizeNumericText(context.consultDay, 2);
+  const consultMonth = normalizeNumericText(context.consultMonth, 2);
+  const consultYear = normalizeNumericText(context.consultYear, 4);
 
   drawTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 });
   drawTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 });
   drawTextAt(page, font, context.lastNameMother, { x: 287, y: 386.1, maxWidth: 86, size: 8.2, maxLines: 1, maxChars: 30 });
   drawTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 });
 
-  drawTextAt(page, font, ageValue, { x: 447, y: 397.2, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 5 });
-  drawTextAt(page, font, monthsValue, { x: 538, y: 397.2, maxWidth: 32, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, ageValue, { x: 441, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 3 });
+  drawTextAt(page, font, monthsValue, { x: 521, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 2 });
 
   drawMark(page, font, context.isMale, 250.5, 364.2, 10);
   drawMark(page, font, context.isFemale, 377.5, 364.2, 10);
@@ -750,12 +768,12 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, context.phone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 });
-  drawTextAt(page, font, context.doctorPhone || context.phone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
+  drawTextAt(page, font, context.doctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 });
 
-  drawTextAt(page, font, context.consultDay, { x: 486, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.consultMonth, { x: 511, y: 451.8, maxWidth: 16, size: 8.4, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.consultYear, { x: 538, y: 451.8, maxWidth: 30, size: 8.4, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, consultDay, { x: 485, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultMonth, { x: 509, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultYear, { x: 535, y: 451.4, maxWidth: 24, size: 8, align: "center", maxLines: 1, maxChars: 4 });
 }
 
 function drawRuleValue(page, font, value, item, rule) {

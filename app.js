@@ -3448,9 +3448,10 @@ async function printClinicalDocument() {
 
   setPdfActionState(true, "print");
   setFeedback("Preparando PDF para impresion...");
+  const printPopup = openPrintPopupWindow();
   try {
     const result = await requestOfficialClinicalPdf();
-    const printed = await printPdfBlob(result.blob);
+    const printed = await printPdfBlob(result.blob, { popup: printPopup });
     persistDraftPatientIfEditing();
     if (printed) {
       setFeedback(`PDF oficial de ${result.recordType.label} listo para impresion.`);
@@ -3467,8 +3468,23 @@ async function printClinicalDocument() {
   }
 }
 
-function printPdfBlob(blob) {
+function openPrintPopupWindow() {
+  try {
+    const popup = window.open("", "_blank");
+    if (popup) {
+      popup.document.write("<!doctype html><title>Impresion PDF</title><p style=\"font-family:Arial,sans-serif;padding:16px;\">Preparando PDF para impresion...</p>");
+      popup.document.close();
+    }
+    return popup || null;
+  } catch {
+    return null;
+  }
+}
+
+function printPdfBlob(blob, options) {
   return new Promise((resolve, reject) => {
+    const popup = options?.popup && !options.popup.closed ? options.popup : null;
+
     if (isLikelyIOSLikeBrowser()) {
       const mode = triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
       resolve(mode === "opened" ? false : true);
@@ -3476,6 +3492,39 @@ function printPdfBlob(blob) {
     }
 
     const objectUrl = URL.createObjectURL(blob);
+
+    if (popup) {
+      try {
+        popup.location.href = objectUrl;
+      } catch {
+        // Si la navegación falla, seguimos con iframe oculto.
+      }
+
+      let attempts = 0;
+      const maxAttempts = 8;
+      const tryAutoPrint = () => {
+        attempts += 1;
+        try {
+          popup.focus();
+          popup.print();
+          window.setTimeout(() => {
+            URL.revokeObjectURL(objectUrl);
+          }, 120000);
+          resolve(true);
+        } catch {
+          if (attempts >= maxAttempts) {
+            // Dejamos el PDF abierto para impresión manual.
+            resolve(false);
+            return;
+          }
+          window.setTimeout(tryAutoPrint, 450);
+        }
+      };
+
+      window.setTimeout(tryAutoPrint, 550);
+      return;
+    }
+
     const frame = document.createElement("iframe");
     frame.style.position = "fixed";
     frame.style.width = "0";
@@ -3530,9 +3579,15 @@ function printPdfBlob(blob) {
           frameWindow.addEventListener("afterprint", onAfterPrint);
           frameWindow.focus();
           frameWindow.print();
-          window.setTimeout(complete, 1600);
+          window.setTimeout(complete, 2200);
         } catch (error) {
-          finalize(() => reject(error instanceof Error ? error : new Error("Error al imprimir el PDF.")));
+          // Último fallback: abrir el PDF para impresión manual.
+          try {
+            triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
+            finalize(() => resolve(false));
+          } catch (fallbackError) {
+            finalize(() => reject(fallbackError instanceof Error ? fallbackError : new Error("Error al imprimir el PDF.")));
+          }
         }
       }, 220);
     };

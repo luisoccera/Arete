@@ -1242,47 +1242,48 @@ tbody tr.active {
 /* Tema claro beige */
 body {
   color: var(--text-main);
-  background:
-    radial-gradient(circle at 8% -12%, #ffe7c5 0%, transparent 42%),
-    radial-gradient(circle at 95% 6%, #f2ddbf 0%, transparent 38%),
-    linear-gradient(140deg, var(--bg-0), var(--bg-1));
+  background: #ffffff;
 }
 
 .bg-shape {
-  opacity: 0.3;
+  opacity: 0;
 }
 
 .bg-shape-a {
-  background: #e8cfaa;
+  background: transparent;
 }
 
 .bg-shape-b {
-  background: #dbc4a0;
+  background: transparent;
 }
 
 .hero,
 .panel,
 .app-footer {
-  border-color: #d7c8b2;
-  background: linear-gradient(145deg, #fffefb, #f6ecde);
-  box-shadow: 0 12px 28px #8e7f6a21;
+  border-color: #d3d7dd;
+  background: linear-gradient(145deg, #f2f4f7, #eceff3);
+  box-shadow: 0 10px 22px #8c96a41f;
 }
 
 .hero-kicker {
-  color: #8a6d49;
+  color: #66707d;
 }
 
+.auth-tab,
 .view-tab,
-.patient-subtab {
-  border-color: #d1b999;
-  background: #fff7eb;
-  color: #463626;
+.patient-subtab,
+.dentition-btn {
+  border-color: #bcc4ce;
+  background: #d9dee5;
+  color: #3f4650;
 }
 
+.auth-tab.is-active,
 .view-tab.is-active,
-.patient-subtab.is-active {
+.patient-subtab.is-active,
+.dentition-btn.is-active {
   color: #2d2419;
-  border-color: #c3a27a;
+  border-color: #c4a982;
   background: linear-gradient(125deg, #f5dfbf, #e9ce9f);
 }
 
@@ -1359,9 +1360,9 @@ button:focus-visible {
 }
 
 thead th {
-  background: #f6ead9;
-  color: #7d6240;
-  border-bottom-color: #d8c4aa;
+  background: #edf0f4;
+  color: #5f6874;
+  border-bottom-color: #d3d7dd;
 }
 
 tbody tr:hover {

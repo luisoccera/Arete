@@ -28,6 +28,9 @@
   for (const button of el.upcomingSubTabs) {
     button.addEventListener("click", () => {
       const targetSubview = button.getAttribute("data-upcoming-tab");
+      if (targetSubview === "composer" && el.globalAppointmentDate) {
+        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+      }
       setActiveUpcomingSubview(targetSubview);
     });
   }
@@ -157,6 +160,30 @@
       setActiveUpcomingSubview("composer");
     });
   }
+  if (el.closeComposerBtn) {
+    el.closeComposerBtn.addEventListener("click", () => {
+      setActiveUpcomingSubview("planner");
+    });
+  }
+  const composerSubview = (el.upcomingSubSections || []).find((section) => section.getAttribute("data-upcoming-subview") === "composer");
+  if (composerSubview) {
+    composerSubview.addEventListener("click", (event) => {
+      if (!composerSubview.classList.contains("is-active")) {
+        return;
+      }
+      if (event.target === composerSubview) {
+        setActiveUpcomingSubview("planner");
+      }
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") {
+      return;
+    }
+    if (activeView === "upcoming" && activeUpcomingSubview === "composer") {
+      setActiveUpcomingSubview("planner");
+    }
+  });
   if (el.globalAppointmentPatient) {
     el.globalAppointmentPatient.addEventListener("change", () => {
       syncGlobalAppointmentPatientInput();

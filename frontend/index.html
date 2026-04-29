@@ -531,7 +531,7 @@
                   <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
                 </div>
                 <div class="planner-top-actions">
-                  <button type="button" id="openComposerBtn" class="planner-icon-btn planner-icon-btn-primary">Nueva cita</button>
+                  <button type="button" id="openComposerBtn" class="planner-plus-btn" aria-label="Agregar cita">+</button>
                 </div>
               </header>
 
@@ -552,7 +552,7 @@
               <section class="planner-day-panel">
                 <div class="card-title-row">
                   <h4 id="upcomingDayTitle" class="upcoming-day-title">Citas del día</h4>
-                  <button type="button" id="openComposerForDayBtn" class="table-btn">Nueva cita en este día</button>
+                  <button type="button" id="openComposerForDayBtn" class="planner-day-plus-btn" aria-label="Agregar cita del día">+</button>
                 </div>
                 <div id="upcomingDayList" class="appointment-list"></div>
               </section>
@@ -571,10 +571,15 @@
           <section class="upcoming-subview" data-upcoming-subview="composer" hidden>
             <article class="planner-sheet planner-sheet-inline planner-sheet-compose">
               <div class="planner-sheet-head">
+                <button type="button" id="closeComposerBtn" class="planner-sheet-close" aria-label="Cerrar nueva cita">×</button>
                 <h4>Nueva cita</h4>
                 <button type="button" id="addGlobalAppointmentBtn" class="planner-sheet-save">Guardar</button>
               </div>
               <div class="planner-sheet-body">
+                <label class="field field-full">
+                  <span>Título</span>
+                  <input type="text" id="globalAppointmentTitle" placeholder="Título de la cita">
+                </label>
                 <label class="field field-full">
                   <span>Paciente</span>
                   <input type="text" id="globalAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Escribe nombre y apellidos del paciente">

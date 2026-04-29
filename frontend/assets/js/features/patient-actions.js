@@ -312,11 +312,12 @@ function removeScannedDocument(documentId) {
 }
 
 function addAppointmentFromUpcomingPlanner() {
+  const title = stringOrEmpty(el.globalAppointmentTitle?.value);
   const inputPatientName = stringOrEmpty(el.globalAppointmentPatient?.value);
   const date = stringOrEmpty(el.globalAppointmentDate?.value);
   const startTime = stringOrEmpty(el.globalAppointmentStartTime?.value);
   const endTime = stringOrEmpty(el.globalAppointmentEndTime?.value);
-  const reason = stringOrEmpty(el.globalAppointmentReason?.value);
+  const reason = stringOrEmpty(el.globalAppointmentReason?.value) || title;
   let createdFromPlanner = false;
   let targetPatientId = "";
 
@@ -429,6 +430,9 @@ function addAppointmentFromUpcomingPlanner() {
   }
   if (el.globalAppointmentReason) {
     el.globalAppointmentReason.value = "";
+  }
+  if (el.globalAppointmentTitle) {
+    el.globalAppointmentTitle.value = "";
   }
 
   renderPatientTable();

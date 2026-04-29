@@ -1020,6 +1020,27 @@ tbody tr.active {
   align-items: center;
 }
 
+.docs-upload-actions {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.65rem;
+}
+
+.docs-upload-actions .table-btn {
+  cursor: pointer;
+}
+
+.visually-hidden-file-input {
+  position: fixed;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .planner-sheet {
   width: min(760px, 100%);
   border: 1px solid #d8cab3;

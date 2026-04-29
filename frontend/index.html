@@ -579,6 +579,10 @@
 
               <section class="planner-day-panel planner-docs-panel">
                 <h4 class="upcoming-day-title">Documentos escaneados</h4>
+                <div class="docs-upload-actions">
+                  <label for="scanCameraInput" id="scanTakePhotoBtn" class="table-btn">Tomar foto</label>
+                  <label for="scanFileInput" id="scanUploadFileBtn" class="table-btn">Subir archivo</label>
+                </div>
                 <div id="scannedDocsList" class="appointment-list"></div>
               </section>
             </section>
@@ -626,6 +630,8 @@
     </footer>
   </div>
 
+  <input type="file" id="scanCameraInput" class="visually-hidden-file-input" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+  <input type="file" id="scanFileInput" class="visually-hidden-file-input" accept="image/*,application/pdf" tabindex="-1" aria-hidden="true">
   <script src="./assets/js/config/constants.js"></script>
   <script src="./assets/js/core/helpers.js"></script>
   <script src="./assets/js/data/state-models.js"></script>

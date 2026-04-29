@@ -156,6 +156,16 @@
   if (el.quickAddAppointmentBtn) {
     el.quickAddAppointmentBtn.addEventListener("click", addQuickAppointmentFromPlanner);
   }
+  if (el.scanCameraInput) {
+    el.scanCameraInput.addEventListener("change", () => {
+      void handleScannedFileInputChange(el.scanCameraInput, "foto");
+    });
+  }
+  if (el.scanFileInput) {
+    el.scanFileInput.addEventListener("change", () => {
+      void handleScannedFileInputChange(el.scanFileInput, "archivo");
+    });
+  }
   if (el.globalAppointmentDate) {
     el.globalAppointmentDate.addEventListener("change", () => {
       const value = stringOrEmpty(el.globalAppointmentDate.value);

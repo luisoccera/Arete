@@ -395,23 +395,6 @@ function renderPlannerMonthLabel() {
   });
 }
 
-function setUpcomingFabOpen(isOpen) {
-  upcomingFabOpen = Boolean(isOpen);
-  if (el.upcomingFabMenu) {
-    el.upcomingFabMenu.hidden = !upcomingFabOpen;
-  }
-  if (el.upcomingFabToggle) {
-    el.upcomingFabToggle.setAttribute("aria-expanded", upcomingFabOpen ? "true" : "false");
-  }
-}
-
-function setUpcomingScanPanelOpen(isOpen) {
-  upcomingScanPanelOpen = Boolean(isOpen);
-  if (el.upcomingScanPanel) {
-    el.upcomingScanPanel.hidden = !upcomingScanPanelOpen;
-  }
-}
-
 function formatFileSize(sizeBytes) {
   const size = Number(sizeBytes) || 0;
   if (size <= 0) {

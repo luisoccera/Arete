@@ -1020,70 +1020,6 @@ tbody tr.active {
   align-items: center;
 }
 
-.planner-fab-stack {
-  position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  display: grid;
-  justify-items: end;
-  gap: 0.45rem;
-}
-
-.planner-fab {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  border: 1px solid #ccb89c;
-  background: #f4e7d4;
-  color: #463526;
-  font-size: 2rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.planner-fab-menu {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.planner-fab-action {
-  border: 1px solid #ccb89c;
-  border-radius: 999px;
-  padding: 0.54rem 0.9rem;
-  background: #fff7eb;
-  color: #3f3123;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.planner-scan-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.visually-hidden-file-input {
-  position: fixed;
-  left: -10000px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.planner-overlay {
-  position: fixed;
-  inset: 0;
-  background: #7d68503d;
-  z-index: 60;
-  display: grid;
-  place-items: end center;
-  padding: 1rem;
-}
-
 .planner-sheet {
   width: min(760px, 100%);
   border: 1px solid #d8cab3;
@@ -1113,12 +1049,6 @@ tbody tr.active {
   font-size: 1.06rem;
 }
 
-.planner-sheet-placeholder {
-  width: 52px;
-  height: 30px;
-  display: inline-block;
-}
-
 .planner-sheet-close,
 .planner-sheet-save {
   border: 1px solid #ccb89c;
@@ -1141,12 +1071,6 @@ tbody tr.active {
   display: grid;
   gap: 0.8rem;
   padding: 0.9rem 1rem 1rem;
-}
-
-.planner-scan-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
 }
 
 .planner-form-grid {
@@ -2406,21 +2330,6 @@ select {
 
   .planner-form-grid {
     grid-template-columns: 1fr;
-  }
-
-  .planner-scan-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .planner-fab-stack {
-    right: 0.72rem;
-    bottom: 0.72rem;
-  }
-
-  .planner-fab {
-    width: 54px;
-    height: 54px;
-    font-size: 1.8rem;
   }
 
   .planner-suite .upcoming-calendar-head,

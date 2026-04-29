@@ -50,15 +50,6 @@ function setActiveUpcomingSubview(view) {
     section.classList.toggle("is-active", isActive);
     section.hidden = !isActive;
   }
-
-  if (nextView !== "planner") {
-    if (typeof setUpcomingFabOpen === "function") {
-      setUpcomingFabOpen(false);
-    }
-    if (typeof setUpcomingScanPanelOpen === "function") {
-      setUpcomingScanPanelOpen(false);
-    }
-  }
 }
 
 function handleToothNodeClick(event) {

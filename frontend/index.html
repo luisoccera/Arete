@@ -581,31 +581,6 @@
                 <h4 class="upcoming-day-title">Documentos escaneados</h4>
                 <div id="scannedDocsList" class="appointment-list"></div>
               </section>
-
-              <div class="planner-fab-stack">
-                <button type="button" id="upcomingFabToggle" class="planner-fab" aria-expanded="false">+</button>
-                <div id="upcomingFabMenu" class="planner-fab-menu" hidden>
-                  <button type="button" id="upcomingFabAddPlan" class="planner-fab-action">Añadir plan</button>
-                  <button type="button" id="upcomingFabScan" class="planner-fab-action">Escanear documento</button>
-                </div>
-              </div>
-            </section>
-
-            <section id="upcomingScanPanel" class="planner-overlay" hidden>
-              <article class="planner-sheet planner-sheet-scan">
-                <div class="planner-sheet-head">
-                  <button type="button" id="upcomingScanCloseBtn" class="planner-sheet-close">×</button>
-                  <h4>Escanear documento</h4>
-                  <span class="planner-sheet-placeholder"></span>
-                </div>
-                <div class="planner-sheet-body">
-                  <p class="planner-month-sub">Selecciona cómo quieres agregar el documento.</p>
-                  <div class="planner-scan-actions">
-                    <label for="scanCameraInput" id="scanTakePhotoBtn" class="planner-fab-action planner-scan-trigger">Tomar foto</label>
-                    <label for="scanFileInput" id="scanUploadFileBtn" class="planner-fab-action planner-scan-trigger">Subir archivo</label>
-                  </div>
-                </div>
-              </article>
             </section>
           </section>
 
@@ -651,8 +626,6 @@
     </footer>
   </div>
 
-  <input type="file" id="scanCameraInput" class="visually-hidden-file-input" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
-  <input type="file" id="scanFileInput" class="visually-hidden-file-input" accept="image/*,application/pdf" tabindex="-1" aria-hidden="true">
   <script src="./assets/js/config/constants.js"></script>
   <script src="./assets/js/core/helpers.js"></script>
   <script src="./assets/js/data/state-models.js"></script>

@@ -156,46 +156,6 @@
   if (el.quickAddAppointmentBtn) {
     el.quickAddAppointmentBtn.addEventListener("click", addQuickAppointmentFromPlanner);
   }
-  if (el.upcomingFabToggle) {
-    el.upcomingFabToggle.addEventListener("click", () => {
-      setUpcomingFabOpen(!upcomingFabOpen);
-    });
-  }
-  if (el.upcomingFabAddPlan) {
-    el.upcomingFabAddPlan.addEventListener("click", () => {
-      setActiveUpcomingSubview("composer");
-      setUpcomingFabOpen(false);
-    });
-  }
-  if (el.upcomingFabScan) {
-    el.upcomingFabScan.addEventListener("click", () => {
-      setActiveUpcomingSubview("planner");
-      setUpcomingFabOpen(false);
-      setUpcomingScanPanelOpen(true);
-    });
-  }
-  if (el.upcomingScanCloseBtn) {
-    el.upcomingScanCloseBtn.addEventListener("click", () => {
-      setUpcomingScanPanelOpen(false);
-    });
-  }
-  if (el.scanCameraInput) {
-    el.scanCameraInput.addEventListener("change", () => {
-      void handleScannedFileInputChange(el.scanCameraInput, "foto");
-    });
-  }
-  if (el.scanFileInput) {
-    el.scanFileInput.addEventListener("change", () => {
-      void handleScannedFileInputChange(el.scanFileInput, "archivo");
-    });
-  }
-  if (el.upcomingScanPanel) {
-    el.upcomingScanPanel.addEventListener("click", (event) => {
-      if (event.target === el.upcomingScanPanel) {
-        setUpcomingScanPanelOpen(false);
-      }
-    });
-  }
   if (el.globalAppointmentDate) {
     el.globalAppointmentDate.addEventListener("change", () => {
       const value = stringOrEmpty(el.globalAppointmentDate.value);

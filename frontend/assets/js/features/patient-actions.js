@@ -266,7 +266,6 @@ async function addScannedDocumentFromFile(file, sourceLabel) {
     state.scannedDocuments = normalizeScannedDocuments(state.scannedDocuments);
     persistState();
     renderScannedDocuments();
-    setUpcomingScanPanelOpen(false);
     setFeedback(`Documento guardado: ${file.name}`);
   } catch (error) {
     console.error(error);
@@ -437,7 +436,6 @@ function addAppointmentFromUpcomingPlanner() {
   renderUpcomingPlannerForm();
   renderUpcomingPlannerCalendar();
   setActiveUpcomingSubview("planner");
-  setUpcomingFabOpen(false);
   if (createdFromPlanner) {
     setFeedback(`Paciente creado y cita agendada para ${getPatientFullName(patient)} el ${formatDate(date)} (${startTime} - ${endTime}).`);
     return;

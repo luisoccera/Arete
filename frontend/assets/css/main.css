@@ -800,11 +800,11 @@ tbody tr.active {
 }
 
 .planner-quick-bar {
+  display: none !important;
   border: 1px solid #d8cab3;
   border-radius: 16px;
   background: #fff8ee;
   padding: 0.5rem;
-  display: grid;
   gap: 0.35rem;
 }
 

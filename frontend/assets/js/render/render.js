@@ -479,9 +479,14 @@ function renderUpcomingPlannerCalendar() {
   }
 
   for (const button of el.upcomingDisplayButtons || []) {
-    const isActive = button.getAttribute("data-upcoming-display") === upcomingCalendarMode;
+    const modeAttr = button.getAttribute("data-upcoming-display");
+    const normalizedMode = modeAttr === "list" ? "day" : modeAttr;
+    const isActive = normalizedMode === upcomingCalendarMode;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    if (modeAttr === "list") {
+      button.textContent = "Día por día";
+    }
   }
 
   upcomingCalendarMonth = normalizeMonthInputValue(upcomingCalendarMonth);
@@ -517,7 +522,7 @@ function renderUpcomingPlannerCalendar() {
   const gridStart = new Date(year, monthIndex, 1 - startOffset);
   const todayKey = getTodayInputDate();
 
-  if (upcomingCalendarMode === "day") {
+  if (upcomingCalendarMode === "day" || upcomingCalendarMode === "list") {
     const selectedDateObject = parseDateValue(upcomingSelectedDate);
     const dayEntries = byDate.get(upcomingSelectedDate) || [];
     const dayLabel = selectedDateObject

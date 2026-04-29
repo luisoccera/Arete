@@ -18,6 +18,10 @@
       setActiveView(targetView);
       if (targetView === "patient") {
         setActivePatientSubview("profile");
+        return;
+      }
+      if (targetView === "upcoming") {
+        setActiveUpcomingSubview("planner");
       }
     });
   }
@@ -210,10 +214,10 @@
   for (const button of el.upcomingDisplayButtons || []) {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-upcoming-display");
-      if (mode !== "calendar" && mode !== "day") {
+      if (mode !== "calendar" && mode !== "day" && mode !== "list") {
         return;
       }
-      upcomingCalendarMode = mode;
+      upcomingCalendarMode = mode === "list" ? "day" : mode;
       renderUpcomingPlannerCalendar();
     });
   }

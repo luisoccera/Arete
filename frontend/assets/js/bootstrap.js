@@ -54,9 +54,6 @@
   upcomingFilterSaveBtn: document.getElementById("upcomingFilterSaveBtn"),
   upcomingShowCalendarName: document.getElementById("upcomingShowCalendarName"),
   upcomingFilterRows: document.getElementById("upcomingFilterRows"),
-  upcomingOpenComposerBtn: document.getElementById("upcomingOpenComposerBtn"),
-  upcomingComposerPanel: document.getElementById("upcomingComposerPanel"),
-  upcomingComposerCloseBtn: document.getElementById("upcomingComposerCloseBtn"),
   upcomingFabToggle: document.getElementById("upcomingFabToggle"),
   upcomingFabMenu: document.getElementById("upcomingFabMenu"),
   upcomingFabAddPlan: document.getElementById("upcomingFabAddPlan"),
@@ -142,7 +139,6 @@ let upcomingCalendarMode = "calendar";
 let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
 let upcomingSelectedDate = getTodayInputDate();
 let upcomingFilterPanelOpen = false;
-let upcomingComposerPanelOpen = false;
 let upcomingFabOpen = false;
 let storageMode = "local";
 let remotePersistTimer = null;

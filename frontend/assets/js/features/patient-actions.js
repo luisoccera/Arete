@@ -290,7 +290,7 @@ function addAppointmentFromUpcomingPlanner() {
   renderUpcomingAppointments();
   renderUpcomingPlannerForm();
   renderUpcomingPlannerCalendar();
-  setUpcomingComposerPanelOpen(false);
+  setActiveUpcomingSubview("planner");
   setUpcomingFabOpen(false);
   if (createdFromPlanner) {
     setFeedback(`Paciente creado y cita agendada para ${getPatientFullName(patient)} el ${formatDate(date)} (${startTime} - ${endTime}).`);

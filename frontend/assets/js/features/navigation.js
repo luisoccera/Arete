@@ -35,7 +35,7 @@ function setActivePatientSubview(view) {
 }
 
 function setActiveUpcomingSubview(view) {
-  const validViews = new Set(["overview", "planner"]);
+  const validViews = new Set(["overview", "planner", "composer"]);
   const nextView = validViews.has(view) ? view : "overview";
   activeUpcomingSubview = nextView;
 
@@ -54,9 +54,6 @@ function setActiveUpcomingSubview(view) {
   if (nextView !== "planner") {
     if (typeof setUpcomingFilterPanelOpen === "function") {
       setUpcomingFilterPanelOpen(false);
-    }
-    if (typeof setUpcomingComposerPanelOpen === "function") {
-      setUpcomingComposerPanelOpen(false);
     }
     if (typeof setUpcomingFabOpen === "function") {
       setUpcomingFabOpen(false);

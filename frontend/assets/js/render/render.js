@@ -386,16 +386,6 @@ function setUpcomingFilterPanelOpen(isOpen) {
   }
 }
 
-function setUpcomingComposerPanelOpen(isOpen) {
-  upcomingComposerPanelOpen = Boolean(isOpen);
-  if (el.upcomingComposerPanel) {
-    el.upcomingComposerPanel.hidden = !upcomingComposerPanelOpen;
-  }
-  if (upcomingComposerPanelOpen && el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
-    upcomingSelectedDate = stringOrEmpty(el.globalAppointmentDate.value);
-  }
-}
-
 function setUpcomingFabOpen(isOpen) {
   upcomingFabOpen = Boolean(isOpen);
   if (el.upcomingFabMenu) {

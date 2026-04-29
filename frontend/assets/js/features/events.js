@@ -145,17 +145,6 @@
       syncGlobalAppointmentPatientInput();
     });
   }
-  if (el.upcomingOpenComposerBtn) {
-    el.upcomingOpenComposerBtn.addEventListener("click", () => {
-      setUpcomingComposerPanelOpen(true);
-      setUpcomingFabOpen(false);
-    });
-  }
-  if (el.upcomingComposerCloseBtn) {
-    el.upcomingComposerCloseBtn.addEventListener("click", () => {
-      setUpcomingComposerPanelOpen(false);
-    });
-  }
   if (el.upcomingFilterBtn) {
     el.upcomingFilterBtn.addEventListener("click", () => {
       setUpcomingFilterPanelOpen(true);
@@ -195,7 +184,7 @@
   }
   if (el.upcomingFabAddPlan) {
     el.upcomingFabAddPlan.addEventListener("click", () => {
-      setUpcomingComposerPanelOpen(true);
+      setActiveUpcomingSubview("composer");
       setUpcomingFabOpen(false);
     });
   }
@@ -209,13 +198,6 @@
     el.upcomingFilterPanel.addEventListener("click", (event) => {
       if (event.target === el.upcomingFilterPanel) {
         setUpcomingFilterPanelOpen(false);
-      }
-    });
-  }
-  if (el.upcomingComposerPanel) {
-    el.upcomingComposerPanel.addEventListener("click", (event) => {
-      if (event.target === el.upcomingComposerPanel) {
-        setUpcomingComposerPanelOpen(false);
       }
     });
   }

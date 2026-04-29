@@ -28,9 +28,6 @@
   for (const button of el.upcomingSubTabs) {
     button.addEventListener("click", () => {
       const targetSubview = button.getAttribute("data-upcoming-tab");
-      if (targetSubview === "composer" && el.globalAppointmentDate) {
-        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
-      }
       setActiveUpcomingSubview(targetSubview);
     });
   }
@@ -144,44 +141,35 @@
   if (el.addGlobalAppointmentBtn) {
     el.addGlobalAppointmentBtn.addEventListener("click", addAppointmentFromUpcomingPlanner);
   }
+  const openPlannerComposer = () => {
+    setActiveUpcomingSubview("planner");
+    if (el.globalAppointmentDate) {
+      el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+    }
+    setPlannerComposerVisible(true);
+    const preferredFocus = el.globalAppointmentTitle || el.globalAppointmentPatient;
+    preferredFocus?.focus();
+  };
+  if (el.openComposerTextBtn) {
+    el.openComposerTextBtn.addEventListener("click", openPlannerComposer);
+  }
   if (el.openComposerBtn) {
-    el.openComposerBtn.addEventListener("click", () => {
-      if (el.globalAppointmentDate) {
-        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
-      }
-      setActiveUpcomingSubview("composer");
-    });
+    el.openComposerBtn.addEventListener("click", openPlannerComposer);
   }
   if (el.openComposerForDayBtn) {
-    el.openComposerForDayBtn.addEventListener("click", () => {
-      if (el.globalAppointmentDate) {
-        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
-      }
-      setActiveUpcomingSubview("composer");
-    });
+    el.openComposerForDayBtn.addEventListener("click", openPlannerComposer);
   }
   if (el.closeComposerBtn) {
     el.closeComposerBtn.addEventListener("click", () => {
-      setActiveUpcomingSubview("planner");
-    });
-  }
-  const composerSubview = (el.upcomingSubSections || []).find((section) => section.getAttribute("data-upcoming-subview") === "composer");
-  if (composerSubview) {
-    composerSubview.addEventListener("click", (event) => {
-      if (!composerSubview.classList.contains("is-active")) {
-        return;
-      }
-      if (event.target === composerSubview) {
-        setActiveUpcomingSubview("planner");
-      }
+      setPlannerComposerVisible(false);
     });
   }
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
     }
-    if (activeView === "upcoming" && activeUpcomingSubview === "composer") {
-      setActiveUpcomingSubview("planner");
+    if (activeView === "upcoming" && !el.plannerComposerPanel?.hidden) {
+      setPlannerComposerVisible(false);
     }
   });
   if (el.globalAppointmentPatient) {

@@ -515,7 +515,6 @@
           <nav class="upcoming-subtabs" aria-label="Citas">
             <button type="button" class="patient-subtab is-active" data-upcoming-tab="overview">Resumen</button>
             <button type="button" class="patient-subtab" data-upcoming-tab="planner">Agenda y calendario</button>
-            <button type="button" class="patient-subtab" data-upcoming-tab="composer">Nueva cita</button>
           </nav>
 
           <section class="upcoming-subview is-active" data-upcoming-subview="overview">
@@ -531,6 +530,7 @@
                   <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
                 </div>
                 <div class="planner-top-actions">
+                  <button type="button" id="openComposerTextBtn" class="planner-icon-btn planner-icon-btn-primary">Nueva cita</button>
                   <button type="button" id="openComposerBtn" class="planner-plus-btn" aria-label="Agregar cita">+</button>
                 </div>
               </header>
@@ -541,6 +541,45 @@
                   <button type="button" class="table-btn" data-upcoming-display="day">Día por día</button>
                 </div>
               </div>
+
+              <section id="plannerComposerPanel" class="planner-composer-panel" hidden>
+                <article class="planner-sheet planner-sheet-inline planner-sheet-compose">
+                  <div class="planner-sheet-head">
+                    <button type="button" id="closeComposerBtn" class="planner-sheet-close" aria-label="Cerrar nueva cita">×</button>
+                    <h4>Nueva cita</h4>
+                    <button type="button" id="addGlobalAppointmentBtn" class="planner-sheet-save">Guardar</button>
+                  </div>
+                  <div class="planner-sheet-body">
+                    <label class="field field-full">
+                      <span>Título</span>
+                      <input type="text" id="globalAppointmentTitle" placeholder="Título de la cita">
+                    </label>
+                    <label class="field field-full">
+                      <span>Paciente</span>
+                      <input type="text" id="globalAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Escribe nombre y apellidos del paciente">
+                      <datalist id="globalAppointmentPatientOptions"></datalist>
+                    </label>
+                    <div class="form-grid planner-form-grid">
+                      <label class="field">
+                        <span>Fecha</span>
+                        <input type="date" id="globalAppointmentDate">
+                      </label>
+                      <label class="field">
+                        <span>Motivo de la cita</span>
+                        <input type="text" id="globalAppointmentReason" placeholder="Ejemplo: limpieza, operatoria, revisión de ortodoncia">
+                      </label>
+                      <label class="field">
+                        <span>Inicio de cita</span>
+                        <input type="time" id="globalAppointmentStartTime">
+                      </label>
+                      <label class="field">
+                        <span>Finalización de cita</span>
+                        <input type="time" id="globalAppointmentEndTime">
+                      </label>
+                    </div>
+                  </div>
+                </article>
+              </section>
 
               <label class="field planner-month-field">
                 <span>Mes visible</span>
@@ -568,44 +607,6 @@
             </section>
           </section>
 
-          <section class="upcoming-subview" data-upcoming-subview="composer" hidden>
-            <article class="planner-sheet planner-sheet-inline planner-sheet-compose">
-              <div class="planner-sheet-head">
-                <button type="button" id="closeComposerBtn" class="planner-sheet-close" aria-label="Cerrar nueva cita">×</button>
-                <h4>Nueva cita</h4>
-                <button type="button" id="addGlobalAppointmentBtn" class="planner-sheet-save">Guardar</button>
-              </div>
-              <div class="planner-sheet-body">
-                <label class="field field-full">
-                  <span>Título</span>
-                  <input type="text" id="globalAppointmentTitle" placeholder="Título de la cita">
-                </label>
-                <label class="field field-full">
-                  <span>Paciente</span>
-                  <input type="text" id="globalAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Escribe nombre y apellidos del paciente">
-                  <datalist id="globalAppointmentPatientOptions"></datalist>
-                </label>
-                <div class="form-grid planner-form-grid">
-                  <label class="field">
-                    <span>Fecha</span>
-                    <input type="date" id="globalAppointmentDate">
-                  </label>
-                  <label class="field">
-                    <span>Motivo de la cita</span>
-                    <input type="text" id="globalAppointmentReason" placeholder="Ejemplo: limpieza, operatoria, revisión de ortodoncia">
-                  </label>
-                  <label class="field">
-                    <span>Inicio de cita</span>
-                    <input type="time" id="globalAppointmentStartTime">
-                  </label>
-                  <label class="field">
-                    <span>Finalización de cita</span>
-                    <input type="time" id="globalAppointmentEndTime">
-                  </label>
-                </div>
-              </div>
-            </article>
-          </section>
         </section>
       </section>
     </main>

@@ -35,7 +35,7 @@ function setActivePatientSubview(view) {
 }
 
 function setActiveUpcomingSubview(view) {
-  const validViews = new Set(["overview", "planner", "composer"]);
+  const validViews = new Set(["overview", "planner"]);
   const nextView = validViews.has(view) ? view : "overview";
   activeUpcomingSubview = nextView;
 
@@ -51,8 +51,26 @@ function setActiveUpcomingSubview(view) {
     section.hidden = !isActive;
   }
 
-  if (nextView === "composer" && el.globalAppointmentDate) {
-    el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+  if (nextView !== "planner") {
+    setPlannerComposerVisible(false);
+  }
+}
+
+function setPlannerComposerVisible(visible) {
+  if (!el.plannerComposerPanel) {
+    return;
+  }
+  const isOpen = Boolean(visible);
+  el.plannerComposerPanel.hidden = !isOpen;
+  el.plannerComposerPanel.classList.toggle("is-open", isOpen);
+  if (el.openComposerBtn) {
+    el.openComposerBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+  if (el.openComposerForDayBtn) {
+    el.openComposerForDayBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  }
+  if (el.openComposerTextBtn) {
+    el.openComposerTextBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
   }
 }
 

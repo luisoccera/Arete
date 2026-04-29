@@ -169,6 +169,7 @@
   }
   if (el.upcomingFabScan) {
     el.upcomingFabScan.addEventListener("click", () => {
+      setActiveUpcomingSubview("planner");
       setUpcomingFabOpen(false);
       setUpcomingScanPanelOpen(true);
     });
@@ -176,20 +177,6 @@
   if (el.upcomingScanCloseBtn) {
     el.upcomingScanCloseBtn.addEventListener("click", () => {
       setUpcomingScanPanelOpen(false);
-    });
-  }
-  if (el.scanTakePhotoBtn) {
-    el.scanTakePhotoBtn.addEventListener("click", () => {
-      if (el.scanCameraInput) {
-        el.scanCameraInput.click();
-      }
-    });
-  }
-  if (el.scanUploadFileBtn) {
-    el.scanUploadFileBtn.addEventListener("click", () => {
-      if (el.scanFileInput) {
-        el.scanFileInput.click();
-      }
     });
   }
   if (el.scanCameraInput) {

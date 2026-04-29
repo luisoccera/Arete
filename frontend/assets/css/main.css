@@ -1057,6 +1057,23 @@ tbody tr.active {
   cursor: pointer;
 }
 
+.planner-scan-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.visually-hidden-file-input {
+  position: fixed;
+  left: -10000px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .planner-overlay {
   position: fixed;
   inset: 0;

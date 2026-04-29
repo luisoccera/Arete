@@ -601,8 +601,8 @@
                 <div class="planner-sheet-body">
                   <p class="planner-month-sub">Selecciona cómo quieres agregar el documento.</p>
                   <div class="planner-scan-actions">
-                    <button type="button" id="scanTakePhotoBtn" class="planner-fab-action">Tomar foto</button>
-                    <button type="button" id="scanUploadFileBtn" class="planner-fab-action">Subir archivo</button>
+                    <label for="scanCameraInput" id="scanTakePhotoBtn" class="planner-fab-action planner-scan-trigger">Tomar foto</label>
+                    <label for="scanFileInput" id="scanUploadFileBtn" class="planner-fab-action planner-scan-trigger">Subir archivo</label>
                   </div>
                 </div>
               </article>
@@ -651,8 +651,8 @@
     </footer>
   </div>
 
-  <input type="file" id="scanCameraInput" accept="image/*" capture="environment" hidden>
-  <input type="file" id="scanFileInput" accept="image/*,application/pdf" hidden>
+  <input type="file" id="scanCameraInput" class="visually-hidden-file-input" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+  <input type="file" id="scanFileInput" class="visually-hidden-file-input" accept="image/*,application/pdf" tabindex="-1" aria-hidden="true">
   <script src="./assets/js/config/constants.js"></script>
   <script src="./assets/js/core/helpers.js"></script>
   <script src="./assets/js/data/state-models.js"></script>

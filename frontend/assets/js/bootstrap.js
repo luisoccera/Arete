@@ -43,17 +43,16 @@
   globalAppointmentStartTime: document.getElementById("globalAppointmentStartTime"),
   globalAppointmentEndTime: document.getElementById("globalAppointmentEndTime"),
   globalAppointmentReason: document.getElementById("globalAppointmentReason"),
+  quickAppointmentPatient: document.getElementById("quickAppointmentPatient"),
+  quickAppointmentDate: document.getElementById("quickAppointmentDate"),
+  quickAppointmentStartTime: document.getElementById("quickAppointmentStartTime"),
+  quickAppointmentEndTime: document.getElementById("quickAppointmentEndTime"),
+  quickAppointmentReason: document.getElementById("quickAppointmentReason"),
+  quickAddAppointmentBtn: document.getElementById("quickAddAppointmentBtn"),
   addGlobalAppointmentBtn: document.getElementById("addGlobalAppointmentBtn"),
   upcomingPlannerSuite: document.getElementById("upcomingPlannerSuite"),
   plannerMonthLabel: document.getElementById("plannerMonthLabel"),
   plannerMonthSub: document.getElementById("plannerMonthSub"),
-  upcomingFilterBtn: document.getElementById("upcomingFilterBtn"),
-  upcomingFilterChip: document.getElementById("upcomingFilterChip"),
-  upcomingFilterPanel: document.getElementById("upcomingFilterPanel"),
-  upcomingFilterCloseBtn: document.getElementById("upcomingFilterCloseBtn"),
-  upcomingFilterSaveBtn: document.getElementById("upcomingFilterSaveBtn"),
-  upcomingShowCalendarName: document.getElementById("upcomingShowCalendarName"),
-  upcomingFilterRows: document.getElementById("upcomingFilterRows"),
   upcomingFabToggle: document.getElementById("upcomingFabToggle"),
   upcomingFabMenu: document.getElementById("upcomingFabMenu"),
   upcomingFabAddPlan: document.getElementById("upcomingFabAddPlan"),
@@ -138,7 +137,6 @@ let activeUpcomingSubview = "overview";
 let upcomingCalendarMode = "calendar";
 let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
 let upcomingSelectedDate = getTodayInputDate();
-let upcomingFilterPanelOpen = false;
 let upcomingFabOpen = false;
 let storageMode = "local";
 let remotePersistTimer = null;

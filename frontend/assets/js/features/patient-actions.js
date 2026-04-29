@@ -166,6 +166,51 @@ function splitPlannerPatientName(fullNameInput) {
   };
 }
 
+function countAllScheduledAppointments() {
+  return state.patients.reduce((total, patient) => {
+    const count = Array.isArray(patient?.appointments) ? patient.appointments.length : 0;
+    return total + count;
+  }, 0);
+}
+
+function addQuickAppointmentFromPlanner() {
+  if (!el.quickAppointmentPatient || !el.quickAppointmentDate || !el.quickAppointmentStartTime || !el.quickAppointmentEndTime) {
+    return;
+  }
+
+  const patientName = stringOrEmpty(el.quickAppointmentPatient.value);
+  const date = stringOrEmpty(el.quickAppointmentDate.value);
+  const start = stringOrEmpty(el.quickAppointmentStartTime.value);
+  const end = stringOrEmpty(el.quickAppointmentEndTime.value);
+  const reason = stringOrEmpty(el.quickAppointmentReason?.value);
+
+  if (!patientName || !date || !start || !end) {
+    setFeedback("Completa paciente, fecha, inicio y fin para guardar la cita.", "error");
+    return;
+  }
+
+  const before = countAllScheduledAppointments();
+  el.globalAppointmentPatient.value = patientName;
+  el.globalAppointmentDate.value = date;
+  el.globalAppointmentStartTime.value = start;
+  el.globalAppointmentEndTime.value = end;
+  if (el.globalAppointmentReason) {
+    el.globalAppointmentReason.value = reason;
+  }
+
+  addAppointmentFromUpcomingPlanner();
+
+  const after = countAllScheduledAppointments();
+  if (after > before) {
+    el.quickAppointmentStartTime.value = "";
+    el.quickAppointmentEndTime.value = "";
+    if (el.quickAppointmentReason) {
+      el.quickAppointmentReason.value = "";
+    }
+    syncQuickAppointmentPatientInput();
+  }
+}
+
 function addAppointmentFromUpcomingPlanner() {
   const inputPatientName = stringOrEmpty(el.globalAppointmentPatient?.value);
   const date = stringOrEmpty(el.globalAppointmentDate?.value);

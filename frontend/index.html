@@ -530,16 +530,35 @@
                   <h3 id="plannerMonthLabel">abr 2026</h3>
                   <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
                 </div>
-                <div class="planner-top-actions">
-                  <button type="button" id="upcomingFilterBtn" class="planner-icon-btn">Filtros</button>
-                </div>
               </header>
 
+              <section class="planner-quick-bar">
+                <div class="planner-quick-grid">
+                  <label class="field">
+                    <span>Paciente</span>
+                    <input type="text" id="quickAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Nombre y apellidos">
+                  </label>
+                  <label class="field">
+                    <span>Fecha</span>
+                    <input type="date" id="quickAppointmentDate">
+                  </label>
+                  <label class="field">
+                    <span>Inicio</span>
+                    <input type="time" id="quickAppointmentStartTime">
+                  </label>
+                  <label class="field">
+                    <span>Fin</span>
+                    <input type="time" id="quickAppointmentEndTime">
+                  </label>
+                  <label class="field">
+                    <span>Motivo</span>
+                    <input type="text" id="quickAppointmentReason" placeholder="Motivo de cita">
+                  </label>
+                </div>
+                <button type="button" id="quickAddAppointmentBtn" class="planner-icon-btn planner-icon-btn-primary">Guardar cita</button>
+              </section>
+
               <div class="planner-filter-row">
-                <button type="button" id="upcomingFilterChip" class="planner-filter-chip is-active">
-                  <span class="planner-filter-check">✓</span>
-                  <span>Privado</span>
-                </button>
                 <div class="upcoming-display-toggle">
                   <button type="button" class="table-btn is-active" data-upcoming-display="calendar">Cuadriculado</button>
                   <button type="button" class="table-btn" data-upcoming-display="list">Lista diaria</button>
@@ -565,34 +584,6 @@
                   <button type="button" id="upcomingFabScan" class="planner-fab-action">Escanear imagen</button>
                 </div>
               </div>
-            </section>
-
-            <section id="upcomingFilterPanel" class="planner-overlay" hidden>
-              <article class="planner-sheet">
-                <div class="planner-sheet-head">
-                  <button type="button" id="upcomingFilterCloseBtn" class="planner-sheet-close">×</button>
-                  <h4>Ajustes de filtro</h4>
-                  <button type="button" id="upcomingFilterSaveBtn" class="planner-sheet-save">Guardar</button>
-                </div>
-                <div class="planner-sheet-body">
-                  <label class="sheet-switch-row">
-                    <span>Mostrar nombre del calendario</span>
-                    <input type="checkbox" id="upcomingShowCalendarName" checked>
-                  </label>
-                  <label class="sheet-switch-row">
-                    <span>Número de filas del filtro</span>
-                    <select id="upcomingFilterRows">
-                      <option value="1">1 fila</option>
-                      <option value="2" selected>2 filas</option>
-                      <option value="3">3 filas</option>
-                    </select>
-                  </label>
-                  <div class="sheet-filter-item">
-                    <span class="planner-filter-check">✓</span>
-                    <span>Privado</span>
-                  </div>
-                </div>
-              </article>
             </section>
           </section>
 

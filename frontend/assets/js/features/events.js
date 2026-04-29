@@ -145,37 +145,16 @@
       syncGlobalAppointmentPatientInput();
     });
   }
-  if (el.upcomingFilterBtn) {
-    el.upcomingFilterBtn.addEventListener("click", () => {
-      setUpcomingFilterPanelOpen(true);
+  if (el.quickAppointmentPatient) {
+    el.quickAppointmentPatient.addEventListener("blur", () => {
+      syncQuickAppointmentPatientInput();
+    });
+    el.quickAppointmentPatient.addEventListener("change", () => {
+      syncQuickAppointmentPatientInput();
     });
   }
-  if (el.upcomingFilterChip) {
-    el.upcomingFilterChip.addEventListener("click", () => {
-      setUpcomingFilterPanelOpen(true);
-    });
-  }
-  if (el.upcomingFilterCloseBtn) {
-    el.upcomingFilterCloseBtn.addEventListener("click", () => {
-      setUpcomingFilterPanelOpen(false);
-    });
-  }
-  if (el.upcomingFilterSaveBtn) {
-    el.upcomingFilterSaveBtn.addEventListener("click", () => {
-      applyUpcomingFilterSettings();
-      setUpcomingFilterPanelOpen(false);
-      setFeedback("Filtros actualizados.");
-    });
-  }
-  if (el.upcomingShowCalendarName) {
-    el.upcomingShowCalendarName.addEventListener("change", () => {
-      applyUpcomingFilterSettings();
-    });
-  }
-  if (el.upcomingFilterRows) {
-    el.upcomingFilterRows.addEventListener("change", () => {
-      applyUpcomingFilterSettings();
-    });
+  if (el.quickAddAppointmentBtn) {
+    el.quickAddAppointmentBtn.addEventListener("click", addQuickAppointmentFromPlanner);
   }
   if (el.upcomingFabToggle) {
     el.upcomingFabToggle.addEventListener("click", () => {
@@ -192,13 +171,6 @@
     el.upcomingFabScan.addEventListener("click", () => {
       setUpcomingFabOpen(false);
       setFeedback("Escanear imagen estará disponible en una próxima actualización.");
-    });
-  }
-  if (el.upcomingFilterPanel) {
-    el.upcomingFilterPanel.addEventListener("click", (event) => {
-      if (event.target === el.upcomingFilterPanel) {
-        setUpcomingFilterPanelOpen(false);
-      }
     });
   }
   if (el.globalAppointmentDate) {

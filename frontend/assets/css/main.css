@@ -768,6 +768,21 @@ tbody tr.active {
   gap: 0.8rem;
 }
 
+.planner-quick-bar {
+  border: 1px solid #d8cab3;
+  border-radius: 16px;
+  background: #fff8ee;
+  padding: 0.58rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.planner-quick-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr));
+}
+
 .planner-month-block h3 {
   margin: 0;
   font-size: 1.6rem;
@@ -2295,6 +2310,10 @@ select {
     align-items: stretch;
   }
 
+  .planner-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
   .planner-top-actions {
     justify-content: stretch;
     width: 100%;
@@ -2361,6 +2380,10 @@ select {
 
   .jaw-arc {
     min-height: 150px;
+  }
+
+  .planner-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .planner-suite .upcoming-calendar-head,

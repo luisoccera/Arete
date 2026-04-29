@@ -320,8 +320,23 @@ function renderUpcomingPlannerForm() {
   if (el.upcomingCalendarMonth) {
     el.upcomingCalendarMonth.value = upcomingCalendarMonth;
   }
+  if (el.quickAppointmentPatient) {
+    const quickPrevious = stringOrEmpty(el.quickAppointmentPatient.value);
+    if (quickPrevious) {
+      el.quickAppointmentPatient.value = quickPrevious;
+    } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
+      const current = patients.find((patient) => patient.id === editingPatientId);
+      el.quickAppointmentPatient.value = current ? getPatientFullName(current) : "";
+    } else {
+      el.quickAppointmentPatient.value = "";
+    }
+  }
   renderPlannerMonthLabel();
-  applyUpcomingFilterSettings();
+  if (el.quickAppointmentDate && !stringOrEmpty(el.quickAppointmentDate.value)) {
+    // keep quick selection
+  } else if (el.quickAppointmentDate) {
+    el.quickAppointmentDate.value = getTodayInputDate();
+  }
 }
 
 function normalizePatientNameToken(value) {
@@ -352,6 +367,17 @@ function syncGlobalAppointmentPatientInput() {
   return found;
 }
 
+function syncQuickAppointmentPatientInput() {
+  if (!el.quickAppointmentPatient) {
+    return null;
+  }
+  const found = findPatientByPlannerName(el.quickAppointmentPatient.value);
+  if (found) {
+    el.quickAppointmentPatient.value = getPatientFullName(found);
+  }
+  return found;
+}
+
 function renderPlannerMonthLabel() {
   if (!el.plannerMonthLabel) {
     return;
@@ -366,24 +392,6 @@ function renderPlannerMonthLabel() {
     month: "short",
     year: "numeric"
   });
-}
-
-function applyUpcomingFilterSettings() {
-  const showCalendarName = el.upcomingShowCalendarName ? Boolean(el.upcomingShowCalendarName.checked) : true;
-  if (el.plannerMonthSub) {
-    el.plannerMonthSub.hidden = !showCalendarName;
-  }
-  const rowValue = Number(el.upcomingFilterRows?.value || 2);
-  if (el.upcomingPlannerSuite) {
-    el.upcomingPlannerSuite.style.setProperty("--planner-filter-rows", String(Math.min(Math.max(rowValue, 1), 3)));
-  }
-}
-
-function setUpcomingFilterPanelOpen(isOpen) {
-  upcomingFilterPanelOpen = Boolean(isOpen);
-  if (el.upcomingFilterPanel) {
-    el.upcomingFilterPanel.hidden = !upcomingFilterPanelOpen;
-  }
 }
 
 function setUpcomingFabOpen(isOpen) {

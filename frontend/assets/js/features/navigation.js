@@ -52,9 +52,6 @@ function setActiveUpcomingSubview(view) {
   }
 
   if (nextView !== "planner") {
-    if (typeof setUpcomingFilterPanelOpen === "function") {
-      setUpcomingFilterPanelOpen(false);
-    }
     if (typeof setUpcomingFabOpen === "function") {
       setUpcomingFabOpen(false);
     }

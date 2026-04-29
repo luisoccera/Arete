@@ -393,6 +393,7 @@ input[type="search"],
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="month"],
 input[type="tel"],
 input[type="email"],
 input[type="password"],
@@ -646,19 +647,27 @@ tbody tr.active {
 .upcoming-calendar-grid {
   display: grid;
   gap: 0.46rem;
+  border: 1px solid #d6c8b5;
+  border-radius: 12px;
+  padding: 0.58rem;
+  background: #ffffff;
 }
 
 .upcoming-calendar-grid.is-list-mode {
   border: 1px solid #d9c7ad;
   border-radius: 11px;
   padding: 0.58rem;
-  background: #fffaf2;
+  background: #ffffff;
 }
 
 .upcoming-month-banner {
+  border: 1px solid #ddceb9;
+  border-radius: 10px;
+  padding: 0.36rem 0.52rem;
+  background: #ffffff;
   font-size: 0.86rem;
   font-weight: 800;
-  color: #725a39;
+  color: #111111;
   text-transform: capitalize;
 }
 
@@ -666,12 +675,16 @@ tbody tr.active {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.34rem;
+  border: 1px solid #e5d8c6;
+  border-radius: 10px;
+  padding: 0.3rem;
+  background: #ffffff;
 }
 
 .upcoming-weekday {
   text-align: center;
   font-size: 0.72rem;
-  color: #7b6750;
+  color: #111111;
   font-weight: 700;
 }
 
@@ -684,7 +697,7 @@ tbody tr.active {
 .upcoming-day-cell {
   border: 1px solid #d6c8b5;
   border-radius: 11px;
-  background: #fffaf2;
+  background: #ffffff;
   min-height: 90px;
   padding: 0.36rem 0.38rem;
   display: grid;
@@ -692,36 +705,39 @@ tbody tr.active {
   align-content: start;
   text-align: left;
   cursor: pointer;
+  color: #111111;
 }
 
 .upcoming-day-cell.is-muted {
-  opacity: 0.56;
+  opacity: 0.75;
+  background: #f4f4f4;
 }
 
 .upcoming-day-cell.is-selected {
-  border-color: #c4a982;
-  box-shadow: 0 0 0 1px #d9c09a inset;
-  background: #fff3e1;
+  border-color: #b99564;
+  box-shadow: 0 0 0 1px #dbc19a inset;
+  background: #fff7eb;
 }
 
 .upcoming-day-cell.is-today {
-  border-color: #9f845f;
+  border-color: #8f6a3b;
+  box-shadow: 0 0 0 1px #d8c4a9 inset;
 }
 
 .upcoming-day-num {
   font-size: 0.82rem;
   font-weight: 800;
-  color: #3f3123;
+  color: #000000;
 }
 
 .upcoming-day-count {
   font-size: 0.69rem;
-  color: #6f6558;
+  color: #1f1f1f;
 }
 
 .upcoming-day-preview {
   font-size: 0.68rem;
-  color: #5d5043;
+  color: #2a2a2a;
   line-height: 1.2;
 }
 
@@ -1460,6 +1476,7 @@ input[type="search"],
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="month"],
 input[type="tel"],
 input[type="email"],
 input[type="password"],
@@ -1664,6 +1681,7 @@ input[type="search"],
 input[type="text"],
 input[type="number"],
 input[type="date"],
+input[type="month"],
 input[type="tel"],
 input[type="email"],
 input[type="password"],

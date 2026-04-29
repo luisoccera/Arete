@@ -4,12 +4,43 @@ Aplicacion web para consultorio dental con:
 
 - Registro completo de pacientes.
 - Agenda de citas por paciente.
+- Agenda global de citas con calendario.
 - Enfermedades personalizables con color.
 - Cuadros de color al lado del nombre en la base de pacientes.
 - Odontograma interactivo por diente y por zonas.
-- Vistas separadas: Inicio, Registro de pacientes y Citas proximas.
+- Vistas separadas: Inicio, Ficha del paciente, Registro de pacientes y Citas.
 - Respaldo e importacion de datos en JSON.
 - Backend local para persistencia en archivo.
+
+## Estructura del proyecto
+
+```text
+assets/
+  css/
+    main.css
+  js/
+    bootstrap.js
+    config/
+      constants.js
+    core/
+      helpers.js
+    data/
+      state-models.js
+    features/
+      events.js
+      navigation.js
+      patient-actions.js
+    pdf/
+      clinical-pdf.js
+    render/
+      render.js
+index.html
+server/
+  index.js
+  clinical_pdf.js
+data/
+  state.json
+```
 
 ## Ejecutar con backend (recomendado)
 

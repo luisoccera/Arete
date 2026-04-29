@@ -38,15 +38,29 @@
   upcomingSubTabs: Array.from(document.querySelectorAll("[data-upcoming-tab]")),
   upcomingSubSections: Array.from(document.querySelectorAll("[data-upcoming-subview]")),
   globalAppointmentPatient: document.getElementById("globalAppointmentPatient"),
+  globalAppointmentPatientOptions: document.getElementById("globalAppointmentPatientOptions"),
   globalAppointmentDate: document.getElementById("globalAppointmentDate"),
   globalAppointmentStartTime: document.getElementById("globalAppointmentStartTime"),
   globalAppointmentEndTime: document.getElementById("globalAppointmentEndTime"),
   globalAppointmentReason: document.getElementById("globalAppointmentReason"),
-  globalAppointmentExternalIdentityFields: document.getElementById("globalAppointmentExternalIdentityFields"),
-  globalAppointmentExternalFirstNames: document.getElementById("globalAppointmentExternalFirstNames"),
-  globalAppointmentExternalLastNameFather: document.getElementById("globalAppointmentExternalLastNameFather"),
-  globalAppointmentExternalLastNameMother: document.getElementById("globalAppointmentExternalLastNameMother"),
   addGlobalAppointmentBtn: document.getElementById("addGlobalAppointmentBtn"),
+  upcomingPlannerSuite: document.getElementById("upcomingPlannerSuite"),
+  plannerMonthLabel: document.getElementById("plannerMonthLabel"),
+  plannerMonthSub: document.getElementById("plannerMonthSub"),
+  upcomingFilterBtn: document.getElementById("upcomingFilterBtn"),
+  upcomingFilterChip: document.getElementById("upcomingFilterChip"),
+  upcomingFilterPanel: document.getElementById("upcomingFilterPanel"),
+  upcomingFilterCloseBtn: document.getElementById("upcomingFilterCloseBtn"),
+  upcomingFilterSaveBtn: document.getElementById("upcomingFilterSaveBtn"),
+  upcomingShowCalendarName: document.getElementById("upcomingShowCalendarName"),
+  upcomingFilterRows: document.getElementById("upcomingFilterRows"),
+  upcomingOpenComposerBtn: document.getElementById("upcomingOpenComposerBtn"),
+  upcomingComposerPanel: document.getElementById("upcomingComposerPanel"),
+  upcomingComposerCloseBtn: document.getElementById("upcomingComposerCloseBtn"),
+  upcomingFabToggle: document.getElementById("upcomingFabToggle"),
+  upcomingFabMenu: document.getElementById("upcomingFabMenu"),
+  upcomingFabAddPlan: document.getElementById("upcomingFabAddPlan"),
+  upcomingFabScan: document.getElementById("upcomingFabScan"),
   upcomingDisplayButtons: Array.from(document.querySelectorAll("[data-upcoming-display]")),
   upcomingCalendarMonth: document.getElementById("upcomingCalendarMonth"),
   upcomingCalendarGrid: document.getElementById("upcomingCalendarGrid"),
@@ -127,6 +141,9 @@ let activeUpcomingSubview = "overview";
 let upcomingCalendarMode = "calendar";
 let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
 let upcomingSelectedDate = getTodayInputDate();
+let upcomingFilterPanelOpen = false;
+let upcomingComposerPanelOpen = false;
+let upcomingFabOpen = false;
 let storageMode = "local";
 let remotePersistTimer = null;
 let remotePersistInFlight = false;

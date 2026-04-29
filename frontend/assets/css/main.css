@@ -746,6 +746,360 @@ tbody tr.active {
   font-size: 0.9rem;
 }
 
+.planner-suite {
+  position: relative;
+  border: 1px solid #202631;
+  border-radius: 24px;
+  padding: 0.95rem;
+  background:
+    radial-gradient(circle at 12% 0%, #172133 0%, transparent 44%),
+    radial-gradient(circle at 100% 100%, #0f172a 0%, transparent 42%),
+    #05070b;
+  color: #e5e7eb;
+  display: grid;
+  gap: 0.8rem;
+  overflow: hidden;
+}
+
+.planner-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.planner-month-block h3 {
+  margin: 0;
+  font-size: 1.6rem;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.planner-month-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.planner-top-actions {
+  display: inline-flex;
+  gap: 0.42rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.planner-icon-btn {
+  border: 1px solid #2b3442;
+  border-radius: 999px;
+  padding: 0.45rem 0.72rem;
+  background: #11141b;
+  color: #d1d5db;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.planner-icon-btn-primary {
+  border-color: #22c55e;
+  color: #d1fae5;
+  background: linear-gradient(135deg, #0f2a1a, #163321);
+}
+
+.planner-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.planner-filter-chip {
+  border: 1px solid #2a3240;
+  border-radius: 14px;
+  background: #11141b;
+  color: #f9fafb;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.34rem 0.54rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.planner-filter-chip.is-active {
+  border-color: #7c3aed;
+  background: #1f1632;
+}
+
+.planner-filter-check {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #7c3aed;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 0.7rem;
+}
+
+.planner-month-field {
+  max-width: 260px;
+}
+
+.planner-suite .field span {
+  color: #9ca3af;
+}
+
+.planner-suite input[type="month"],
+.planner-suite input[type="date"],
+.planner-suite input[type="text"],
+.planner-suite input[type="time"],
+.planner-suite select {
+  background: #0f1217;
+  border: 1px solid #2a3240;
+  color: #f3f4f6;
+}
+
+.planner-suite .upcoming-display-toggle {
+  display: inline-flex;
+  gap: 0.32rem;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn {
+  border-color: #303848;
+  background: #121821;
+  color: #d1d5db;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn.is-active {
+  border-color: #10b981;
+  background: #163027;
+  color: #ecfdf5;
+}
+
+.planner-suite .upcoming-calendar-grid {
+  border: 1px solid #1f2836;
+  border-radius: 18px;
+  background: #07090f;
+  padding: 0.6rem;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.planner-suite .upcoming-calendar-grid.is-list-mode {
+  border-color: #1f2836;
+  background: #07090f;
+}
+
+.planner-suite .upcoming-month-banner {
+  border-color: #232c38;
+  background: #0f1217;
+  color: #f3f4f6;
+}
+
+.planner-suite .upcoming-calendar-head {
+  border-color: #1f2836;
+  background: #0d1118;
+  grid-template-columns: repeat(7, minmax(72px, 1fr));
+  min-width: 700px;
+}
+
+.planner-suite .upcoming-weekday {
+  color: #9ca3af;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.planner-suite .upcoming-calendar-body {
+  grid-template-columns: repeat(7, minmax(72px, 1fr));
+  min-width: 700px;
+}
+
+.planner-suite .upcoming-day-cell {
+  border-color: #202a37;
+  background: #080b10;
+  color: #f3f4f6;
+  min-height: 108px;
+}
+
+.planner-suite .upcoming-day-cell.is-muted {
+  opacity: 0.48;
+  background: #07090c;
+}
+
+.planner-suite .upcoming-day-cell.is-selected {
+  border-color: #6d28d9;
+  box-shadow: 0 0 0 1px #6d28d940 inset;
+  background: #101222;
+}
+
+.planner-suite .upcoming-day-cell.is-today {
+  border-color: #10b981;
+  box-shadow: 0 0 0 1px #10b98140 inset;
+}
+
+.planner-suite .upcoming-day-num {
+  color: #f9fafb;
+}
+
+.planner-suite .upcoming-day-count {
+  color: #9ca3af;
+}
+
+.planner-suite .upcoming-day-preview {
+  color: #d1d5db;
+}
+
+.planner-day-panel {
+  border: 1px solid #1f2836;
+  border-radius: 14px;
+  padding: 0.55rem;
+  background: #090d14;
+}
+
+.planner-day-panel .upcoming-day-title {
+  color: #f3f4f6;
+  margin-top: 0;
+}
+
+.planner-day-panel .appointment-item {
+  border-color: #243040;
+  background: #111827;
+}
+
+.planner-fab-stack {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  display: grid;
+  justify-items: end;
+  gap: 0.45rem;
+}
+
+.planner-fab {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 1px solid #374151;
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.planner-fab-menu {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.planner-fab-action {
+  border: 1px solid #2f3a4a;
+  border-radius: 999px;
+  padding: 0.54rem 0.9rem;
+  background: #131a24;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.planner-overlay {
+  position: fixed;
+  inset: 0;
+  background: #00000085;
+  z-index: 60;
+  display: grid;
+  place-items: end center;
+  padding: 1rem;
+}
+
+.planner-sheet {
+  width: min(760px, 100%);
+  border: 1px solid #232b38;
+  border-radius: 24px;
+  background: #070a10;
+  color: #f3f4f6;
+  box-shadow: 0 20px 42px #00000088;
+  overflow: hidden;
+}
+
+.planner-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #1f2733;
+}
+
+.planner-sheet-head h4 {
+  margin: 0;
+  font-size: 1.06rem;
+}
+
+.planner-sheet-close,
+.planner-sheet-save {
+  border: 1px solid #2f3948;
+  border-radius: 999px;
+  background: #11151d;
+  color: #f9fafb;
+  padding: 0.42rem 0.82rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.planner-sheet-save {
+  border-color: #10b981;
+  background: #133124;
+  color: #d1fae5;
+}
+
+.planner-sheet-body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem 1rem 1rem;
+}
+
+.planner-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sheet-switch-row {
+  border: 1px solid #273244;
+  border-radius: 16px;
+  padding: 0.72rem 0.8rem;
+  background: #10151f;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.sheet-switch-row span {
+  color: #e5e7eb;
+  font-weight: 700;
+}
+
+.sheet-switch-row select {
+  min-width: 100px;
+}
+
+.sheet-filter-item {
+  border: 1px solid #273244;
+  border-radius: 16px;
+  padding: 0.72rem 0.8rem;
+  background: #10151f;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .history-list {
   margin-top: 0.7rem;
   display: grid;
@@ -1925,9 +2279,52 @@ select {
     grid-template-columns: 1fr;
   }
 
-  .upcoming-calendar-head,
-  .upcoming-calendar-body {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .planner-suite {
+    padding: 0.72rem;
+    border-radius: 20px;
+  }
+
+  .planner-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .planner-top-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .planner-icon-btn {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
+  .planner-month-field {
+    max-width: 100%;
+  }
+
+  .planner-sheet {
+    border-radius: 20px;
+  }
+
+  .planner-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-fab-stack {
+    right: 0.72rem;
+    bottom: 0.72rem;
+  }
+
+  .planner-fab {
+    width: 54px;
+    height: 54px;
+    font-size: 1.8rem;
+  }
+
+  .planner-suite .upcoming-calendar-head,
+  .planner-suite .upcoming-calendar-body {
+    min-width: 560px;
   }
 
   .upcoming-day-cell {
@@ -1959,6 +2356,11 @@ select {
   .jaw-arc {
     min-height: 150px;
   }
+
+  .planner-suite .upcoming-calendar-head,
+  .planner-suite .upcoming-calendar-body {
+    min-width: 620px;
+  }
 }
 
 @media (min-width: 992px) and (max-width: 1199.98px) {
@@ -1966,11 +2368,21 @@ select {
     grid-template-columns: 1fr 1fr;
     align-items: start;
   }
+
+  .planner-suite .upcoming-calendar-head,
+  .planner-suite .upcoming-calendar-body {
+    min-width: 700px;
+  }
 }
 
 @media (min-width: 1200px) {
   .home-grid {
     grid-template-columns: 1fr 1fr;
     align-items: start;
+  }
+
+  .planner-suite .upcoming-calendar-head,
+  .planner-suite .upcoming-calendar-body {
+    min-width: 760px;
   }
 }

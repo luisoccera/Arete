@@ -523,69 +523,111 @@
           </section>
 
           <section class="upcoming-subview" data-upcoming-subview="planner" hidden>
-            <section class="card">
-              <div class="card-title-row">
-                <h3>Agregar cita sin abrir paciente</h3>
-                <button type="button" id="addGlobalAppointmentBtn" class="btn btn-primary">Guardar cita</button>
-              </div>
-              <p class="card-help">Selecciona paciente, fecha y horario. Puedes registrar todas las citas que necesites en el mismo día.</p>
-              <div class="form-grid">
-                <label class="field">
-                  <span>Paciente</span>
-                  <select id="globalAppointmentPatient"></select>
-                </label>
-                <label class="field">
-                  <span>Fecha</span>
-                  <input type="date" id="globalAppointmentDate">
-                </label>
-                <label class="field">
-                  <span>Inicio de cita</span>
-                  <input type="time" id="globalAppointmentStartTime">
-                </label>
-                <label class="field">
-                  <span>Finalización de cita</span>
-                  <input type="time" id="globalAppointmentEndTime">
-                </label>
-              </div>
-              <div class="form-grid" id="globalAppointmentExternalIdentityFields" hidden>
-                <label class="field field-full">
-                  <span>Nombre(s) de paciente no registrado</span>
-                  <input type="text" id="globalAppointmentExternalFirstNames" placeholder="Ejemplo: Juan Carlos">
-                </label>
-                <label class="field">
-                  <span>Apellido paterno</span>
-                  <input type="text" id="globalAppointmentExternalLastNameFather" placeholder="Ejemplo: Pérez">
-                </label>
-                <label class="field">
-                  <span>Apellido materno</span>
-                  <input type="text" id="globalAppointmentExternalLastNameMother" placeholder="Ejemplo: López">
-                </label>
-              </div>
-              <label class="field field-full">
-                <span>Motivo de la cita</span>
-                <input type="text" id="globalAppointmentReason" placeholder="Ejemplo: limpieza, operatoria, revisión de ortodoncia">
-              </label>
-            </section>
+            <section id="upcomingPlannerSuite" class="planner-suite">
+              <header class="planner-topbar">
+                <div class="planner-month-block">
+                  <h3 id="plannerMonthLabel">abr 2026</h3>
+                  <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
+                </div>
+                <div class="planner-top-actions">
+                  <button type="button" id="upcomingFilterBtn" class="planner-icon-btn">Filtros</button>
+                  <button type="button" id="upcomingOpenComposerBtn" class="planner-icon-btn planner-icon-btn-primary">Nueva cita</button>
+                </div>
+              </header>
 
-            <section class="card">
-              <div class="card-title-row">
-                <h3>Calendario actualizado</h3>
+              <div class="planner-filter-row">
+                <button type="button" id="upcomingFilterChip" class="planner-filter-chip is-active">
+                  <span class="planner-filter-check">✓</span>
+                  <span>Privado</span>
+                </button>
                 <div class="upcoming-display-toggle">
                   <button type="button" class="table-btn is-active" data-upcoming-display="calendar">Cuadriculado</button>
                   <button type="button" class="table-btn" data-upcoming-display="list">Lista diaria</button>
                 </div>
               </div>
 
-              <div class="form-grid upcoming-calendar-controls">
-                <label class="field">
-                  <span>Mes visible</span>
-                  <input type="month" id="upcomingCalendarMonth">
-                </label>
-              </div>
+              <label class="field planner-month-field">
+                <span>Mes visible</span>
+                <input type="month" id="upcomingCalendarMonth">
+              </label>
 
               <div id="upcomingCalendarGrid" class="upcoming-calendar-grid"></div>
-              <h4 id="upcomingDayTitle" class="upcoming-day-title">Citas del día</h4>
-              <div id="upcomingDayList" class="appointment-list"></div>
+
+              <section class="planner-day-panel">
+                <h4 id="upcomingDayTitle" class="upcoming-day-title">Citas del día</h4>
+                <div id="upcomingDayList" class="appointment-list"></div>
+              </section>
+
+              <div class="planner-fab-stack">
+                <button type="button" id="upcomingFabToggle" class="planner-fab" aria-expanded="false">+</button>
+                <div id="upcomingFabMenu" class="planner-fab-menu" hidden>
+                  <button type="button" id="upcomingFabAddPlan" class="planner-fab-action">Añadir plan</button>
+                  <button type="button" id="upcomingFabScan" class="planner-fab-action">Escanear imagen</button>
+                </div>
+              </div>
+            </section>
+
+            <section id="upcomingFilterPanel" class="planner-overlay" hidden>
+              <article class="planner-sheet">
+                <div class="planner-sheet-head">
+                  <button type="button" id="upcomingFilterCloseBtn" class="planner-sheet-close">×</button>
+                  <h4>Ajustes de filtro</h4>
+                  <button type="button" id="upcomingFilterSaveBtn" class="planner-sheet-save">Guardar</button>
+                </div>
+                <div class="planner-sheet-body">
+                  <label class="sheet-switch-row">
+                    <span>Mostrar nombre del calendario</span>
+                    <input type="checkbox" id="upcomingShowCalendarName" checked>
+                  </label>
+                  <label class="sheet-switch-row">
+                    <span>Número de filas del filtro</span>
+                    <select id="upcomingFilterRows">
+                      <option value="1">1 fila</option>
+                      <option value="2" selected>2 filas</option>
+                      <option value="3">3 filas</option>
+                    </select>
+                  </label>
+                  <div class="sheet-filter-item">
+                    <span class="planner-filter-check">✓</span>
+                    <span>Privado</span>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <section id="upcomingComposerPanel" class="planner-overlay" hidden>
+              <article class="planner-sheet planner-sheet-compose">
+                <div class="planner-sheet-head">
+                  <button type="button" id="upcomingComposerCloseBtn" class="planner-sheet-close">×</button>
+                  <h4>Nueva cita</h4>
+                  <button type="button" id="addGlobalAppointmentBtn" class="planner-sheet-save">Guardar</button>
+                </div>
+                <div class="planner-sheet-body">
+                  <label class="field field-full">
+                    <span>Paciente</span>
+                    <input type="text" id="globalAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Escribe nombre y apellidos del paciente">
+                    <datalist id="globalAppointmentPatientOptions"></datalist>
+                  </label>
+                  <div class="form-grid planner-form-grid">
+                    <label class="field">
+                      <span>Fecha</span>
+                      <input type="date" id="globalAppointmentDate">
+                    </label>
+                    <label class="field">
+                      <span>Motivo de la cita</span>
+                      <input type="text" id="globalAppointmentReason" placeholder="Ejemplo: limpieza, operatoria, revisión de ortodoncia">
+                    </label>
+                    <label class="field">
+                      <span>Inicio de cita</span>
+                      <input type="time" id="globalAppointmentStartTime">
+                    </label>
+                    <label class="field">
+                      <span>Finalización de cita</span>
+                      <input type="time" id="globalAppointmentEndTime">
+                    </label>
+                  </div>
+                </div>
+              </article>
             </section>
           </section>
         </section>

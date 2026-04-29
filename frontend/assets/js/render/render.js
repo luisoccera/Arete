@@ -213,47 +213,6 @@ function collectUpcomingEntries(options = {}) {
     }
   }
 
-  const externalAppointments = normalizeExternalAppointments(state.externalAppointments);
-  for (const appointment of externalAppointments) {
-    const date = stringOrEmpty(appointment?.date);
-    const patientName = stringOrEmpty(appointment?.patientName);
-    if (!date || !patientName) {
-      continue;
-    }
-    if (monthKey && !date.startsWith(`${monthKey}-`)) {
-      continue;
-    }
-    if (day && date !== day) {
-      continue;
-    }
-
-    const startTime = getAppointmentStartTime(appointment);
-    const endTime = getAppointmentEndTime(appointment);
-    const info = getAppointmentDateInfo(date, startTime);
-    if (!info) {
-      continue;
-    }
-    if (!includePast) {
-      const threshold = info.hasTime ? now : todayStart;
-      if (info.timestamp < threshold) {
-        continue;
-      }
-    }
-
-    entries.push({
-      kind: "external-appointment",
-      patientId: "",
-      patientName,
-      date,
-      startTime,
-      endTime,
-      dentistName: stringOrEmpty(appointment?.dentistName) || "Paciente no registrado",
-      reason: stringOrEmpty(appointment?.reason) || "Sin motivo",
-      sortTimestamp: info.timestamp,
-      appointmentId: stringOrEmpty(appointment?.id)
-    });
-  }
-
   entries.sort((a, b) => {
     if (a.sortTimestamp !== b.sortTimestamp) {
       return a.sortTimestamp - b.sortTimestamp;
@@ -331,24 +290,19 @@ function renderUpcomingPlannerForm() {
   }
 
   const previous = stringOrEmpty(el.globalAppointmentPatient.value);
-  const externalOption = `<option value="${GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE}">Paciente no registrado</option>`;
-  const patientOptions = patients
-    .map((patient) => `<option value="${patient.id}">${escapeHtml(getPatientFullName(patient) || "Sin nombre")}</option>`)
-    .join("");
+  if (el.globalAppointmentPatientOptions) {
+    el.globalAppointmentPatientOptions.innerHTML = patients
+      .map((patient) => `<option value="${escapeHtml(getPatientFullName(patient) || "Sin nombre")}"></option>`)
+      .join("");
+  }
 
-  el.globalAppointmentPatient.innerHTML = `${externalOption}${patientOptions}`;
-  const hasPreviousPatient = previous && (
-    previous === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE
-    || patients.some((patient) => patient.id === previous)
-  );
-  if (hasPreviousPatient) {
+  if (previous) {
     el.globalAppointmentPatient.value = previous;
   } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
-    el.globalAppointmentPatient.value = editingPatientId;
-  } else if (patients.length > 0) {
-    el.globalAppointmentPatient.value = patients[0].id;
+    const current = patients.find((patient) => patient.id === editingPatientId);
+    el.globalAppointmentPatient.value = current ? getPatientFullName(current) : "";
   } else {
-    el.globalAppointmentPatient.value = GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
+    el.globalAppointmentPatient.value = "";
   }
 
   if (el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
@@ -366,29 +320,89 @@ function renderUpcomingPlannerForm() {
   if (el.upcomingCalendarMonth) {
     el.upcomingCalendarMonth.value = upcomingCalendarMonth;
   }
-  updateGlobalAppointmentPatientModeUI();
+  renderPlannerMonthLabel();
+  applyUpcomingFilterSettings();
 }
 
-function updateGlobalAppointmentPatientModeUI() {
-  if (!el.globalAppointmentPatient) {
+function normalizePatientNameToken(value) {
+  return stringOrEmpty(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function findPatientByPlannerName(nameInput) {
+  const token = normalizePatientNameToken(nameInput);
+  if (!token) {
     return;
   }
-  const selectedPatientId = stringOrEmpty(el.globalAppointmentPatient.value);
-  const isExternal = selectedPatientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
+  return state.patients.find((patient) => normalizePatientNameToken(getPatientFullName(patient)) === token) || null;
+}
 
-  if (el.globalAppointmentExternalIdentityFields) {
-    el.globalAppointmentExternalIdentityFields.hidden = !isExternal;
+function syncGlobalAppointmentPatientInput() {
+  if (!el.globalAppointmentPatient) {
+    return null;
   }
-  if (!isExternal) {
-    if (el.globalAppointmentExternalFirstNames) {
-      el.globalAppointmentExternalFirstNames.value = "";
-    }
-    if (el.globalAppointmentExternalLastNameFather) {
-      el.globalAppointmentExternalLastNameFather.value = "";
-    }
-    if (el.globalAppointmentExternalLastNameMother) {
-      el.globalAppointmentExternalLastNameMother.value = "";
-    }
+  const found = findPatientByPlannerName(el.globalAppointmentPatient.value);
+  if (found) {
+    el.globalAppointmentPatient.value = getPatientFullName(found);
+  }
+  return found;
+}
+
+function renderPlannerMonthLabel() {
+  if (!el.plannerMonthLabel) {
+    return;
+  }
+  const safeMonth = normalizeMonthInputValue(upcomingCalendarMonth);
+  const monthDate = parseDateValue(`${safeMonth}-01`);
+  if (!monthDate) {
+    el.plannerMonthLabel.textContent = "Calendario";
+    return;
+  }
+  el.plannerMonthLabel.textContent = monthDate.toLocaleDateString("es-MX", {
+    month: "short",
+    year: "numeric"
+  });
+}
+
+function applyUpcomingFilterSettings() {
+  const showCalendarName = el.upcomingShowCalendarName ? Boolean(el.upcomingShowCalendarName.checked) : true;
+  if (el.plannerMonthSub) {
+    el.plannerMonthSub.hidden = !showCalendarName;
+  }
+  const rowValue = Number(el.upcomingFilterRows?.value || 2);
+  if (el.upcomingPlannerSuite) {
+    el.upcomingPlannerSuite.style.setProperty("--planner-filter-rows", String(Math.min(Math.max(rowValue, 1), 3)));
+  }
+}
+
+function setUpcomingFilterPanelOpen(isOpen) {
+  upcomingFilterPanelOpen = Boolean(isOpen);
+  if (el.upcomingFilterPanel) {
+    el.upcomingFilterPanel.hidden = !upcomingFilterPanelOpen;
+  }
+}
+
+function setUpcomingComposerPanelOpen(isOpen) {
+  upcomingComposerPanelOpen = Boolean(isOpen);
+  if (el.upcomingComposerPanel) {
+    el.upcomingComposerPanel.hidden = !upcomingComposerPanelOpen;
+  }
+  if (upcomingComposerPanelOpen && el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
+    upcomingSelectedDate = stringOrEmpty(el.globalAppointmentDate.value);
+  }
+}
+
+function setUpcomingFabOpen(isOpen) {
+  upcomingFabOpen = Boolean(isOpen);
+  if (el.upcomingFabMenu) {
+    el.upcomingFabMenu.hidden = !upcomingFabOpen;
+  }
+  if (el.upcomingFabToggle) {
+    el.upcomingFabToggle.setAttribute("aria-expanded", upcomingFabOpen ? "true" : "false");
   }
 }
 
@@ -428,6 +442,7 @@ function renderUpcomingPlannerCalendar() {
   if (el.upcomingCalendarMonth) {
     el.upcomingCalendarMonth.value = upcomingCalendarMonth;
   }
+  renderPlannerMonthLabel();
   if (!upcomingSelectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(upcomingSelectedDate)) {
     upcomingSelectedDate = `${upcomingCalendarMonth}-01`;
   }

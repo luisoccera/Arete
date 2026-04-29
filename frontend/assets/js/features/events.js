@@ -139,7 +139,84 @@
   }
   if (el.globalAppointmentPatient) {
     el.globalAppointmentPatient.addEventListener("change", () => {
-      updateGlobalAppointmentPatientModeUI();
+      syncGlobalAppointmentPatientInput();
+    });
+    el.globalAppointmentPatient.addEventListener("blur", () => {
+      syncGlobalAppointmentPatientInput();
+    });
+  }
+  if (el.upcomingOpenComposerBtn) {
+    el.upcomingOpenComposerBtn.addEventListener("click", () => {
+      setUpcomingComposerPanelOpen(true);
+      setUpcomingFabOpen(false);
+    });
+  }
+  if (el.upcomingComposerCloseBtn) {
+    el.upcomingComposerCloseBtn.addEventListener("click", () => {
+      setUpcomingComposerPanelOpen(false);
+    });
+  }
+  if (el.upcomingFilterBtn) {
+    el.upcomingFilterBtn.addEventListener("click", () => {
+      setUpcomingFilterPanelOpen(true);
+    });
+  }
+  if (el.upcomingFilterChip) {
+    el.upcomingFilterChip.addEventListener("click", () => {
+      setUpcomingFilterPanelOpen(true);
+    });
+  }
+  if (el.upcomingFilterCloseBtn) {
+    el.upcomingFilterCloseBtn.addEventListener("click", () => {
+      setUpcomingFilterPanelOpen(false);
+    });
+  }
+  if (el.upcomingFilterSaveBtn) {
+    el.upcomingFilterSaveBtn.addEventListener("click", () => {
+      applyUpcomingFilterSettings();
+      setUpcomingFilterPanelOpen(false);
+      setFeedback("Filtros actualizados.");
+    });
+  }
+  if (el.upcomingShowCalendarName) {
+    el.upcomingShowCalendarName.addEventListener("change", () => {
+      applyUpcomingFilterSettings();
+    });
+  }
+  if (el.upcomingFilterRows) {
+    el.upcomingFilterRows.addEventListener("change", () => {
+      applyUpcomingFilterSettings();
+    });
+  }
+  if (el.upcomingFabToggle) {
+    el.upcomingFabToggle.addEventListener("click", () => {
+      setUpcomingFabOpen(!upcomingFabOpen);
+    });
+  }
+  if (el.upcomingFabAddPlan) {
+    el.upcomingFabAddPlan.addEventListener("click", () => {
+      setUpcomingComposerPanelOpen(true);
+      setUpcomingFabOpen(false);
+    });
+  }
+  if (el.upcomingFabScan) {
+    el.upcomingFabScan.addEventListener("click", () => {
+      setUpcomingFabOpen(false);
+      setFeedback("Escanear imagen estará disponible en una próxima actualización.");
+    });
+  }
+  if (el.upcomingFilterPanel) {
+    el.upcomingFilterPanel.addEventListener("click", (event) => {
+      if (event.target === el.upcomingFilterPanel) {
+        setUpcomingFilterPanelOpen(false);
+      }
+    });
+  }
+  if (el.upcomingComposerPanel) {
+    el.upcomingComposerPanel.addEventListener("click", (event) => {
+      if (event.target === el.upcomingComposerPanel) {
+        setUpcomingComposerPanelOpen(false);
+      }
     });
   }
   if (el.globalAppointmentDate) {

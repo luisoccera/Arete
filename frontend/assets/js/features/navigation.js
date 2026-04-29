@@ -50,6 +50,18 @@ function setActiveUpcomingSubview(view) {
     section.classList.toggle("is-active", isActive);
     section.hidden = !isActive;
   }
+
+  if (nextView !== "planner") {
+    if (typeof setUpcomingFilterPanelOpen === "function") {
+      setUpcomingFilterPanelOpen(false);
+    }
+    if (typeof setUpcomingComposerPanelOpen === "function") {
+      setUpcomingComposerPanelOpen(false);
+    }
+    if (typeof setUpcomingFabOpen === "function") {
+      setUpcomingFabOpen(false);
+    }
+  }
 }
 
 function handleToothNodeClick(event) {

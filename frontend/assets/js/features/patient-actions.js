@@ -211,6 +211,107 @@ function addQuickAppointmentFromPlanner() {
   }
 }
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result) {
+        reject(new Error("No se pudo leer el archivo."));
+        return;
+      }
+      resolve(result);
+    };
+    reader.onerror = () => {
+      reject(new Error("No se pudo leer el archivo seleccionado."));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleScannedFileInputChange(inputElement, sourceLabel) {
+  const input = inputElement;
+  if (!input || !input.files || input.files.length === 0) {
+    return;
+  }
+  const file = input.files[0];
+  input.value = "";
+  await addScannedDocumentFromFile(file, sourceLabel);
+}
+
+async function addScannedDocumentFromFile(file, sourceLabel) {
+  if (!file) {
+    return;
+  }
+  if (file.size > 12 * 1024 * 1024) {
+    setFeedback("El archivo es muy grande. Máximo permitido: 12 MB.", "error");
+    return;
+  }
+
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    if (!Array.isArray(state.scannedDocuments)) {
+      state.scannedDocuments = [];
+    }
+
+    state.scannedDocuments.unshift({
+      id: generateId("scan"),
+      name: stringOrEmpty(file.name) || `documento-${new Date().toISOString().slice(0, 10)}`,
+      mimeType: stringOrEmpty(file.type) || "application/octet-stream",
+      size: Number(file.size) || 0,
+      dataUrl,
+      source: stringOrEmpty(sourceLabel) || "archivo",
+      createdAt: new Date().toISOString()
+    });
+    state.scannedDocuments = normalizeScannedDocuments(state.scannedDocuments);
+    persistState();
+    renderScannedDocuments();
+    setUpcomingScanPanelOpen(false);
+    setFeedback(`Documento guardado: ${file.name}`);
+  } catch (error) {
+    console.error(error);
+    setFeedback("No se pudo guardar el documento escaneado.", "error");
+  }
+}
+
+function openScannedDocument(documentId) {
+  const safeId = stringOrEmpty(documentId);
+  if (!safeId || !Array.isArray(state.scannedDocuments)) {
+    return;
+  }
+  const doc = state.scannedDocuments.find((entry) => entry.id === safeId);
+  if (!doc || !stringOrEmpty(doc.dataUrl)) {
+    return;
+  }
+  const link = document.createElement("a");
+  link.href = doc.dataUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.download = stringOrEmpty(doc.name) || "documento";
+  link.click();
+}
+
+function removeScannedDocument(documentId) {
+  const safeId = stringOrEmpty(documentId);
+  if (!safeId || !Array.isArray(state.scannedDocuments)) {
+    return;
+  }
+  const found = state.scannedDocuments.find((entry) => entry.id === safeId);
+  if (!found) {
+    return;
+  }
+
+  const approved = window.confirm(`Se eliminará "${found.name}". ¿Deseas continuar?`);
+  if (!approved) {
+    return;
+  }
+
+  state.scannedDocuments = state.scannedDocuments.filter((entry) => entry.id !== safeId);
+  persistState();
+  renderScannedDocuments();
+  setFeedback("Documento eliminado.");
+}
+
 function addAppointmentFromUpcomingPlanner() {
   const inputPatientName = stringOrEmpty(el.globalAppointmentPatient?.value);
   const date = stringOrEmpty(el.globalAppointmentDate?.value);

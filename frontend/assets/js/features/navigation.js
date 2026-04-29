@@ -55,6 +55,9 @@ function setActiveUpcomingSubview(view) {
     if (typeof setUpcomingFabOpen === "function") {
       setUpcomingFabOpen(false);
     }
+    if (typeof setUpcomingScanPanelOpen === "function") {
+      setUpcomingScanPanelOpen(false);
+    }
   }
 }
 

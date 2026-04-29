@@ -1016,6 +1016,10 @@ tbody tr.active {
   background: #fffaf2;
 }
 
+.planner-docs-panel .appointment-item {
+  align-items: center;
+}
+
 .planner-fab-stack {
   position: absolute;
   right: 1rem;
@@ -1092,6 +1096,12 @@ tbody tr.active {
   font-size: 1.06rem;
 }
 
+.planner-sheet-placeholder {
+  width: 52px;
+  height: 30px;
+  display: inline-block;
+}
+
 .planner-sheet-close,
 .planner-sheet-save {
   border: 1px solid #ccb89c;
@@ -1114,6 +1124,12 @@ tbody tr.active {
   display: grid;
   gap: 0.8rem;
   padding: 0.9rem 1rem 1rem;
+}
+
+.planner-scan-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
 .planner-form-grid {
@@ -2372,6 +2388,10 @@ select {
   }
 
   .planner-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-scan-actions {
     grid-template-columns: 1fr;
   }
 

@@ -3,7 +3,8 @@
     diseases: deepClone(DEFAULT_DISEASES),
     toothStatuses: deepClone(DEFAULT_TOOTH_STATUSES),
     patients: [],
-    externalAppointments: []
+    externalAppointments: [],
+    scannedDocuments: []
   };
 }
 
@@ -64,7 +65,8 @@ function normalizeState(raw) {
     diseases: cleaned.diseases,
     toothStatuses,
     patients: cleaned.patients,
-    externalAppointments: normalizeExternalAppointments(raw?.externalAppointments)
+    externalAppointments: normalizeExternalAppointments(raw?.externalAppointments),
+    scannedDocuments: normalizeScannedDocuments(raw?.scannedDocuments)
   };
 }
 
@@ -297,6 +299,38 @@ function normalizeExternalAppointments(rawAppointments) {
 
   return entries;
 }
+
+function normalizeScannedDocuments(rawDocuments) {
+  if (!Array.isArray(rawDocuments)) {
+    return [];
+  }
+
+  const docs = [];
+  for (const item of rawDocuments) {
+    const dataUrl = stringOrEmpty(item?.dataUrl);
+    const name = stringOrEmpty(item?.name);
+    if (!dataUrl || !name) {
+      continue;
+    }
+    if (!dataUrl.startsWith("data:")) {
+      continue;
+    }
+
+    docs.push({
+      id: stringOrEmpty(item?.id) || generateId("scan"),
+      name,
+      mimeType: stringOrEmpty(item?.mimeType) || "application/octet-stream",
+      size: Number.isFinite(Number(item?.size)) ? Math.max(0, Number(item.size)) : 0,
+      dataUrl,
+      source: stringOrEmpty(item?.source) || "archivo",
+      createdAt: isValidDate(item?.createdAt) ? String(item.createdAt) : new Date().toISOString()
+    });
+  }
+
+  docs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  return docs.slice(0, 60);
+}
+
 function normalizePatientMediaEntries(rawEntries) {
   if (!Array.isArray(rawEntries)) {
     return [];

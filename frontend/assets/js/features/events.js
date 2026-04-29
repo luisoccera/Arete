@@ -170,7 +170,43 @@
   if (el.upcomingFabScan) {
     el.upcomingFabScan.addEventListener("click", () => {
       setUpcomingFabOpen(false);
-      setFeedback("Escanear imagen estará disponible en una próxima actualización.");
+      setUpcomingScanPanelOpen(true);
+    });
+  }
+  if (el.upcomingScanCloseBtn) {
+    el.upcomingScanCloseBtn.addEventListener("click", () => {
+      setUpcomingScanPanelOpen(false);
+    });
+  }
+  if (el.scanTakePhotoBtn) {
+    el.scanTakePhotoBtn.addEventListener("click", () => {
+      if (el.scanCameraInput) {
+        el.scanCameraInput.click();
+      }
+    });
+  }
+  if (el.scanUploadFileBtn) {
+    el.scanUploadFileBtn.addEventListener("click", () => {
+      if (el.scanFileInput) {
+        el.scanFileInput.click();
+      }
+    });
+  }
+  if (el.scanCameraInput) {
+    el.scanCameraInput.addEventListener("change", () => {
+      void handleScannedFileInputChange(el.scanCameraInput, "foto");
+    });
+  }
+  if (el.scanFileInput) {
+    el.scanFileInput.addEventListener("change", () => {
+      void handleScannedFileInputChange(el.scanFileInput, "archivo");
+    });
+  }
+  if (el.upcomingScanPanel) {
+    el.upcomingScanPanel.addEventListener("click", (event) => {
+      if (event.target === el.upcomingScanPanel) {
+        setUpcomingScanPanelOpen(false);
+      }
     });
   }
   if (el.globalAppointmentDate) {
@@ -223,6 +259,9 @@
       if (el.globalAppointmentDate) {
         el.globalAppointmentDate.value = day;
       }
+      if (el.quickAppointmentDate) {
+        el.quickAppointmentDate.value = day;
+      }
       renderUpcomingPlannerCalendar();
     });
   }
@@ -246,6 +285,19 @@
       }
       const externalAppointmentId = removeExternalBtn.getAttribute("data-remove-upcoming-external-id");
       removeExternalAppointmentFromPlanner(externalAppointmentId);
+    });
+  }
+  if (el.scannedDocsList) {
+    el.scannedDocsList.addEventListener("click", (event) => {
+      const openBtn = event.target.closest("[data-open-scan-id]");
+      if (openBtn) {
+        openScannedDocument(openBtn.getAttribute("data-open-scan-id"));
+        return;
+      }
+      const removeBtn = event.target.closest("[data-remove-scan-id]");
+      if (removeBtn) {
+        removeScannedDocument(removeBtn.getAttribute("data-remove-scan-id"));
+      }
     });
   }
 

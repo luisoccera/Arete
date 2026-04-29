@@ -62,6 +62,13 @@
   upcomingCalendarGrid: document.getElementById("upcomingCalendarGrid"),
   upcomingDayTitle: document.getElementById("upcomingDayTitle"),
   upcomingDayList: document.getElementById("upcomingDayList"),
+  scannedDocsList: document.getElementById("scannedDocsList"),
+  upcomingScanPanel: document.getElementById("upcomingScanPanel"),
+  upcomingScanCloseBtn: document.getElementById("upcomingScanCloseBtn"),
+  scanTakePhotoBtn: document.getElementById("scanTakePhotoBtn"),
+  scanUploadFileBtn: document.getElementById("scanUploadFileBtn"),
+  scanCameraInput: document.getElementById("scanCameraInput"),
+  scanFileInput: document.getElementById("scanFileInput"),
   savePatientBtn: document.getElementById("savePatientBtn"),
   deleteCurrentPatientBtn: document.getElementById("deleteCurrentPatientBtn"),
   formTitle: document.getElementById("formTitle"),
@@ -138,6 +145,7 @@ let upcomingCalendarMode = "calendar";
 let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
 let upcomingSelectedDate = getTodayInputDate();
 let upcomingFabOpen = false;
+let upcomingScanPanelOpen = false;
 let storageMode = "local";
 let remotePersistTimer = null;
 let remotePersistInFlight = false;

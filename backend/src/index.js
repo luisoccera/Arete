@@ -108,7 +108,8 @@ function createEmptyData() {
     patients: [],
     diseases: [],
     toothStatuses: [],
-    externalAppointments: []
+    externalAppointments: [],
+    scannedDocuments: []
   };
 }
 
@@ -143,7 +144,8 @@ function readLegacyStateData() {
       patients: Array.isArray(data.patients) ? data.patients : [],
       diseases: Array.isArray(data.diseases) ? data.diseases : [],
       toothStatuses: Array.isArray(data.toothStatuses) ? data.toothStatuses : [],
-      externalAppointments: Array.isArray(data.externalAppointments) ? data.externalAppointments : []
+      externalAppointments: Array.isArray(data.externalAppointments) ? data.externalAppointments : [],
+      scannedDocuments: Array.isArray(data.scannedDocuments) ? data.scannedDocuments : []
     };
   } catch {
     return createEmptyData();
@@ -185,7 +187,8 @@ function readStateForUser(userId) {
       patients: Array.isArray(data?.patients) ? data.patients : [],
       diseases: Array.isArray(data?.diseases) ? data.diseases : [],
       toothStatuses: Array.isArray(data?.toothStatuses) ? data.toothStatuses : [],
-      externalAppointments: Array.isArray(data?.externalAppointments) ? data.externalAppointments : []
+      externalAppointments: Array.isArray(data?.externalAppointments) ? data.externalAppointments : [],
+      scannedDocuments: Array.isArray(data?.scannedDocuments) ? data.scannedDocuments : []
     }
   };
 }
@@ -196,7 +199,8 @@ function writeStateForUser(userId, incomingData) {
     patients: Array.isArray(incomingData?.patients) ? incomingData.patients : [],
     diseases: Array.isArray(incomingData?.diseases) ? incomingData.diseases : [],
     toothStatuses: Array.isArray(incomingData?.toothStatuses) ? incomingData.toothStatuses : [],
-    externalAppointments: Array.isArray(incomingData?.externalAppointments) ? incomingData.externalAppointments : []
+    externalAppointments: Array.isArray(incomingData?.externalAppointments) ? incomingData.externalAppointments : [],
+    scannedDocuments: Array.isArray(incomingData?.scannedDocuments) ? incomingData.scannedDocuments : []
   };
   const envelope = {
     version: 1,

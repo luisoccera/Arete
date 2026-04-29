@@ -12,6 +12,7 @@
   renderUpcomingPlannerForm();
   renderUpcomingAppointments();
   renderUpcomingPlannerCalendar();
+  renderScannedDocuments();
   renderPatientHistory();
   setActivePatientSubview(activePatientSubview);
   setActiveUpcomingSubview(activeUpcomingSubview);
@@ -402,6 +403,53 @@ function setUpcomingFabOpen(isOpen) {
   if (el.upcomingFabToggle) {
     el.upcomingFabToggle.setAttribute("aria-expanded", upcomingFabOpen ? "true" : "false");
   }
+}
+
+function setUpcomingScanPanelOpen(isOpen) {
+  upcomingScanPanelOpen = Boolean(isOpen);
+  if (el.upcomingScanPanel) {
+    el.upcomingScanPanel.hidden = !upcomingScanPanelOpen;
+  }
+}
+
+function formatFileSize(sizeBytes) {
+  const size = Number(sizeBytes) || 0;
+  if (size <= 0) {
+    return "Tamaño no disponible";
+  }
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
+  }
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function renderScannedDocuments() {
+  if (!el.scannedDocsList) {
+    return;
+  }
+  const docs = Array.isArray(state.scannedDocuments) ? state.scannedDocuments : [];
+  if (docs.length === 0) {
+    el.scannedDocsList.innerHTML = "<div class=\"history-empty\">No hay documentos escaneados.</div>";
+    return;
+  }
+
+  el.scannedDocsList.innerHTML = docs
+    .map((doc) => `
+      <article class="appointment-item">
+        <div class="appointment-main">
+          <div class="appointment-title">${escapeHtml(stringOrEmpty(doc?.name) || "documento")}</div>
+          <div class="appointment-meta">${escapeHtml(formatDateTime(doc?.createdAt))} | ${escapeHtml(formatFileSize(doc?.size))} | ${escapeHtml(stringOrEmpty(doc?.source) || "archivo")}</div>
+        </div>
+        <div class="table-actions">
+          <button type="button" class="table-btn" data-open-scan-id="${doc.id}">Abrir</button>
+          <button type="button" class="catalog-btn" data-remove-scan-id="${doc.id}">Eliminar</button>
+        </div>
+      </article>
+    `)
+    .join("");
 }
 
 function normalizeMonthInputValue(value) {

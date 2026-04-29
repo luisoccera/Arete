@@ -145,14 +145,21 @@ function removeAppointmentFromPatient(appointmentId) {
 
 function addAppointmentFromUpcomingPlanner() {
   const patientId = stringOrEmpty(el.globalAppointmentPatient?.value);
+  const externalPatientName = stringOrEmpty(el.globalAppointmentExternalName?.value);
   const date = stringOrEmpty(el.globalAppointmentDate?.value);
   const startTime = stringOrEmpty(el.globalAppointmentStartTime?.value);
   const endTime = stringOrEmpty(el.globalAppointmentEndTime?.value);
   const reason = stringOrEmpty(el.globalAppointmentReason?.value);
+  const isExternalPatient = patientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
 
   if (!patientId) {
     setFeedback("Selecciona un paciente para agendar la cita.", "error");
     el.globalAppointmentPatient?.focus();
+    return;
+  }
+  if (isExternalPatient && !externalPatientName) {
+    setFeedback("Escribe el nombre del paciente no registrado.", "error");
+    el.globalAppointmentExternalName?.focus();
     return;
   }
   if (!date) {
@@ -185,6 +192,51 @@ function addAppointmentFromUpcomingPlanner() {
     return;
   }
 
+  if (isExternalPatient) {
+    if (!Array.isArray(state.externalAppointments)) {
+      state.externalAppointments = [];
+    }
+    state.externalAppointments.push({
+      id: generateId("ext-apt"),
+      patientName: externalPatientName,
+      dentistName: "",
+      date,
+      time: startTime,
+      startTime,
+      endTime,
+      reason
+    });
+    state.externalAppointments = normalizeExternalAppointments(state.externalAppointments);
+    persistState();
+
+    upcomingSelectedDate = date;
+    upcomingCalendarMonth = date.slice(0, 7);
+    if (el.upcomingCalendarMonth) {
+      el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+    }
+    if (el.globalAppointmentDate) {
+      el.globalAppointmentDate.value = date;
+    }
+    if (el.globalAppointmentStartTime) {
+      el.globalAppointmentStartTime.value = "";
+    }
+    if (el.globalAppointmentEndTime) {
+      el.globalAppointmentEndTime.value = "";
+    }
+    if (el.globalAppointmentReason) {
+      el.globalAppointmentReason.value = "";
+    }
+    if (el.globalAppointmentExternalName) {
+      el.globalAppointmentExternalName.value = "";
+    }
+
+    renderUpcomingAppointments();
+    renderUpcomingPlannerForm();
+    renderUpcomingPlannerCalendar();
+    setFeedback(`Cita agregada para paciente no registrado: ${externalPatientName} (${formatDate(date)} ${startTime} - ${endTime}).`);
+    return;
+  }
+
   const patientIndex = state.patients.findIndex((entry) => entry.id === patientId);
   if (patientIndex < 0) {
     setFeedback("No se encontró el paciente seleccionado.", "error");
@@ -211,7 +263,7 @@ function addAppointmentFromUpcomingPlanner() {
 
   if (editingPatientId === patient.id) {
     draftPatient = deepClone(patient);
-    syncFormFromDraft();
+    hydrateFormFromDraft();
     renderAppointmentList();
   }
 
@@ -231,6 +283,9 @@ function addAppointmentFromUpcomingPlanner() {
   }
   if (el.globalAppointmentReason) {
     el.globalAppointmentReason.value = "";
+  }
+  if (el.globalAppointmentExternalName) {
+    el.globalAppointmentExternalName.value = "";
   }
 
   renderPatientTable();
@@ -270,7 +325,7 @@ function removeAppointmentFromPlanner(patientId, appointmentId) {
 
   if (editingPatientId === patient.id) {
     draftPatient = deepClone(patient);
-    syncFormFromDraft();
+    hydrateFormFromDraft();
     renderAppointmentList();
   }
 
@@ -279,6 +334,34 @@ function removeAppointmentFromPlanner(patientId, appointmentId) {
   renderUpcomingPlannerForm();
   renderUpcomingPlannerCalendar();
   setFeedback("Cita eliminada de la agenda.");
+}
+
+function removeExternalAppointmentFromPlanner(appointmentId) {
+  const safeAppointmentId = stringOrEmpty(appointmentId);
+  if (!safeAppointmentId) {
+    return;
+  }
+  if (!Array.isArray(state.externalAppointments)) {
+    return;
+  }
+
+  const found = state.externalAppointments.find((entry) => entry.id === safeAppointmentId);
+  if (!found) {
+    return;
+  }
+
+  const approved = window.confirm("Se eliminará esta cita de paciente no registrado. ¿Deseas continuar?");
+  if (!approved) {
+    return;
+  }
+
+  state.externalAppointments = state.externalAppointments.filter((entry) => entry.id !== safeAppointmentId);
+  persistState();
+
+  renderUpcomingAppointments();
+  renderUpcomingPlannerForm();
+  renderUpcomingPlannerCalendar();
+  setFeedback("Cita de paciente no registrado eliminada.");
 }
 
 function addClinicalNote() {

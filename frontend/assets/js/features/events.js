@@ -137,6 +137,11 @@
   if (el.addGlobalAppointmentBtn) {
     el.addGlobalAppointmentBtn.addEventListener("click", addAppointmentFromUpcomingPlanner);
   }
+  if (el.globalAppointmentPatient) {
+    el.globalAppointmentPatient.addEventListener("change", () => {
+      updateGlobalAppointmentPatientModeUI();
+    });
+  }
   if (el.globalAppointmentDate) {
     el.globalAppointmentDate.addEventListener("change", () => {
       const value = stringOrEmpty(el.globalAppointmentDate.value);
@@ -198,12 +203,18 @@
         return;
       }
       const removeBtn = event.target.closest("[data-remove-upcoming-appointment-id]");
-      if (!removeBtn) {
+      if (removeBtn) {
+        const patientId = removeBtn.getAttribute("data-remove-upcoming-patient-id");
+        const appointmentId = removeBtn.getAttribute("data-remove-upcoming-appointment-id");
+        removeAppointmentFromPlanner(patientId, appointmentId);
         return;
       }
-      const patientId = removeBtn.getAttribute("data-remove-upcoming-patient-id");
-      const appointmentId = removeBtn.getAttribute("data-remove-upcoming-appointment-id");
-      removeAppointmentFromPlanner(patientId, appointmentId);
+      const removeExternalBtn = event.target.closest("[data-remove-upcoming-external-id]");
+      if (!removeExternalBtn) {
+        return;
+      }
+      const externalAppointmentId = removeExternalBtn.getAttribute("data-remove-upcoming-external-id");
+      removeExternalAppointmentFromPlanner(externalAppointmentId);
     });
   }
 

@@ -107,7 +107,8 @@ function createEmptyData() {
   return {
     patients: [],
     diseases: [],
-    toothStatuses: []
+    toothStatuses: [],
+    externalAppointments: []
   };
 }
 
@@ -141,7 +142,8 @@ function readLegacyStateData() {
     return {
       patients: Array.isArray(data.patients) ? data.patients : [],
       diseases: Array.isArray(data.diseases) ? data.diseases : [],
-      toothStatuses: Array.isArray(data.toothStatuses) ? data.toothStatuses : []
+      toothStatuses: Array.isArray(data.toothStatuses) ? data.toothStatuses : [],
+      externalAppointments: Array.isArray(data.externalAppointments) ? data.externalAppointments : []
     };
   } catch {
     return createEmptyData();
@@ -182,7 +184,8 @@ function readStateForUser(userId) {
     data: {
       patients: Array.isArray(data?.patients) ? data.patients : [],
       diseases: Array.isArray(data?.diseases) ? data.diseases : [],
-      toothStatuses: Array.isArray(data?.toothStatuses) ? data.toothStatuses : []
+      toothStatuses: Array.isArray(data?.toothStatuses) ? data.toothStatuses : [],
+      externalAppointments: Array.isArray(data?.externalAppointments) ? data.externalAppointments : []
     }
   };
 }
@@ -192,7 +195,8 @@ function writeStateForUser(userId, incomingData) {
   const safeData = {
     patients: Array.isArray(incomingData?.patients) ? incomingData.patients : [],
     diseases: Array.isArray(incomingData?.diseases) ? incomingData.diseases : [],
-    toothStatuses: Array.isArray(incomingData?.toothStatuses) ? incomingData.toothStatuses : []
+    toothStatuses: Array.isArray(incomingData?.toothStatuses) ? incomingData.toothStatuses : [],
+    externalAppointments: Array.isArray(incomingData?.externalAppointments) ? incomingData.externalAppointments : []
   };
   const envelope = {
     version: 1,

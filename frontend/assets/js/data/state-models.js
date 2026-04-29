@@ -2,7 +2,8 @@
   return {
     diseases: deepClone(DEFAULT_DISEASES),
     toothStatuses: deepClone(DEFAULT_TOOTH_STATUSES),
-    patients: []
+    patients: [],
+    externalAppointments: []
   };
 }
 
@@ -62,7 +63,8 @@ function normalizeState(raw) {
   return {
     diseases: cleaned.diseases,
     toothStatuses,
-    patients: cleaned.patients
+    patients: cleaned.patients,
+    externalAppointments: normalizeExternalAppointments(raw?.externalAppointments)
   };
 }
 
@@ -250,6 +252,51 @@ function normalizeAppointments(rawAppointments) {
   return appointments;
 }
 
+
+function normalizeExternalAppointments(rawAppointments) {
+  if (!Array.isArray(rawAppointments)) {
+    return [];
+  }
+
+  const entries = [];
+  for (const item of rawAppointments) {
+    const date = stringOrEmpty(item?.date);
+    const patientName = stringOrEmpty(item?.patientName);
+    if (!date || !patientName) {
+      continue;
+    }
+    const startTime = stringOrEmpty(item?.startTime || item?.time);
+    const endTime = stringOrEmpty(item?.endTime);
+
+    entries.push({
+      id: stringOrEmpty(item?.id) || generateId("ext-apt"),
+      patientName,
+      dentistName: stringOrEmpty(item?.dentistName),
+      date,
+      time: startTime,
+      startTime,
+      endTime,
+      reason: stringOrEmpty(item?.reason)
+    });
+  }
+
+  entries.sort((a, b) => {
+    const aTs = getAppointmentTimestamp(a.date, getAppointmentStartTime(a));
+    const bTs = getAppointmentTimestamp(b.date, getAppointmentStartTime(b));
+    if (aTs === null && bTs === null) {
+      return 0;
+    }
+    if (aTs === null) {
+      return 1;
+    }
+    if (bTs === null) {
+      return -1;
+    }
+    return aTs - bTs;
+  });
+
+  return entries;
+}
 function normalizePatientMediaEntries(rawEntries) {
   if (!Array.isArray(rawEntries)) {
     return [];
@@ -556,4 +603,3 @@ async function apiRequest(pathname, options, timeoutMs) {
     clearTimeout(timer);
   }
 }
-

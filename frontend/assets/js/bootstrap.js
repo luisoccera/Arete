@@ -42,6 +42,8 @@
   globalAppointmentStartTime: document.getElementById("globalAppointmentStartTime"),
   globalAppointmentEndTime: document.getElementById("globalAppointmentEndTime"),
   globalAppointmentReason: document.getElementById("globalAppointmentReason"),
+  globalAppointmentExternalNameField: document.getElementById("globalAppointmentExternalNameField"),
+  globalAppointmentExternalName: document.getElementById("globalAppointmentExternalName"),
   addGlobalAppointmentBtn: document.getElementById("addGlobalAppointmentBtn"),
   upcomingDisplayButtons: Array.from(document.querySelectorAll("[data-upcoming-display]")),
   upcomingCalendarMonth: document.getElementById("upcomingCalendarMonth"),

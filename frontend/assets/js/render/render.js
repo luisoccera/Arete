@@ -213,6 +213,47 @@ function collectUpcomingEntries(options = {}) {
     }
   }
 
+  const externalAppointments = normalizeExternalAppointments(state.externalAppointments);
+  for (const appointment of externalAppointments) {
+    const date = stringOrEmpty(appointment?.date);
+    const patientName = stringOrEmpty(appointment?.patientName);
+    if (!date || !patientName) {
+      continue;
+    }
+    if (monthKey && !date.startsWith(`${monthKey}-`)) {
+      continue;
+    }
+    if (day && date !== day) {
+      continue;
+    }
+
+    const startTime = getAppointmentStartTime(appointment);
+    const endTime = getAppointmentEndTime(appointment);
+    const info = getAppointmentDateInfo(date, startTime);
+    if (!info) {
+      continue;
+    }
+    if (!includePast) {
+      const threshold = info.hasTime ? now : todayStart;
+      if (info.timestamp < threshold) {
+        continue;
+      }
+    }
+
+    entries.push({
+      kind: "external-appointment",
+      patientId: "",
+      patientName,
+      date,
+      startTime,
+      endTime,
+      dentistName: stringOrEmpty(appointment?.dentistName) || "Paciente no registrado",
+      reason: stringOrEmpty(appointment?.reason) || "Sin motivo",
+      sortTimestamp: info.timestamp,
+      appointmentId: stringOrEmpty(appointment?.id)
+    });
+  }
+
   entries.sort((a, b) => {
     if (a.sortTimestamp !== b.sortTimestamp) {
       return a.sortTimestamp - b.sortTimestamp;
@@ -235,12 +276,15 @@ function renderUpcomingPreviewCard(entries) {
 
   const timeRange = formatAppointmentTimeRange(first);
   const when = `${formatDate(first.date)}${timeRange ? ` ${timeRange}` : ""}`;
+  const actionHtml = first.patientId
+    ? `<button type="button" class="table-btn" data-open-id="${first.patientId}">Abrir</button>`
+    : "<span class=\"patient-meta\">Sin expediente</span>";
   el.upcomingPreviewAppointment.innerHTML = `
     <article class="upcoming-next-card">
       <p class="upcoming-next-kicker">Cita más próxima</p>
       <strong class="upcoming-next-name">${escapeHtml(first.patientName)}</strong>
       <span class="upcoming-next-meta">${escapeHtml(when)} | ${escapeHtml(first.reason)} | ${escapeHtml(first.dentistName)}</span>
-      <button type="button" class="table-btn" data-open-id="${first.patientId}">Abrir</button>
+      ${actionHtml}
     </article>
   `;
 }
@@ -258,13 +302,16 @@ function renderUpcomingAppointments() {
   el.upcomingList.innerHTML = upcoming
     .map((entry) => {
       const timeRange = formatAppointmentTimeRange(entry);
+      const actionHtml = entry.patientId
+        ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
+        : "<span class=\"patient-meta\">Sin expediente</span>";
       return `
         <div class="upcoming-item">
           <div class="upcoming-main">
             <span class="upcoming-name">${escapeHtml(entry.patientName)}</span>
             <span class="upcoming-meta">${escapeHtml(formatDate(entry.date))}${timeRange ? ` - ${escapeHtml(timeRange)}` : ""} | ${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</span>
           </div>
-          <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+          ${actionHtml}
         </div>
       `;
     })
@@ -280,25 +327,28 @@ function renderUpcomingPlannerForm() {
     .slice()
     .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b), "es", { sensitivity: "base" }));
   if (el.addGlobalAppointmentBtn) {
-    el.addGlobalAppointmentBtn.disabled = patients.length === 0;
+    el.addGlobalAppointmentBtn.disabled = false;
   }
 
-  if (patients.length === 0) {
-    el.globalAppointmentPatient.innerHTML = "<option value=\"\">No hay pacientes registrados</option>";
-    el.globalAppointmentPatient.value = "";
+  const previous = stringOrEmpty(el.globalAppointmentPatient.value);
+  const externalOption = `<option value="${GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE}">Paciente no registrado</option>`;
+  const patientOptions = patients
+    .map((patient) => `<option value="${patient.id}">${escapeHtml(getPatientFullName(patient) || "Sin nombre")}</option>`)
+    .join("");
+
+  el.globalAppointmentPatient.innerHTML = `${externalOption}${patientOptions}`;
+  const hasPreviousPatient = previous && (
+    previous === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE
+    || patients.some((patient) => patient.id === previous)
+  );
+  if (hasPreviousPatient) {
+    el.globalAppointmentPatient.value = previous;
+  } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
+    el.globalAppointmentPatient.value = editingPatientId;
+  } else if (patients.length > 0) {
+    el.globalAppointmentPatient.value = patients[0].id;
   } else {
-    const previous = stringOrEmpty(el.globalAppointmentPatient.value);
-    const options = patients
-      .map((patient) => `<option value="${patient.id}">${escapeHtml(getPatientFullName(patient) || "Sin nombre")}</option>`)
-      .join("");
-    el.globalAppointmentPatient.innerHTML = options;
-    if (previous && patients.some((patient) => patient.id === previous)) {
-      el.globalAppointmentPatient.value = previous;
-    } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
-      el.globalAppointmentPatient.value = editingPatientId;
-    } else {
-      el.globalAppointmentPatient.value = patients[0].id;
-    }
+    el.globalAppointmentPatient.value = GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
   }
 
   if (el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
@@ -315,6 +365,22 @@ function renderUpcomingPlannerForm() {
   }
   if (el.upcomingCalendarMonth) {
     el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+  }
+  updateGlobalAppointmentPatientModeUI();
+}
+
+function updateGlobalAppointmentPatientModeUI() {
+  if (!el.globalAppointmentPatient) {
+    return;
+  }
+  const selectedPatientId = stringOrEmpty(el.globalAppointmentPatient.value);
+  const isExternal = selectedPatientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
+
+  if (el.globalAppointmentExternalNameField) {
+    el.globalAppointmentExternalNameField.hidden = !isExternal;
+  }
+  if (!isExternal && el.globalAppointmentExternalName) {
+    el.globalAppointmentExternalName.value = "";
   }
 }
 
@@ -388,13 +454,16 @@ function renderUpcomingPlannerCalendar() {
       ? "<div class=\"history-empty\">No hay citas para este mes.</div>"
       : monthEntries.map((entry) => {
         const timeRange = formatAppointmentTimeRange(entry);
+        const actionHtml = entry.patientId
+          ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
+          : "<span class=\"patient-meta\">Sin expediente</span>";
         return `
           <article class="appointment-item">
             <div class="appointment-main">
               <div class="appointment-title">${escapeHtml(formatDate(entry.date))}${timeRange ? ` - ${escapeHtml(timeRange)}` : ""}</div>
               <div class="appointment-meta">${escapeHtml(entry.patientName)} | ${escapeHtml(entry.reason)}</div>
             </div>
-            <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+            ${actionHtml}
           </article>
         `;
       }).join("");
@@ -446,7 +515,12 @@ function renderUpcomingPlannerCalendar() {
       const timeRange = formatAppointmentTimeRange(entry);
       const removeBtn = entry.kind === "appointment"
         ? `<button type="button" class="catalog-btn" data-remove-upcoming-patient-id="${entry.patientId}" data-remove-upcoming-appointment-id="${entry.appointmentId}">Quitar</button>`
-        : "";
+        : entry.kind === "external-appointment"
+          ? `<button type="button" class="catalog-btn" data-remove-upcoming-external-id="${entry.appointmentId}">Quitar</button>`
+          : "";
+      const openBtn = entry.patientId
+        ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
+        : "<span class=\"patient-meta\">Sin expediente</span>";
       return `
         <article class="appointment-item">
           <div class="appointment-main">
@@ -454,7 +528,7 @@ function renderUpcomingPlannerCalendar() {
             <div class="appointment-meta">${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</div>
           </div>
           <div class="table-actions">
-            <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+            ${openBtn}
             ${removeBtn}
           </div>
         </article>

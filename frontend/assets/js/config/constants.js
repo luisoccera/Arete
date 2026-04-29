@@ -4,6 +4,7 @@ const STORAGE_KEY = "arete_data_v1";
 const AUTH_TOKEN_KEY = "arete_auth_token_v1";
 const AUTH_LOCAL_USERS_KEY = "arete_auth_local_users_v1";
 const AUTH_LOCAL_RESET_KEY = "arete_auth_local_reset_v1";
+const GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE = "__external_patient__";
 const DEMO_TEST_ACCOUNTS = [
   {
     name: "Usuario Prueba Arete 1",

@@ -626,6 +626,20 @@ const el = {
   searchInput: document.getElementById("searchInput"),
   upcomingCount: document.getElementById("upcomingCount"),
   upcomingList: document.getElementById("upcomingList"),
+  upcomingPreviewAppointment: document.getElementById("upcomingPreviewAppointment"),
+  upcomingSubTabs: Array.from(document.querySelectorAll("[data-upcoming-tab]")),
+  upcomingSubSections: Array.from(document.querySelectorAll("[data-upcoming-subview]")),
+  globalAppointmentPatient: document.getElementById("globalAppointmentPatient"),
+  globalAppointmentDate: document.getElementById("globalAppointmentDate"),
+  globalAppointmentStartTime: document.getElementById("globalAppointmentStartTime"),
+  globalAppointmentEndTime: document.getElementById("globalAppointmentEndTime"),
+  globalAppointmentReason: document.getElementById("globalAppointmentReason"),
+  addGlobalAppointmentBtn: document.getElementById("addGlobalAppointmentBtn"),
+  upcomingDisplayButtons: Array.from(document.querySelectorAll("[data-upcoming-display]")),
+  upcomingCalendarMonth: document.getElementById("upcomingCalendarMonth"),
+  upcomingCalendarGrid: document.getElementById("upcomingCalendarGrid"),
+  upcomingDayTitle: document.getElementById("upcomingDayTitle"),
+  upcomingDayList: document.getElementById("upcomingDayList"),
   savePatientBtn: document.getElementById("savePatientBtn"),
   deleteCurrentPatientBtn: document.getElementById("deleteCurrentPatientBtn"),
   formTitle: document.getElementById("formTitle"),
@@ -697,6 +711,10 @@ let editingPatientId = null;
 let selectedStatusId = "";
 let activeView = "home";
 let activePatientSubview = "profile";
+let activeUpcomingSubview = "overview";
+let upcomingCalendarMode = "calendar";
+let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
+let upcomingSelectedDate = getTodayInputDate();
 let storageMode = "local";
 let remotePersistTimer = null;
 let remotePersistInFlight = false;
@@ -718,6 +736,7 @@ async function init() {
   setAppLocked(true);
   setAuthView("login");
   setActiveView("home");
+  setActiveUpcomingSubview("overview");
   renderAll();
   startNewPatient(false);
   await initializeAuth();
@@ -744,6 +763,12 @@ function bindEvents() {
       if (targetView === "patient") {
         setActivePatientSubview("profile");
       }
+    });
+  }
+  for (const button of el.upcomingSubTabs) {
+    button.addEventListener("click", () => {
+      const targetSubview = button.getAttribute("data-upcoming-tab");
+      setActiveUpcomingSubview(targetSubview);
     });
   }
   for (const button of el.patientSubTabs) {
@@ -844,6 +869,87 @@ function bindEvents() {
     }
     openPatient(openBtn.getAttribute("data-open-id"));
   });
+  if (el.upcomingPreviewAppointment) {
+    el.upcomingPreviewAppointment.addEventListener("click", (event) => {
+      const openBtn = event.target.closest("[data-open-id]");
+      if (!openBtn) {
+        return;
+      }
+      openPatient(openBtn.getAttribute("data-open-id"));
+    });
+  }
+  if (el.addGlobalAppointmentBtn) {
+    el.addGlobalAppointmentBtn.addEventListener("click", addAppointmentFromUpcomingPlanner);
+  }
+  if (el.globalAppointmentDate) {
+    el.globalAppointmentDate.addEventListener("change", () => {
+      const value = stringOrEmpty(el.globalAppointmentDate.value);
+      if (!value) {
+        return;
+      }
+      upcomingSelectedDate = value;
+      upcomingCalendarMonth = value.slice(0, 7);
+      renderUpcomingPlannerCalendar();
+    });
+  }
+  if (el.upcomingCalendarMonth) {
+    el.upcomingCalendarMonth.addEventListener("change", () => {
+      const value = stringOrEmpty(el.upcomingCalendarMonth.value);
+      if (!value) {
+        return;
+      }
+      upcomingCalendarMonth = value;
+      const monthPrefix = `${value}-`;
+      if (!stringOrEmpty(upcomingSelectedDate).startsWith(monthPrefix)) {
+        upcomingSelectedDate = `${value}-01`;
+      }
+      renderUpcomingPlannerCalendar();
+    });
+  }
+  for (const button of el.upcomingDisplayButtons || []) {
+    button.addEventListener("click", () => {
+      const mode = button.getAttribute("data-upcoming-display");
+      if (mode !== "calendar" && mode !== "list") {
+        return;
+      }
+      upcomingCalendarMode = mode;
+      renderUpcomingPlannerCalendar();
+    });
+  }
+  if (el.upcomingCalendarGrid) {
+    el.upcomingCalendarGrid.addEventListener("click", (event) => {
+      const dayBtn = event.target.closest("[data-calendar-date]");
+      if (!dayBtn) {
+        return;
+      }
+      const day = stringOrEmpty(dayBtn.getAttribute("data-calendar-date"));
+      if (!day) {
+        return;
+      }
+      upcomingSelectedDate = day;
+      upcomingCalendarMonth = day.slice(0, 7);
+      if (el.globalAppointmentDate) {
+        el.globalAppointmentDate.value = day;
+      }
+      renderUpcomingPlannerCalendar();
+    });
+  }
+  if (el.upcomingDayList) {
+    el.upcomingDayList.addEventListener("click", (event) => {
+      const openBtn = event.target.closest("[data-open-id]");
+      if (openBtn) {
+        openPatient(openBtn.getAttribute("data-open-id"));
+        return;
+      }
+      const removeBtn = event.target.closest("[data-remove-upcoming-appointment-id]");
+      if (!removeBtn) {
+        return;
+      }
+      const patientId = removeBtn.getAttribute("data-remove-upcoming-patient-id");
+      const appointmentId = removeBtn.getAttribute("data-remove-upcoming-appointment-id");
+      removeAppointmentFromPlanner(patientId, appointmentId);
+    });
+  }
 
   el.diseaseCatalog.addEventListener("click", (event) => {
     const removeBtn = event.target.closest("[data-remove-disease-id]");
@@ -1522,6 +1628,24 @@ function setActivePatientSubview(view) {
   }
 }
 
+function setActiveUpcomingSubview(view) {
+  const validViews = new Set(["overview", "planner"]);
+  const nextView = validViews.has(view) ? view : "overview";
+  activeUpcomingSubview = nextView;
+
+  for (const button of el.upcomingSubTabs || []) {
+    const isActive = button.getAttribute("data-upcoming-tab") === nextView;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  for (const section of el.upcomingSubSections || []) {
+    const isActive = section.getAttribute("data-upcoming-subview") === nextView;
+    section.classList.toggle("is-active", isActive);
+    section.hidden = !isActive;
+  }
+}
+
 function handleToothNodeClick(event) {
   const toothBtn = event.target.closest("[data-tooth-id]");
   if (!toothBtn) {
@@ -1752,18 +1876,22 @@ function normalizeAppointments(rawAppointments) {
     if (!date) {
       continue;
     }
+    const startTime = stringOrEmpty(item?.startTime || item?.time);
+    const endTime = stringOrEmpty(item?.endTime);
 
     appointments.push({
       id: stringOrEmpty(item?.id) || generateId("apt"),
       date,
-      time: stringOrEmpty(item?.time),
+      time: startTime,
+      startTime,
+      endTime,
       reason: stringOrEmpty(item?.reason)
     });
   }
 
   appointments.sort((a, b) => {
-    const aTs = getAppointmentTimestamp(a.date, a.time);
-    const bTs = getAppointmentTimestamp(b.date, b.time);
+    const aTs = getAppointmentTimestamp(a.date, getAppointmentStartTime(a));
+    const bTs = getAppointmentTimestamp(b.date, getAppointmentStartTime(b));
     if (aTs === null && bTs === null) {
       return 0;
     }
@@ -2096,9 +2224,12 @@ function renderAll() {
   renderAppointmentList();
   renderPatientMedia();
   renderPatientTable();
+  renderUpcomingPlannerForm();
   renderUpcomingAppointments();
+  renderUpcomingPlannerCalendar();
   renderPatientHistory();
   setActivePatientSubview(activePatientSubview);
+  setActiveUpcomingSubview(activeUpcomingSubview);
   updateDeleteCurrentButtonState();
   setFormTitle();
 }
@@ -2133,7 +2264,9 @@ function renderPatientTable() {
 
   if (patients.length === 0) {
     el.patientRows.innerHTML = "<tr><td colspan=\"5\">No hay pacientes para mostrar.</td></tr>";
+    renderUpcomingPlannerForm();
     renderUpcomingAppointments();
+    renderUpcomingPlannerCalendar();
     return;
   }
 
@@ -2152,7 +2285,7 @@ function renderPatientTable() {
       const nextAppointment = getNextAppointmentForPatient(patient);
       const nextConsultationDate = getNextConsultationDateForPatient(patient);
       const consultationText = nextAppointment
-        ? `${formatDate(nextAppointment.date)}${nextAppointment.time ? ` ${nextAppointment.time}` : ""}`
+        ? `${formatDate(nextAppointment.date)}${formatAppointmentTimeRange(nextAppointment) ? ` ${formatAppointmentTimeRange(nextAppointment)}` : ""}`
         : nextConsultationDate
           ? formatDate(nextConsultationDate)
           : formatDate(patient.consultationDate);
@@ -2181,10 +2314,33 @@ function renderPatientTable() {
     .join("");
 
   el.patientRows.innerHTML = rowsHtml;
+  renderUpcomingPlannerForm();
   renderUpcomingAppointments();
+  renderUpcomingPlannerCalendar();
 }
 
-function renderUpcomingAppointments() {
+function getAppointmentStartTime(appointment) {
+  return stringOrEmpty(appointment?.startTime || appointment?.time);
+}
+
+function getAppointmentEndTime(appointment) {
+  return stringOrEmpty(appointment?.endTime);
+}
+
+function formatAppointmentTimeRange(appointment) {
+  const start = getAppointmentStartTime(appointment);
+  const end = getAppointmentEndTime(appointment);
+  if (start && end) {
+    return `${start} - ${end}`;
+  }
+  return start || end || "";
+}
+
+function collectUpcomingEntries(options = {}) {
+  const includePast = Boolean(options?.includePast);
+  const includeFallback = options?.includeFallback !== false;
+  const monthKey = stringOrEmpty(options?.monthKey);
+  const day = stringOrEmpty(options?.day);
   const now = Date.now();
   const todayStart = getStartOfToday().getTime();
   const entries = [];
@@ -2193,51 +2349,82 @@ function renderUpcomingAppointments() {
     const appointments = normalizeAppointments(patient.appointments);
     if (appointments.length > 0) {
       for (const appointment of appointments) {
-        const info = getAppointmentDateInfo(appointment.date, appointment.time);
+        const date = stringOrEmpty(appointment.date);
+        const startTime = getAppointmentStartTime(appointment);
+        const endTime = getAppointmentEndTime(appointment);
+        if (!date) {
+          continue;
+        }
+        if (monthKey && !date.startsWith(`${monthKey}-`)) {
+          continue;
+        }
+        if (day && date !== day) {
+          continue;
+        }
+
+        const info = getAppointmentDateInfo(date, startTime);
         if (!info) {
           continue;
         }
-        const threshold = info.hasTime ? now : todayStart;
-        if (info.timestamp >= threshold) {
-          entries.push({
-            patientId: patient.id,
-            patientName: getPatientFullName(patient) || "Sin nombre",
-            date: appointment.date,
-            time: appointment.time || "",
-            dentistName: patient.dentistName || "Sin dentista",
-            reason: appointment.reason || "Sin motivo",
-            sortTimestamp: info.timestamp
-          });
+        if (!includePast) {
+          const threshold = info.hasTime ? now : todayStart;
+          if (info.timestamp < threshold) {
+            continue;
+          }
         }
+
+        entries.push({
+          kind: "appointment",
+          patientId: patient.id,
+          patientName: getPatientFullName(patient) || "Sin nombre",
+          date,
+          startTime,
+          endTime,
+          dentistName: patient.dentistName || "Sin dentista",
+          reason: appointment.reason || "Sin motivo",
+          sortTimestamp: info.timestamp,
+          appointmentId: appointment.id
+        });
       }
       continue;
     }
 
-    const nextConsultationInfo = getAppointmentDateInfo(patient.nextConsultationDate, "");
-    if (nextConsultationInfo && nextConsultationInfo.timestamp >= todayStart) {
-      entries.push({
-        patientId: patient.id,
-        patientName: getPatientFullName(patient) || "Sin nombre",
-        date: patient.nextConsultationDate,
-        time: "",
-        dentistName: patient.dentistName || "Sin dentista",
-        reason: "Proxima consulta",
-        sortTimestamp: nextConsultationInfo.timestamp
-      });
+    if (!includeFallback) {
       continue;
     }
 
-    const consultationInfo = getAppointmentDateInfo(patient.consultationDate, "");
-    if (consultationInfo && consultationInfo.timestamp >= todayStart) {
+    const fallbackCandidates = [
+      { date: stringOrEmpty(patient.nextConsultationDate), reason: "Proxima consulta" },
+      { date: stringOrEmpty(patient.consultationDate), reason: "Consulta general" }
+    ];
+
+    for (const fallback of fallbackCandidates) {
+      if (!fallback.date) {
+        continue;
+      }
+      if (monthKey && !fallback.date.startsWith(`${monthKey}-`)) {
+        continue;
+      }
+      if (day && fallback.date !== day) {
+        continue;
+      }
+      const fallbackInfo = getAppointmentDateInfo(fallback.date, "");
+      if (!fallbackInfo || (!includePast && fallbackInfo.timestamp < todayStart)) {
+        continue;
+      }
       entries.push({
+        kind: "fallback",
         patientId: patient.id,
         patientName: getPatientFullName(patient) || "Sin nombre",
-        date: patient.consultationDate,
-        time: "",
+        date: fallback.date,
+        startTime: "",
+        endTime: "",
         dentistName: patient.dentistName || "Sin dentista",
-        reason: "Consulta general",
-        sortTimestamp: consultationInfo.timestamp
+        reason: fallback.reason,
+        sortTimestamp: fallbackInfo.timestamp,
+        appointmentId: ""
       });
+      break;
     }
   }
 
@@ -2248,8 +2435,35 @@ function renderUpcomingAppointments() {
     return a.patientName.localeCompare(b.patientName, "es", { sensitivity: "base" });
   });
 
-  const upcoming = entries.slice(0, 40);
+  return entries;
+}
+
+function renderUpcomingPreviewCard(entries) {
+  if (!el.upcomingPreviewAppointment) {
+    return;
+  }
+  const first = Array.isArray(entries) && entries.length > 0 ? entries[0] : null;
+  if (!first) {
+    el.upcomingPreviewAppointment.innerHTML = "<div class=\"history-empty\">Sin previsualización de cita próxima.</div>";
+    return;
+  }
+
+  const timeRange = formatAppointmentTimeRange(first);
+  const when = `${formatDate(first.date)}${timeRange ? ` ${timeRange}` : ""}`;
+  el.upcomingPreviewAppointment.innerHTML = `
+    <article class="upcoming-next-card">
+      <p class="upcoming-next-kicker">Cita más próxima</p>
+      <strong class="upcoming-next-name">${escapeHtml(first.patientName)}</strong>
+      <span class="upcoming-next-meta">${escapeHtml(when)} | ${escapeHtml(first.reason)} | ${escapeHtml(first.dentistName)}</span>
+      <button type="button" class="table-btn" data-open-id="${first.patientId}">Abrir</button>
+    </article>
+  `;
+}
+
+function renderUpcomingAppointments() {
+  const upcoming = collectUpcomingEntries({ includePast: false, includeFallback: true }).slice(0, 80);
   el.upcomingCount.textContent = String(upcoming.length);
+  renderUpcomingPreviewCard(upcoming);
 
   if (upcoming.length === 0) {
     el.upcomingList.innerHTML = "<div class=\"history-empty\">No hay citas proximas registradas.</div>";
@@ -2257,15 +2471,210 @@ function renderUpcomingAppointments() {
   }
 
   el.upcomingList.innerHTML = upcoming
-    .map((entry) => `
-      <div class="upcoming-item">
-        <div class="upcoming-main">
-          <span class="upcoming-name">${escapeHtml(entry.patientName)}</span>
-          <span class="upcoming-meta">${escapeHtml(formatDate(entry.date))}${entry.time ? ` - ${escapeHtml(entry.time)}` : ""} | ${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</span>
+    .map((entry) => {
+      const timeRange = formatAppointmentTimeRange(entry);
+      return `
+        <div class="upcoming-item">
+          <div class="upcoming-main">
+            <span class="upcoming-name">${escapeHtml(entry.patientName)}</span>
+            <span class="upcoming-meta">${escapeHtml(formatDate(entry.date))}${timeRange ? ` - ${escapeHtml(timeRange)}` : ""} | ${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</span>
+          </div>
+          <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
         </div>
-        <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
-      </div>
-    `)
+      `;
+    })
+    .join("");
+}
+
+function renderUpcomingPlannerForm() {
+  if (!el.globalAppointmentPatient) {
+    return;
+  }
+
+  const patients = state.patients
+    .slice()
+    .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b), "es", { sensitivity: "base" }));
+  if (el.addGlobalAppointmentBtn) {
+    el.addGlobalAppointmentBtn.disabled = patients.length === 0;
+  }
+
+  if (patients.length === 0) {
+    el.globalAppointmentPatient.innerHTML = "<option value=\"\">No hay pacientes registrados</option>";
+    el.globalAppointmentPatient.value = "";
+  } else {
+    const previous = stringOrEmpty(el.globalAppointmentPatient.value);
+    const options = patients
+      .map((patient) => `<option value="${patient.id}">${escapeHtml(getPatientFullName(patient) || "Sin nombre")}</option>`)
+      .join("");
+    el.globalAppointmentPatient.innerHTML = options;
+    if (previous && patients.some((patient) => patient.id === previous)) {
+      el.globalAppointmentPatient.value = previous;
+    } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
+      el.globalAppointmentPatient.value = editingPatientId;
+    } else {
+      el.globalAppointmentPatient.value = patients[0].id;
+    }
+  }
+
+  if (el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
+    // keep current selection
+  } else if (el.globalAppointmentDate) {
+    el.globalAppointmentDate.value = getTodayInputDate();
+  }
+  if (el.globalAppointmentDate) {
+    const currentDate = stringOrEmpty(el.globalAppointmentDate.value);
+    if (currentDate) {
+      upcomingSelectedDate = currentDate;
+      upcomingCalendarMonth = currentDate.slice(0, 7);
+    }
+  }
+  if (el.upcomingCalendarMonth) {
+    el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+  }
+}
+
+function normalizeMonthInputValue(value) {
+  const raw = stringOrEmpty(value);
+  const match = raw.match(/^(\d{4})-(\d{2})$/);
+  if (!match) {
+    return getTodayInputDate().slice(0, 7);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return getTodayInputDate().slice(0, 7);
+  }
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+}
+
+function formatDateKeyFromDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function renderUpcomingPlannerCalendar() {
+  if (!el.upcomingCalendarGrid || !el.upcomingDayList || !el.upcomingDayTitle) {
+    return;
+  }
+
+  for (const button of el.upcomingDisplayButtons || []) {
+    const isActive = button.getAttribute("data-upcoming-display") === upcomingCalendarMode;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+  }
+
+  upcomingCalendarMonth = normalizeMonthInputValue(upcomingCalendarMonth);
+  if (el.upcomingCalendarMonth) {
+    el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+  }
+  if (!upcomingSelectedDate || !/^\d{4}-\d{2}-\d{2}$/.test(upcomingSelectedDate)) {
+    upcomingSelectedDate = `${upcomingCalendarMonth}-01`;
+  }
+
+  const monthEntries = collectUpcomingEntries({
+    includePast: true,
+    includeFallback: true,
+    monthKey: upcomingCalendarMonth
+  });
+  const byDate = new Map();
+  for (const entry of monthEntries) {
+    if (!byDate.has(entry.date)) {
+      byDate.set(entry.date, []);
+    }
+    byDate.get(entry.date).push(entry);
+  }
+  for (const list of byDate.values()) {
+    list.sort((a, b) => a.sortTimestamp - b.sortTimestamp);
+  }
+
+  const [yearText, monthText] = upcomingCalendarMonth.split("-");
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const firstDay = new Date(year, monthIndex, 1);
+  const startOffset = (firstDay.getDay() + 6) % 7;
+  const gridStart = new Date(year, monthIndex, 1 - startOffset);
+  const todayKey = getTodayInputDate();
+
+  if (upcomingCalendarMode === "list") {
+    el.upcomingCalendarGrid.classList.add("is-list-mode");
+    el.upcomingCalendarGrid.innerHTML = monthEntries.length === 0
+      ? "<div class=\"history-empty\">No hay citas para este mes.</div>"
+      : monthEntries.map((entry) => {
+        const timeRange = formatAppointmentTimeRange(entry);
+        return `
+          <article class="appointment-item">
+            <div class="appointment-main">
+              <div class="appointment-title">${escapeHtml(formatDate(entry.date))}${timeRange ? ` - ${escapeHtml(timeRange)}` : ""}</div>
+              <div class="appointment-meta">${escapeHtml(entry.patientName)} | ${escapeHtml(entry.reason)}</div>
+            </div>
+            <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+          </article>
+        `;
+      }).join("");
+  } else {
+    el.upcomingCalendarGrid.classList.remove("is-list-mode");
+    const weekLabels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+      .map((label) => `<div class="upcoming-weekday">${label}</div>`)
+      .join("");
+    const cells = [];
+    for (let idx = 0; idx < 42; idx += 1) {
+      const current = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + idx);
+      const key = formatDateKeyFromDate(current);
+      const isCurrentMonth = current.getMonth() === monthIndex;
+      const isSelected = key === upcomingSelectedDate;
+      const isToday = key === todayKey;
+      const entries = byDate.get(key) || [];
+      const next = entries[0] || null;
+      const preview = next
+        ? `${formatAppointmentTimeRange(next) || "Sin hora"} · ${next.patientName}`
+        : "";
+      cells.push(`
+        <button type="button" class="upcoming-day-cell${isCurrentMonth ? "" : " is-muted"}${isSelected ? " is-selected" : ""}${isToday ? " is-today" : ""}" data-calendar-date="${key}">
+          <span class="upcoming-day-num">${current.getDate()}</span>
+          <span class="upcoming-day-count">${entries.length > 0 ? `${entries.length} cita${entries.length === 1 ? "" : "s"}` : "Sin citas"}</span>
+          <span class="upcoming-day-preview">${escapeHtml(preview || "—")}</span>
+        </button>
+      `);
+    }
+    el.upcomingCalendarGrid.innerHTML = `
+      <div class="upcoming-month-banner">${escapeHtml(firstDay.toLocaleDateString("es-MX", { month: "long", year: "numeric" }))}</div>
+      <div class="upcoming-calendar-head">${weekLabels}</div>
+      <div class="upcoming-calendar-body">${cells.join("")}</div>
+    `;
+  }
+
+  const selectedList = byDate.get(upcomingSelectedDate) || [];
+  const selectedDateValue = parseDateValue(upcomingSelectedDate);
+  el.upcomingDayTitle.textContent = selectedDateValue
+    ? `Citas del día ${selectedDateValue.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })}`
+    : "Citas del día";
+
+  if (selectedList.length === 0) {
+    el.upcomingDayList.innerHTML = "<div class=\"history-empty\">No hay citas registradas para este día.</div>";
+    return;
+  }
+
+  el.upcomingDayList.innerHTML = selectedList
+    .map((entry) => {
+      const timeRange = formatAppointmentTimeRange(entry);
+      const removeBtn = entry.kind === "appointment"
+        ? `<button type="button" class="catalog-btn" data-remove-upcoming-patient-id="${entry.patientId}" data-remove-upcoming-appointment-id="${entry.appointmentId}">Quitar</button>`
+        : "";
+      return `
+        <article class="appointment-item">
+          <div class="appointment-main">
+            <div class="appointment-title">${timeRange ? escapeHtml(timeRange) : "Sin horario"} · ${escapeHtml(entry.patientName)}</div>
+            <div class="appointment-meta">${escapeHtml(entry.reason)} | ${escapeHtml(entry.dentistName)}</div>
+          </div>
+          <div class="table-actions">
+            <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+            ${removeBtn}
+          </div>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -2375,8 +2784,8 @@ function renderAppointmentList() {
   const sorted = appointments
     .slice()
     .sort((a, b) => {
-      const aTs = getAppointmentTimestamp(a.date, a.time);
-      const bTs = getAppointmentTimestamp(b.date, b.time);
+      const aTs = getAppointmentTimestamp(a.date, getAppointmentStartTime(a));
+      const bTs = getAppointmentTimestamp(b.date, getAppointmentStartTime(b));
       if (aTs === null && bTs === null) {
         return 0;
       }
@@ -2393,7 +2802,7 @@ function renderAppointmentList() {
     .map((appointment) => `
       <article class="appointment-item">
         <div class="appointment-main">
-          <div class="appointment-title">${escapeHtml(formatDate(appointment.date))}${appointment.time ? ` - ${escapeHtml(appointment.time)}` : ""}</div>
+          <div class="appointment-title">${escapeHtml(formatDate(appointment.date))}${formatAppointmentTimeRange(appointment) ? ` - ${escapeHtml(formatAppointmentTimeRange(appointment))}` : ""}</div>
           <div class="appointment-meta">${escapeHtml(appointment.reason || "Sin motivo especificado.")}</div>
         </div>
         <button type="button" class="catalog-btn" data-remove-appointment-id="${appointment.id}">Quitar</button>
@@ -3041,6 +3450,8 @@ function addAppointmentToPatient() {
     id: generateId("apt"),
     date,
     time,
+    startTime: time,
+    endTime: "",
     reason
   });
   draftPatient.appointments = normalizeAppointments(draftPatient.appointments);
@@ -3071,6 +3482,144 @@ function removeAppointmentFromPatient(appointmentId) {
   renderAppointmentList();
   persistDraftPatientIfEditing();
   setFeedback("Cita eliminada del paciente.");
+}
+
+function addAppointmentFromUpcomingPlanner() {
+  const patientId = stringOrEmpty(el.globalAppointmentPatient?.value);
+  const date = stringOrEmpty(el.globalAppointmentDate?.value);
+  const startTime = stringOrEmpty(el.globalAppointmentStartTime?.value);
+  const endTime = stringOrEmpty(el.globalAppointmentEndTime?.value);
+  const reason = stringOrEmpty(el.globalAppointmentReason?.value);
+
+  if (!patientId) {
+    setFeedback("Selecciona un paciente para agendar la cita.", "error");
+    el.globalAppointmentPatient?.focus();
+    return;
+  }
+  if (!date) {
+    setFeedback("Selecciona la fecha de la cita.", "error");
+    el.globalAppointmentDate?.focus();
+    return;
+  }
+  if (!startTime) {
+    setFeedback("Define la hora de inicio de la cita.", "error");
+    el.globalAppointmentStartTime?.focus();
+    return;
+  }
+  if (!endTime) {
+    setFeedback("Define la hora de finalización de la cita.", "error");
+    el.globalAppointmentEndTime?.focus();
+    return;
+  }
+
+  const startParts = parseTimeParts(startTime);
+  const endParts = parseTimeParts(endTime);
+  if (!startParts.hasTime || !endParts.hasTime) {
+    setFeedback("El formato de hora no es válido.", "error");
+    return;
+  }
+  const startMinutes = startParts.hours * 60 + startParts.minutes;
+  const endMinutes = endParts.hours * 60 + endParts.minutes;
+  if (endMinutes <= startMinutes) {
+    setFeedback("La hora de finalización debe ser mayor a la hora de inicio.", "error");
+    el.globalAppointmentEndTime?.focus();
+    return;
+  }
+
+  const patientIndex = state.patients.findIndex((entry) => entry.id === patientId);
+  if (patientIndex < 0) {
+    setFeedback("No se encontró el paciente seleccionado.", "error");
+    return;
+  }
+
+  const patient = normalizePatient(state.patients[patientIndex]);
+  if (!Array.isArray(patient.appointments)) {
+    patient.appointments = [];
+  }
+  patient.appointments.push({
+    id: generateId("apt"),
+    date,
+    time: startTime,
+    startTime,
+    endTime,
+    reason
+  });
+  patient.appointments = normalizeAppointments(patient.appointments);
+  patient.updatedAt = new Date().toISOString();
+
+  state.patients[patientIndex] = patient;
+  persistState();
+
+  if (editingPatientId === patient.id) {
+    draftPatient = deepClone(patient);
+    syncFormFromDraft();
+    renderAppointmentList();
+  }
+
+  upcomingSelectedDate = date;
+  upcomingCalendarMonth = date.slice(0, 7);
+  if (el.upcomingCalendarMonth) {
+    el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+  }
+  if (el.globalAppointmentDate) {
+    el.globalAppointmentDate.value = date;
+  }
+  if (el.globalAppointmentStartTime) {
+    el.globalAppointmentStartTime.value = "";
+  }
+  if (el.globalAppointmentEndTime) {
+    el.globalAppointmentEndTime.value = "";
+  }
+  if (el.globalAppointmentReason) {
+    el.globalAppointmentReason.value = "";
+  }
+
+  renderPatientTable();
+  renderUpcomingAppointments();
+  renderUpcomingPlannerForm();
+  renderUpcomingPlannerCalendar();
+  setFeedback(`Cita agregada para ${getPatientFullName(patient)} el ${formatDate(date)} (${startTime} - ${endTime}).`);
+}
+
+function removeAppointmentFromPlanner(patientId, appointmentId) {
+  const safePatientId = stringOrEmpty(patientId);
+  const safeAppointmentId = stringOrEmpty(appointmentId);
+  if (!safePatientId || !safeAppointmentId) {
+    return;
+  }
+
+  const patientIndex = state.patients.findIndex((entry) => entry.id === safePatientId);
+  if (patientIndex < 0) {
+    return;
+  }
+
+  const patient = normalizePatient(state.patients[patientIndex]);
+  const found = patient.appointments.find((entry) => entry.id === safeAppointmentId);
+  if (!found) {
+    return;
+  }
+
+  const approved = window.confirm("Se eliminará esta cita de la agenda central. ¿Deseas continuar?");
+  if (!approved) {
+    return;
+  }
+
+  patient.appointments = patient.appointments.filter((entry) => entry.id !== safeAppointmentId);
+  patient.updatedAt = new Date().toISOString();
+  state.patients[patientIndex] = patient;
+  persistState();
+
+  if (editingPatientId === patient.id) {
+    draftPatient = deepClone(patient);
+    syncFormFromDraft();
+    renderAppointmentList();
+  }
+
+  renderPatientTable();
+  renderUpcomingAppointments();
+  renderUpcomingPlannerForm();
+  renderUpcomingPlannerCalendar();
+  setFeedback("Cita eliminada de la agenda.");
 }
 
 function addClinicalNote() {
@@ -4865,7 +5414,7 @@ function getNextAppointmentForPatient(patient) {
   const now = Date.now();
   const todayStart = getStartOfToday().getTime();
   for (const appointment of appointments) {
-    const info = getAppointmentDateInfo(appointment.date, appointment.time);
+    const info = getAppointmentDateInfo(appointment.date, getAppointmentStartTime(appointment));
     if (!info) {
       continue;
     }

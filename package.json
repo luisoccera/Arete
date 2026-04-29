@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "start": "node server/index.js"
+    "start": "node backend/src/index.js",
+    "check": "node --check backend/src/index.js && node --check backend/src/clinical_pdf.js"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",

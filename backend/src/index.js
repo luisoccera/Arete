@@ -8,12 +8,14 @@ const { URL } = require("url");
 const { generateClinicalPdf } = require("./clinical_pdf");
 
 const PORT = Number(process.env.PORT || 3001);
-const ROOT_DIR = path.resolve(__dirname, "..");
-const LEGACY_DATA_FILE = path.join(ROOT_DIR, "data", "state.json");
-const USERS_FILE = path.join(ROOT_DIR, "data", "users.json");
-const SESSIONS_FILE = path.join(ROOT_DIR, "data", "sessions.json");
-const USER_STATES_DIR = path.join(ROOT_DIR, "data", "states");
-const CLINICAL_TEMPLATE_FILE = path.join(ROOT_DIR, "data", "uv-historias.pdf");
+const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
+const FRONTEND_DIR = path.join(PROJECT_ROOT, "frontend");
+const DATA_DIR = path.join(PROJECT_ROOT, "backend", "data");
+const LEGACY_DATA_FILE = path.join(DATA_DIR, "state.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
+const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
+const USER_STATES_DIR = path.join(DATA_DIR, "states");
+const CLINICAL_TEMPLATE_FILE = path.join(DATA_DIR, "uv-historias.pdf");
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
@@ -461,9 +463,9 @@ function parseJsonBody(req) {
   });
 }
 
-function isPathInsideRoot(targetPath) {
-  const relative = path.relative(ROOT_DIR, targetPath);
-  return relative && !relative.startsWith("..") && !path.isAbsolute(relative);
+function isPathInsideRoot(rootPath, targetPath) {
+  const relative = path.relative(rootPath, targetPath);
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
 }
 
 function serveStatic(req, res, pathname) {
@@ -472,9 +474,9 @@ function serveStatic(req, res, pathname) {
     filePath = "/index.html";
   }
 
-  const candidatePath = path.normalize(path.join(ROOT_DIR, filePath));
+  const candidatePath = path.normalize(path.join(FRONTEND_DIR, filePath));
 
-  if (!isPathInsideRoot(candidatePath)) {
+  if (!isPathInsideRoot(FRONTEND_DIR, candidatePath)) {
     sendText(res, 403, "Acceso denegado");
     return;
   }

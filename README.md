@@ -15,31 +15,42 @@ Aplicacion web para consultorio dental con:
 ## Estructura del proyecto
 
 ```text
-assets/
-  css/
-    main.css
-  js/
-    bootstrap.js
-    config/
-      constants.js
-    core/
-      helpers.js
-    data/
-      state-models.js
-    features/
-      events.js
-      navigation.js
-      patient-actions.js
-    pdf/
-      clinical-pdf.js
-    render/
-      render.js
-index.html
-server/
-  index.js
-  clinical_pdf.js
-data/
-  state.json
+frontend/
+  index.html
+  .nojekyll
+  assets/
+    css/
+      main.css
+    js/
+      bootstrap.js
+      config/
+      core/
+      data/
+      features/
+      pdf/
+      render/
+  vendor/
+  data/
+    uv-historias.pdf
+    uv-historias.textmap.json
+backend/
+  src/
+    index.js
+    clinical_pdf.js
+  data/
+    state.json
+    users.json
+    sessions.json
+    states/
+  logs/
+docs/
+  ARCHITECTURE.md
+scripts/
+  dev.ps1
+tests/
+  README.md
+config/
+  README.md
 ```
 
 ## Ejecutar con backend (recomendado)
@@ -52,11 +63,20 @@ data/
 
 El backend guarda los datos en:
 
-- `data/state.json`
+- `backend/data/state.json`
+- `backend/data/users.json`
+- `backend/data/sessions.json`
+- `backend/data/states/*.json`
 
 ## Modo solo frontend
 
-Si abres solo `index.html`, la app funciona en modo local (localStorage).
+Puedes abrir `frontend/index.html` y funcionara en modo local (localStorage).
+
+## GitHub Pages
+
+El deploy de Pages toma como artefacto la carpeta:
+
+- `frontend/`
 
 ## Notas
 

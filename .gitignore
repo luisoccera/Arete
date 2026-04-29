@@ -2,3 +2,7 @@ node_modules/
 .DS_Store
 Thumbs.db
 *.log
+backend/logs/*.log
+backend/data/users.json
+backend/data/sessions.json
+backend/data/states/

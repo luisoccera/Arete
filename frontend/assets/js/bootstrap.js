@@ -50,6 +50,8 @@
   quickAppointmentReason: document.getElementById("quickAppointmentReason"),
   quickAddAppointmentBtn: document.getElementById("quickAddAppointmentBtn"),
   addGlobalAppointmentBtn: document.getElementById("addGlobalAppointmentBtn"),
+  openComposerBtn: document.getElementById("openComposerBtn"),
+  openComposerForDayBtn: document.getElementById("openComposerForDayBtn"),
   upcomingPlannerSuite: document.getElementById("upcomingPlannerSuite"),
   plannerMonthLabel: document.getElementById("plannerMonthLabel"),
   plannerMonthSub: document.getElementById("plannerMonthSub"),

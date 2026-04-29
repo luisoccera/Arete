@@ -50,6 +50,10 @@ function setActiveUpcomingSubview(view) {
     section.classList.toggle("is-active", isActive);
     section.hidden = !isActive;
   }
+
+  if (nextView === "composer" && el.globalAppointmentDate) {
+    el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+  }
 }
 
 function handleToothNodeClick(event) {

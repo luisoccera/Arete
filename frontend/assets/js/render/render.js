@@ -456,6 +456,23 @@ function formatDateKeyFromDate(date) {
   return `${y}-${m}-${d}`;
 }
 
+function shiftUpcomingSelectedDate(deltaDays) {
+  const safeDelta = Number(deltaDays);
+  if (!Number.isFinite(safeDelta) || safeDelta === 0) {
+    return;
+  }
+  const baseDate = parseDateValue(upcomingSelectedDate) || parseDateValue(getTodayInputDate());
+  if (!baseDate) {
+    return;
+  }
+  const shifted = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + safeDelta);
+  upcomingSelectedDate = formatDateKeyFromDate(shifted);
+  upcomingCalendarMonth = upcomingSelectedDate.slice(0, 7);
+  if (el.upcomingCalendarMonth) {
+    el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+  }
+}
+
 function renderUpcomingPlannerCalendar() {
   if (!el.upcomingCalendarGrid || !el.upcomingDayList || !el.upcomingDayTitle) {
     return;
@@ -500,26 +517,43 @@ function renderUpcomingPlannerCalendar() {
   const gridStart = new Date(year, monthIndex, 1 - startOffset);
   const todayKey = getTodayInputDate();
 
-  if (upcomingCalendarMode === "list") {
-    el.upcomingCalendarGrid.classList.add("is-list-mode");
-    el.upcomingCalendarGrid.innerHTML = monthEntries.length === 0
-      ? "<div class=\"history-empty\">No hay citas para este mes.</div>"
-      : monthEntries.map((entry) => {
-        const timeRange = formatAppointmentTimeRange(entry);
-        const actionHtml = entry.patientId
-          ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
-          : "<span class=\"patient-meta\">Sin expediente</span>";
-        return `
-          <article class="appointment-item">
-            <div class="appointment-main">
-              <div class="appointment-title">${escapeHtml(formatDate(entry.date))}${timeRange ? ` - ${escapeHtml(timeRange)}` : ""}</div>
-              <div class="appointment-meta">${escapeHtml(entry.patientName)} | ${escapeHtml(entry.reason)}</div>
-            </div>
-            ${actionHtml}
-          </article>
-        `;
-      }).join("");
+  if (upcomingCalendarMode === "day") {
+    const selectedDateObject = parseDateValue(upcomingSelectedDate);
+    const dayEntries = byDate.get(upcomingSelectedDate) || [];
+    const dayLabel = selectedDateObject
+      ? selectedDateObject.toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
+      : upcomingSelectedDate;
+    const dayPreview = dayEntries.length === 0
+      ? "<div class=\"history-empty\">No hay citas para este día.</div>"
+      : dayEntries
+        .slice(0, 4)
+        .map((entry) => {
+          const timeRange = formatAppointmentTimeRange(entry);
+          return `
+            <article class="appointment-item">
+              <div class="appointment-main">
+                <div class="appointment-title">${timeRange ? escapeHtml(timeRange) : "Sin horario"} · ${escapeHtml(entry.patientName)}</div>
+                <div class="appointment-meta">${escapeHtml(entry.reason)}</div>
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+    el.upcomingCalendarGrid.classList.remove("is-list-mode");
+    el.upcomingCalendarGrid.classList.add("is-day-mode");
+    el.upcomingCalendarGrid.innerHTML = `
+      <div class="upcoming-day-nav">
+        <button type="button" class="table-btn" data-day-shift="-1">◀ Día anterior</button>
+        <div class="upcoming-day-nav-main">
+          <div class="upcoming-month-banner">${escapeHtml(dayLabel)}</div>
+          <div class="upcoming-day-nav-count">${dayEntries.length > 0 ? `${dayEntries.length} cita${dayEntries.length === 1 ? "" : "s"} registradas` : "Sin citas registradas"}</div>
+        </div>
+        <button type="button" class="table-btn" data-day-shift="1">Día siguiente ▶</button>
+      </div>
+      <div class="upcoming-day-mode-list">${dayPreview}</div>
+    `;
   } else {
+    el.upcomingCalendarGrid.classList.remove("is-day-mode");
     el.upcomingCalendarGrid.classList.remove("is-list-mode");
     const weekLabels = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
       .map((label) => `<div class="upcoming-weekday">${label}</div>`)

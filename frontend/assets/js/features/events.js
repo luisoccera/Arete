@@ -137,6 +137,22 @@
   if (el.addGlobalAppointmentBtn) {
     el.addGlobalAppointmentBtn.addEventListener("click", addAppointmentFromUpcomingPlanner);
   }
+  if (el.openComposerBtn) {
+    el.openComposerBtn.addEventListener("click", () => {
+      if (el.globalAppointmentDate) {
+        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+      }
+      setActiveUpcomingSubview("composer");
+    });
+  }
+  if (el.openComposerForDayBtn) {
+    el.openComposerForDayBtn.addEventListener("click", () => {
+      if (el.globalAppointmentDate) {
+        el.globalAppointmentDate.value = upcomingSelectedDate || getTodayInputDate();
+      }
+      setActiveUpcomingSubview("composer");
+    });
+  }
   if (el.globalAppointmentPatient) {
     el.globalAppointmentPatient.addEventListener("change", () => {
       syncGlobalAppointmentPatientInput();
@@ -194,7 +210,7 @@
   for (const button of el.upcomingDisplayButtons || []) {
     button.addEventListener("click", () => {
       const mode = button.getAttribute("data-upcoming-display");
-      if (mode !== "calendar" && mode !== "list") {
+      if (mode !== "calendar" && mode !== "day") {
         return;
       }
       upcomingCalendarMode = mode;
@@ -203,6 +219,15 @@
   }
   if (el.upcomingCalendarGrid) {
     el.upcomingCalendarGrid.addEventListener("click", (event) => {
+      const shiftBtn = event.target.closest("[data-day-shift]");
+      if (shiftBtn) {
+        const delta = Number(shiftBtn.getAttribute("data-day-shift"));
+        if (Number.isFinite(delta) && delta !== 0 && typeof shiftUpcomingSelectedDate === "function") {
+          shiftUpcomingSelectedDate(delta);
+          renderUpcomingPlannerCalendar();
+        }
+        return;
+      }
       const dayBtn = event.target.closest("[data-calendar-date]");
       if (!dayBtn) {
         return;

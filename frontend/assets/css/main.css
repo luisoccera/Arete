@@ -660,6 +660,37 @@ tbody tr.active {
   background: #ffffff;
 }
 
+.upcoming-calendar-grid.is-day-mode {
+  border: 1px solid #d9c7ad;
+  border-radius: 11px;
+  padding: 0.58rem;
+  background: #ffffff;
+}
+
+.upcoming-day-nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.upcoming-day-nav-main {
+  display: grid;
+  gap: 0.24rem;
+}
+
+.upcoming-day-nav-count {
+  font-size: 0.78rem;
+  color: #3b3b3b;
+  font-weight: 700;
+}
+
+.upcoming-day-mode-list {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
 .upcoming-month-banner {
   border: 1px solid #ddceb9;
   border-radius: 10px;
@@ -2305,6 +2336,14 @@ select {
     width: 100%;
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .upcoming-day-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .upcoming-day-nav .table-btn {
+    width: 100%;
   }
 
   .planner-suite {

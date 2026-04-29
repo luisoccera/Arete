@@ -530,38 +530,15 @@
                   <h3 id="plannerMonthLabel">abr 2026</h3>
                   <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
                 </div>
-              </header>
-
-              <section class="planner-quick-bar">
-                <div class="planner-quick-grid">
-                  <label class="field planner-quick-patient">
-                    <span>Paciente</span>
-                    <input type="text" id="quickAppointmentPatient" list="globalAppointmentPatientOptions" placeholder="Nombre y apellidos">
-                  </label>
-                  <label class="field planner-quick-date">
-                    <span>Fecha</span>
-                    <input type="date" id="quickAppointmentDate">
-                  </label>
-                  <label class="field planner-quick-start">
-                    <span>Inicio</span>
-                    <input type="time" id="quickAppointmentStartTime">
-                  </label>
-                  <label class="field planner-quick-end">
-                    <span>Fin</span>
-                    <input type="time" id="quickAppointmentEndTime">
-                  </label>
-                  <label class="field planner-quick-reason">
-                    <span>Motivo</span>
-                    <input type="text" id="quickAppointmentReason" placeholder="Motivo de cita">
-                  </label>
-                  <button type="button" id="quickAddAppointmentBtn" class="planner-icon-btn planner-icon-btn-primary planner-quick-save">Guardar cita</button>
+                <div class="planner-top-actions">
+                  <button type="button" id="openComposerBtn" class="planner-icon-btn planner-icon-btn-primary">Nueva cita</button>
                 </div>
-              </section>
+              </header>
 
               <div class="planner-filter-row">
                 <div class="upcoming-display-toggle">
                   <button type="button" class="table-btn is-active" data-upcoming-display="calendar">Cuadriculado</button>
-                  <button type="button" class="table-btn" data-upcoming-display="list">Lista diaria</button>
+                  <button type="button" class="table-btn" data-upcoming-display="day">Día por día</button>
                 </div>
               </div>
 
@@ -573,7 +550,10 @@
               <div id="upcomingCalendarGrid" class="upcoming-calendar-grid"></div>
 
               <section class="planner-day-panel">
-                <h4 id="upcomingDayTitle" class="upcoming-day-title">Citas del día</h4>
+                <div class="card-title-row">
+                  <h4 id="upcomingDayTitle" class="upcoming-day-title">Citas del día</h4>
+                  <button type="button" id="openComposerForDayBtn" class="table-btn">Nueva cita en este día</button>
+                </div>
                 <div id="upcomingDayList" class="appointment-list"></div>
               </section>
 

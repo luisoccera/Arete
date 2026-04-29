@@ -2466,7 +2466,7 @@ function renderUpcomingAppointments() {
   renderUpcomingPreviewCard(upcoming);
 
   if (upcoming.length === 0) {
-    el.upcomingList.innerHTML = "<div class=\"history-empty\">No hay citas proximas registradas.</div>";
+    el.upcomingList.innerHTML = "<div class=\"history-empty\">No hay citas registradas.</div>";
     return;
   }
 

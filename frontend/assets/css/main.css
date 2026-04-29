@@ -748,14 +748,14 @@ tbody tr.active {
 
 .planner-suite {
   position: relative;
-  border: 1px solid #202631;
+  border: 1px solid #d8cab3;
   border-radius: 24px;
   padding: 0.95rem;
   background:
-    radial-gradient(circle at 12% 0%, #172133 0%, transparent 44%),
-    radial-gradient(circle at 100% 100%, #0f172a 0%, transparent 42%),
-    #05070b;
-  color: #e5e7eb;
+    radial-gradient(circle at 12% 0%, #fff8ee 0%, transparent 46%),
+    radial-gradient(circle at 100% 100%, #f6e9d7 0%, transparent 42%),
+    #fffdf9;
+  color: #2f261d;
   display: grid;
   gap: 0.8rem;
   overflow: hidden;
@@ -778,7 +778,7 @@ tbody tr.active {
 .planner-month-sub {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: #7a6a58;
 }
 
 .planner-top-actions {
@@ -789,20 +789,20 @@ tbody tr.active {
 }
 
 .planner-icon-btn {
-  border: 1px solid #2b3442;
+  border: 1px solid #ccb793;
   border-radius: 999px;
   padding: 0.45rem 0.72rem;
-  background: #11141b;
-  color: #d1d5db;
+  background: #f7efe2;
+  color: #4f3f2f;
   font-size: 0.78rem;
   font-weight: 800;
   cursor: pointer;
 }
 
 .planner-icon-btn-primary {
-  border-color: #22c55e;
-  color: #d1fae5;
-  background: linear-gradient(135deg, #0f2a1a, #163321);
+  border-color: #b89f7a;
+  color: #3d2e1f;
+  background: linear-gradient(135deg, #f1ddc0, #e6cda8);
 }
 
 .planner-filter-row {
@@ -814,10 +814,10 @@ tbody tr.active {
 }
 
 .planner-filter-chip {
-  border: 1px solid #2a3240;
+  border: 1px solid #c9b69c;
   border-radius: 14px;
-  background: #11141b;
-  color: #f9fafb;
+  background: #f4eadb;
+  color: #3f3123;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -828,8 +828,8 @@ tbody tr.active {
 }
 
 .planner-filter-chip.is-active {
-  border-color: #7c3aed;
-  background: #1f1632;
+  border-color: #b99564;
+  background: #e7d2b0;
 }
 
 .planner-filter-check {
@@ -839,7 +839,7 @@ tbody tr.active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #7c3aed;
+  background: #b99564;
   color: #ffffff;
   font-weight: 900;
   font-size: 0.7rem;
@@ -850,7 +850,7 @@ tbody tr.active {
 }
 
 .planner-suite .field span {
-  color: #9ca3af;
+  color: #7f6f5c;
 }
 
 .planner-suite input[type="month"],
@@ -858,9 +858,9 @@ tbody tr.active {
 .planner-suite input[type="text"],
 .planner-suite input[type="time"],
 .planner-suite select {
-  background: #0f1217;
-  border: 1px solid #2a3240;
-  color: #f3f4f6;
+  background: #fffdf9;
+  border: 1px solid #cdb89d;
+  color: #2f261d;
 }
 
 .planner-suite .upcoming-display-toggle {
@@ -869,46 +869,46 @@ tbody tr.active {
 }
 
 .planner-suite .upcoming-display-toggle .table-btn {
-  border-color: #303848;
-  background: #121821;
-  color: #d1d5db;
+  border-color: #cbc0b0;
+  background: #ece8df;
+  color: #4a3e31;
 }
 
 .planner-suite .upcoming-display-toggle .table-btn.is-active {
-  border-color: #10b981;
-  background: #163027;
-  color: #ecfdf5;
+  border-color: #b99766;
+  background: #e8d4b4;
+  color: #342719;
 }
 
 .planner-suite .upcoming-calendar-grid {
-  border: 1px solid #1f2836;
+  border: 1px solid #d8cab3;
   border-radius: 18px;
-  background: #07090f;
+  background: #fffdf9;
   padding: 0.6rem;
   gap: 0.5rem;
   overflow-x: auto;
 }
 
 .planner-suite .upcoming-calendar-grid.is-list-mode {
-  border-color: #1f2836;
-  background: #07090f;
+  border-color: #d8cab3;
+  background: #fffdf9;
 }
 
 .planner-suite .upcoming-month-banner {
-  border-color: #232c38;
-  background: #0f1217;
-  color: #f3f4f6;
+  border-color: #d7c8b2;
+  background: #f8f2e7;
+  color: #35291f;
 }
 
 .planner-suite .upcoming-calendar-head {
-  border-color: #1f2836;
-  background: #0d1118;
+  border-color: #e0d5c4;
+  background: #f7f2e9;
   grid-template-columns: repeat(7, minmax(72px, 1fr));
   min-width: 700px;
 }
 
 .planner-suite .upcoming-weekday {
-  color: #9ca3af;
+  color: #766858;
   font-size: 0.7rem;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -920,55 +920,56 @@ tbody tr.active {
 }
 
 .planner-suite .upcoming-day-cell {
-  border-color: #202a37;
-  background: #080b10;
-  color: #f3f4f6;
+  border-color: #d8cab3;
+  background: #ffffff;
+  color: #2f261d;
   min-height: 108px;
 }
 
 .planner-suite .upcoming-day-cell.is-muted {
-  opacity: 0.48;
-  background: #07090c;
+  opacity: 0.72;
+  background: #f3efe8;
 }
 
 .planner-suite .upcoming-day-cell.is-selected {
-  border-color: #6d28d9;
-  box-shadow: 0 0 0 1px #6d28d940 inset;
-  background: #101222;
+  border-color: #b99564;
+  box-shadow: 0 0 0 1px #ddc3a1 inset;
+  background: #fff7ec;
 }
 
 .planner-suite .upcoming-day-cell.is-today {
-  border-color: #10b981;
-  box-shadow: 0 0 0 1px #10b98140 inset;
+  border-color: #8f6a3b;
+  box-shadow: 0 0 0 1px #d7c2a6 inset;
+  background: #fffaf3;
 }
 
 .planner-suite .upcoming-day-num {
-  color: #f9fafb;
+  color: #211a14;
 }
 
 .planner-suite .upcoming-day-count {
-  color: #9ca3af;
+  color: #6d6053;
 }
 
 .planner-suite .upcoming-day-preview {
-  color: #d1d5db;
+  color: #5e5247;
 }
 
 .planner-day-panel {
-  border: 1px solid #1f2836;
+  border: 1px solid #d8cab3;
   border-radius: 14px;
   padding: 0.55rem;
-  background: #090d14;
+  background: #fffdf8;
 }
 
 .planner-day-panel .upcoming-day-title {
-  color: #f3f4f6;
+  color: #2f261d;
   margin-top: 0;
 }
 
 .planner-day-panel .appointment-item {
-  border-color: #243040;
-  background: #111827;
+  border-color: #d8cab3;
+  background: #fffaf2;
 }
 
 .planner-fab-stack {
@@ -984,9 +985,9 @@ tbody tr.active {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  border: 1px solid #374151;
-  background: #1f2937;
-  color: #f9fafb;
+  border: 1px solid #ccb89c;
+  background: #f4e7d4;
+  color: #463526;
   font-size: 2rem;
   line-height: 1;
   cursor: pointer;
@@ -998,11 +999,11 @@ tbody tr.active {
 }
 
 .planner-fab-action {
-  border: 1px solid #2f3a4a;
+  border: 1px solid #ccb89c;
   border-radius: 999px;
   padding: 0.54rem 0.9rem;
-  background: #131a24;
-  color: #e5e7eb;
+  background: #fff7eb;
+  color: #3f3123;
   font-size: 0.8rem;
   font-weight: 700;
   cursor: pointer;
@@ -1011,7 +1012,7 @@ tbody tr.active {
 .planner-overlay {
   position: fixed;
   inset: 0;
-  background: #00000085;
+  background: #7d68503d;
   z-index: 60;
   display: grid;
   place-items: end center;
@@ -1020,11 +1021,11 @@ tbody tr.active {
 
 .planner-sheet {
   width: min(760px, 100%);
-  border: 1px solid #232b38;
+  border: 1px solid #d8cab3;
   border-radius: 24px;
-  background: #070a10;
-  color: #f3f4f6;
-  box-shadow: 0 20px 42px #00000088;
+  background: #fffdf8;
+  color: #2f261d;
+  box-shadow: 0 20px 42px #8b73513d;
   overflow: hidden;
 }
 
@@ -1034,7 +1035,7 @@ tbody tr.active {
   justify-content: space-between;
   gap: 0.7rem;
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid #1f2733;
+  border-bottom: 1px solid #decfbb;
 }
 
 .planner-sheet-head h4 {
@@ -1044,10 +1045,10 @@ tbody tr.active {
 
 .planner-sheet-close,
 .planner-sheet-save {
-  border: 1px solid #2f3948;
+  border: 1px solid #ccb89c;
   border-radius: 999px;
-  background: #11151d;
-  color: #f9fafb;
+  background: #fff6e8;
+  color: #4a3a2a;
   padding: 0.42rem 0.82rem;
   font-size: 0.78rem;
   font-weight: 800;
@@ -1055,9 +1056,9 @@ tbody tr.active {
 }
 
 .planner-sheet-save {
-  border-color: #10b981;
-  background: #133124;
-  color: #d1fae5;
+  border-color: #b99766;
+  background: #e8d4b4;
+  color: #342719;
 }
 
 .planner-sheet-body {
@@ -1071,10 +1072,10 @@ tbody tr.active {
 }
 
 .sheet-switch-row {
-  border: 1px solid #273244;
+  border: 1px solid #d9cab3;
   border-radius: 16px;
   padding: 0.72rem 0.8rem;
-  background: #10151f;
+  background: #fff8ee;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1082,7 +1083,7 @@ tbody tr.active {
 }
 
 .sheet-switch-row span {
-  color: #e5e7eb;
+  color: #3a2f25;
   font-weight: 700;
 }
 
@@ -1091,10 +1092,10 @@ tbody tr.active {
 }
 
 .sheet-filter-item {
-  border: 1px solid #273244;
+  border: 1px solid #d9cab3;
   border-radius: 16px;
   padding: 0.72rem 0.8rem;
-  background: #10151f;
+  background: #fff8ee;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;

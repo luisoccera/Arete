@@ -376,11 +376,19 @@ function updateGlobalAppointmentPatientModeUI() {
   const selectedPatientId = stringOrEmpty(el.globalAppointmentPatient.value);
   const isExternal = selectedPatientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
 
-  if (el.globalAppointmentExternalNameField) {
-    el.globalAppointmentExternalNameField.hidden = !isExternal;
+  if (el.globalAppointmentExternalIdentityFields) {
+    el.globalAppointmentExternalIdentityFields.hidden = !isExternal;
   }
-  if (!isExternal && el.globalAppointmentExternalName) {
-    el.globalAppointmentExternalName.value = "";
+  if (!isExternal) {
+    if (el.globalAppointmentExternalFirstNames) {
+      el.globalAppointmentExternalFirstNames.value = "";
+    }
+    if (el.globalAppointmentExternalLastNameFather) {
+      el.globalAppointmentExternalLastNameFather.value = "";
+    }
+    if (el.globalAppointmentExternalLastNameMother) {
+      el.globalAppointmentExternalLastNameMother.value = "";
+    }
   }
 }
 

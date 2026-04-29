@@ -547,10 +547,20 @@
                   <input type="time" id="globalAppointmentEndTime">
                 </label>
               </div>
-              <label class="field field-full" id="globalAppointmentExternalNameField" hidden>
-                <span>Paciente no registrado</span>
-                <input type="text" id="globalAppointmentExternalName" placeholder="Nombre completo del paciente eventual">
-              </label>
+              <div class="form-grid" id="globalAppointmentExternalIdentityFields" hidden>
+                <label class="field field-full">
+                  <span>Nombre(s) de paciente no registrado</span>
+                  <input type="text" id="globalAppointmentExternalFirstNames" placeholder="Ejemplo: Juan Carlos">
+                </label>
+                <label class="field">
+                  <span>Apellido paterno</span>
+                  <input type="text" id="globalAppointmentExternalLastNameFather" placeholder="Ejemplo: Pérez">
+                </label>
+                <label class="field">
+                  <span>Apellido materno</span>
+                  <input type="text" id="globalAppointmentExternalLastNameMother" placeholder="Ejemplo: López">
+                </label>
+              </div>
               <label class="field field-full">
                 <span>Motivo de la cita</span>
                 <input type="text" id="globalAppointmentReason" placeholder="Ejemplo: limpieza, operatoria, revisión de ortodoncia">

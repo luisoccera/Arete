@@ -144,22 +144,21 @@ function removeAppointmentFromPatient(appointmentId) {
 }
 
 function addAppointmentFromUpcomingPlanner() {
-  const patientId = stringOrEmpty(el.globalAppointmentPatient?.value);
-  const externalPatientName = stringOrEmpty(el.globalAppointmentExternalName?.value);
+  const selectedPatientId = stringOrEmpty(el.globalAppointmentPatient?.value);
+  const externalFirstNames = stringOrEmpty(el.globalAppointmentExternalFirstNames?.value);
+  const externalLastNameFather = stringOrEmpty(el.globalAppointmentExternalLastNameFather?.value);
+  const externalLastNameMother = stringOrEmpty(el.globalAppointmentExternalLastNameMother?.value);
   const date = stringOrEmpty(el.globalAppointmentDate?.value);
   const startTime = stringOrEmpty(el.globalAppointmentStartTime?.value);
   const endTime = stringOrEmpty(el.globalAppointmentEndTime?.value);
   const reason = stringOrEmpty(el.globalAppointmentReason?.value);
-  const isExternalPatient = patientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
+  const isExternalPatient = selectedPatientId === GLOBAL_APPOINTMENT_EXTERNAL_PATIENT_VALUE;
+  let targetPatientId = selectedPatientId;
+  let createdFromExternal = false;
 
-  if (!patientId) {
+  if (!selectedPatientId) {
     setFeedback("Selecciona un paciente para agendar la cita.", "error");
     el.globalAppointmentPatient?.focus();
-    return;
-  }
-  if (isExternalPatient && !externalPatientName) {
-    setFeedback("Escribe el nombre del paciente no registrado.", "error");
-    el.globalAppointmentExternalName?.focus();
     return;
   }
   if (!date) {
@@ -193,51 +192,46 @@ function addAppointmentFromUpcomingPlanner() {
   }
 
   if (isExternalPatient) {
-    if (!Array.isArray(state.externalAppointments)) {
-      state.externalAppointments = [];
+    if (!externalFirstNames) {
+      setFeedback("Escribe al menos el/los nombre(s) del paciente no registrado.", "error");
+      el.globalAppointmentExternalFirstNames?.focus();
+      return;
     }
-    state.externalAppointments.push({
-      id: generateId("ext-apt"),
-      patientName: externalPatientName,
-      dentistName: "",
-      date,
-      time: startTime,
-      startTime,
-      endTime,
-      reason
+
+    const normalizedCandidateName = `${externalFirstNames} ${externalLastNameFather} ${externalLastNameMother}`
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+    const existingPatientIndex = state.patients.findIndex((entry) => {
+      const fullName = `${stringOrEmpty(entry?.name)} ${stringOrEmpty(entry?.lastNameFather)} ${stringOrEmpty(entry?.lastNameMother)}`
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+      return fullName && fullName === normalizedCandidateName;
     });
-    state.externalAppointments = normalizeExternalAppointments(state.externalAppointments);
-    persistState();
 
-    upcomingSelectedDate = date;
-    upcomingCalendarMonth = date.slice(0, 7);
-    if (el.upcomingCalendarMonth) {
-      el.upcomingCalendarMonth.value = upcomingCalendarMonth;
+    if (existingPatientIndex >= 0) {
+      targetPatientId = state.patients[existingPatientIndex].id;
+    } else {
+      const now = new Date().toISOString();
+      const newPatient = normalizePatient({
+        ...createEmptyPatient(),
+        id: generateId("pt"),
+        name: externalFirstNames,
+        lastNameFather: externalLastNameFather,
+        lastNameMother: externalLastNameMother,
+        consultationDate: date,
+        nextConsultationDate: date,
+        createdAt: now,
+        updatedAt: now
+      });
+      state.patients.unshift(newPatient);
+      targetPatientId = newPatient.id;
+      createdFromExternal = true;
     }
-    if (el.globalAppointmentDate) {
-      el.globalAppointmentDate.value = date;
-    }
-    if (el.globalAppointmentStartTime) {
-      el.globalAppointmentStartTime.value = "";
-    }
-    if (el.globalAppointmentEndTime) {
-      el.globalAppointmentEndTime.value = "";
-    }
-    if (el.globalAppointmentReason) {
-      el.globalAppointmentReason.value = "";
-    }
-    if (el.globalAppointmentExternalName) {
-      el.globalAppointmentExternalName.value = "";
-    }
-
-    renderUpcomingAppointments();
-    renderUpcomingPlannerForm();
-    renderUpcomingPlannerCalendar();
-    setFeedback(`Cita agregada para paciente no registrado: ${externalPatientName} (${formatDate(date)} ${startTime} - ${endTime}).`);
-    return;
   }
 
-  const patientIndex = state.patients.findIndex((entry) => entry.id === patientId);
+  const patientIndex = state.patients.findIndex((entry) => entry.id === targetPatientId);
   if (patientIndex < 0) {
     setFeedback("No se encontró el paciente seleccionado.", "error");
     return;
@@ -284,14 +278,24 @@ function addAppointmentFromUpcomingPlanner() {
   if (el.globalAppointmentReason) {
     el.globalAppointmentReason.value = "";
   }
-  if (el.globalAppointmentExternalName) {
-    el.globalAppointmentExternalName.value = "";
+  if (el.globalAppointmentExternalFirstNames) {
+    el.globalAppointmentExternalFirstNames.value = "";
+  }
+  if (el.globalAppointmentExternalLastNameFather) {
+    el.globalAppointmentExternalLastNameFather.value = "";
+  }
+  if (el.globalAppointmentExternalLastNameMother) {
+    el.globalAppointmentExternalLastNameMother.value = "";
   }
 
   renderPatientTable();
   renderUpcomingAppointments();
   renderUpcomingPlannerForm();
   renderUpcomingPlannerCalendar();
+  if (createdFromExternal) {
+    setFeedback(`Paciente creado y cita agendada para ${getPatientFullName(patient)} el ${formatDate(date)} (${startTime} - ${endTime}).`);
+    return;
+  }
   setFeedback(`Cita agregada para ${getPatientFullName(patient)} el ${formatDate(date)} (${startTime} - ${endTime}).`);
 }
 

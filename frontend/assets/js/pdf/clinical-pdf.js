@@ -631,6 +631,51 @@ function normalizeClinicalFillEntries(rawEntries) {
   return normalized;
 }
 
+function normalizeClinicalMarkValue(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function resolveClinicalMarkMapPoint(markMap, value) {
+  if (!markMap || typeof markMap !== "object") {
+    return null;
+  }
+  const normalizedValue = normalizeClinicalMarkValue(value);
+  if (!normalizedValue) {
+    return null;
+  }
+
+  const direct = markMap[normalizedValue];
+  if (direct && typeof direct === "object") {
+    return direct;
+  }
+
+  if (normalizedValue === "si" && markMap.si) {
+    return markMap.si;
+  }
+  if (normalizedValue === "no" && markMap.no) {
+    return markMap.no;
+  }
+  return null;
+}
+
+function shouldRenderClinicalSingleMark(value, rule) {
+  const normalizedValue = normalizeClinicalMarkValue(value);
+  if (!normalizedValue) {
+    return false;
+  }
+  const customTruthy = Array.isArray(rule?.truthyValues)
+    ? rule.truthyValues.map((item) => normalizeClinicalMarkValue(item)).filter(Boolean)
+    : [];
+  const truthyValues = customTruthy.length > 0
+    ? new Set(customTruthy)
+    : new Set(["si", "x", "1", "true", "positivo", "marcar"]);
+  return truthyValues.has(normalizedValue);
+}
+
 function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
   const patient = normalizePatient(patientInput || {});
   const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
@@ -655,6 +700,69 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       // Evita ubicar datos en posiciones inciertas si no existe regla PDF explícita.
       continue;
     }
+
+    const ruleType = String(pdfRule?.type || "").trim().toLowerCase();
+    if (ruleType === "mark-select") {
+      const markPoint = resolveClinicalMarkMapPoint(pdfRule?.markMap, value);
+      const markX = toOptionalClinicalNumber(markPoint?.x);
+      const markY = toOptionalClinicalNumber(markPoint?.y);
+      if (markX === null || markY === null) {
+        continue;
+      }
+
+      entries.push({
+        id: `field-${safeFormat}-${field.id}`,
+        value: "X",
+        matches: [field.label],
+        exact: true,
+        maxPerPage: 1,
+        maxWidth: 12,
+        maxLines: 1,
+        pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
+        dx: 0,
+        dy: 0,
+        size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
+        lineHeight: null,
+        x: markX,
+        y: markY,
+        lockPosition: true,
+        align: "left",
+        maxChars: 1
+      });
+      continue;
+    }
+
+    if (ruleType === "mark-single") {
+      if (!shouldRenderClinicalSingleMark(value, pdfRule)) {
+        continue;
+      }
+      const markX = toOptionalClinicalNumber(pdfRule?.x);
+      const markY = toOptionalClinicalNumber(pdfRule?.y);
+      if (markX === null || markY === null) {
+        continue;
+      }
+      entries.push({
+        id: `field-${safeFormat}-${field.id}`,
+        value: "X",
+        matches: [field.label],
+        exact: true,
+        maxPerPage: 1,
+        maxWidth: 12,
+        maxLines: 1,
+        pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
+        dx: 0,
+        dy: 0,
+        size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
+        lineHeight: null,
+        x: markX,
+        y: markY,
+        lockPosition: true,
+        align: "left",
+        maxChars: 1
+      });
+      continue;
+    }
+
     const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
       ? pdfRule.matches
       : [field.label];

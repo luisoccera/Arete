@@ -1051,7 +1051,8 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
       const anchoredRect = createClinicalTextRect(anchor.x, anchor.y, metrics);
       const anchorOverlap = getClinicalSumRectOverlapArea(anchoredRect, templateRects);
       const farFromAnchor = Math.abs(anchor.x - x) + Math.abs(anchor.y - baseY) > 90;
-      if (anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
+      const strongAnchor = Number(anchor.score) >= 8;
+      if (strongAnchor || anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
         drawX = anchor.x;
         drawY = anchor.y;
         chosenRect = anchoredRect;
@@ -1404,9 +1405,9 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 }, pdfLib);
 
-  drawClinicalTextAt(page, font, consultDay, { x: 480.8, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultMonth, { x: 506.2, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultYear, { x: 533.5, y: 451.1, maxWidth: 17, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, consultDay, { x: 472.5, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultMonth, { x: 499.2, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultYear, { x: 525.8, y: 461.6, maxWidth: 28, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function extractFilenameFromDisposition(disposition) {

@@ -701,31 +701,13 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
   }
 
   if (rule?.lockPosition) {
-    let drawX = x;
-    let drawY = baseY;
-    let chosenRect = createTextRect(drawX, drawY, metrics);
-    const fixedOverlap = sumRectOverlapArea(chosenRect, templateRects);
-
-    const anchor = findBestAnchorPlacement(rule, items);
-    if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) {
-      const anchoredRect = createTextRect(anchor.x, anchor.y, metrics);
-      const anchorOverlap = sumRectOverlapArea(anchoredRect, templateRects);
-      const farFromAnchor = Math.abs(anchor.x - x) + Math.abs(anchor.y - baseY) > 90;
-      const strongAnchor = Number(anchor.score) >= 8;
-      if (strongAnchor || anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
-        drawX = anchor.x;
-        drawY = anchor.y;
-        chosenRect = anchoredRect;
-      }
-    }
-
     drawTextAt(page, font, value, {
       ...rule,
-      x: drawX,
-      y: drawY,
+      x,
+      y: baseY,
       lineHeight: metrics.lineHeight
     });
-    occupiedRects.push(chosenRect);
+    occupiedRects.push(createTextRect(x, baseY, metrics));
     return true;
   }
 

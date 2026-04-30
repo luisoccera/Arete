@@ -527,14 +527,14 @@ const CLINICAL_FIELD_PDF_RULES = {
     tecnica_cepillado: { matches: ["tecnica de", "cepillado"], maxWidth: 150, maxLines: 2, pageOffset: 0, x: 137.9, y: 448.3, maxChars: 38 },
     fluorizacion: { matches: ["aplicacion de fluor"], maxWidth: 140, maxLines: 2, pageOffset: 0, x: 152.1, y: 326.7, maxChars: 36 },
     recomendaciones_preventivas: { matches: ["profilaxia u", "odontoxesis"], maxWidth: 140, maxLines: 2, pageOffset: 0, x: 139.0, y: 374.2, maxChars: 36 },
-    seguimiento_preventivo: { matches: ["termino"], maxWidth: 110, maxLines: 1, pageOffset: 0, x: 528.9, y: 437.3, maxChars: 16 }
+    seguimiento_preventivo: { matches: ["termino"], maxWidth: 70, maxLines: 1, pageOffset: 0, x: 525.6, y: 437.3, maxChars: 10 }
   },
   "f3-operatoria": {
     pieza_operatoria: { matches: ["odontograma"], maxWidth: 120, maxLines: 1, pageOffset: 0, x: 149.0, y: 338.9, maxChars: 20 },
     diagnostico_operatorio: { matches: ["odontograma de evolucion"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 210.8, y: 361.2, maxChars: 58 },
     material_restaurador: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 1, pageOffset: 2, x: 194.7, y: 660.2, maxChars: 44 },
     tecnica_operatoria: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 194.7, y: 614.2, maxChars: 56 },
-    control_operatorio: { matches: ["nombre y firma de conformidad"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 422.1, y: 245.2, maxChars: 44 },
+    control_operatorio: { matches: ["nombre y firma de conformidad"], maxWidth: 160, maxLines: 2, pageOffset: 2, x: 422.1, y: 245.2, maxChars: 34 },
     pronostico_operatorio: { matches: ["fecha"], maxWidth: 120, maxLines: 1, pageOffset: 2, x: 101.7, y: 352.2, maxChars: 18 }
   },
   "f4-protesis-fija": {

@@ -1041,37 +1041,19 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
     return false;
   }
   if (rule?.lockPosition) {
-    let drawX = x;
-    let drawY = baseY;
-    let chosenRect = createClinicalTextRect(drawX, drawY, metrics);
-    const fixedOverlap = getClinicalSumRectOverlapArea(chosenRect, templateRects);
-
-    const anchor = findBestClinicalAnchorPlacement(rule, items);
-    if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) {
-      const anchoredRect = createClinicalTextRect(anchor.x, anchor.y, metrics);
-      const anchorOverlap = getClinicalSumRectOverlapArea(anchoredRect, templateRects);
-      const farFromAnchor = Math.abs(anchor.x - x) + Math.abs(anchor.y - baseY) > 90;
-      const strongAnchor = Number(anchor.score) >= 8;
-      if (strongAnchor || anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
-        drawX = anchor.x;
-        drawY = anchor.y;
-        chosenRect = anchoredRect;
-      }
-    }
-
     drawClinicalTextAt(
       page,
       font,
       value,
       {
         ...rule,
-        x: drawX,
-        y: drawY,
+        x,
+        y: baseY,
         lineHeight: metrics.lineHeight
       },
       pdfLib
     );
-    occupiedRects.push(chosenRect);
+    occupiedRects.push(createClinicalTextRect(x, baseY, metrics));
     return true;
   }
 

@@ -104,16 +104,33 @@
     syncDraftFromForm();
   });
 
-  el.birthDate.addEventListener("change", () => {
-    if (!el.birthDate.value) {
+  const syncAgeFromBirthDate = () => {
+    const birthValue = stringOrEmpty(el.birthDate.value);
+    if (!birthValue) {
+      el.patientAge.value = "";
+      if (el.patientAgeMonths) {
+        el.patientAgeMonths.value = "";
+      }
+      syncDraftFromForm();
       return;
     }
-    const age = calculateAgeFromDate(el.birthDate.value);
-    if (!Number.isNaN(age) && age >= 0) {
-      el.patientAge.value = String(age);
-      syncDraftFromForm();
+    const ageBreakdown = calculateAgeBreakdownFromDate(birthValue);
+    if (ageBreakdown) {
+      el.patientAge.value = String(ageBreakdown.years);
+      if (el.patientAgeMonths) {
+        el.patientAgeMonths.value = String(ageBreakdown.months);
+      }
+    } else {
+      el.patientAge.value = "";
+      if (el.patientAgeMonths) {
+        el.patientAgeMonths.value = "";
+      }
     }
-  });
+    syncDraftFromForm();
+  };
+
+  el.birthDate.addEventListener("change", syncAgeFromBirthDate);
+  el.birthDate.addEventListener("input", syncAgeFromBirthDate);
 
   el.patientRows.addEventListener("click", (event) => {
     const openHistoryBtn = event.target.closest("[data-open-history-id]");
@@ -399,9 +416,28 @@
         return;
       }
       draftPatient.odontogramMode = mode;
+      persistDraftPatientIfEditing();
       renderDentitionSwitch();
       renderOdontogram();
       setFeedback(`Visualizando ${DENTITION_LAYOUTS[mode].label.toLowerCase()}.`);
+    });
+  }
+
+  if (el.odontogramTemplateSelect) {
+    el.odontogramTemplateSelect.addEventListener("change", () => {
+      const template = stringOrEmpty(el.odontogramTemplateSelect.value);
+      if (!isValidOdontogramTemplate(template)) {
+        return;
+      }
+      if (draftPatient.odontogramTemplate === template) {
+        return;
+      }
+      draftPatient.odontogramTemplate = template;
+      persistDraftPatientIfEditing();
+      renderOdontogramTemplateSelect();
+      renderOdontogram();
+      const label = ODONTOGRAM_TEMPLATES[template]?.label || template;
+      setFeedback(`Plantilla de odontograma: ${label}.`);
     });
   }
 }

@@ -976,11 +976,29 @@ function syncDraftFromForm() {
   draftPatient.name = stringOrEmpty(el.patientName.value);
   draftPatient.lastNameFather = stringOrEmpty(el.patientLastNameFather.value);
   draftPatient.lastNameMother = stringOrEmpty(el.patientLastNameMother.value);
-  draftPatient.age = numberOrEmpty(el.patientAge.value);
-  draftPatient.ageMonths = numberOrEmpty(el.patientAgeMonths?.value);
+  draftPatient.age = "";
+  draftPatient.ageMonths = "";
   draftPatient.sex = stringOrEmpty(el.patientSex.value);
   draftPatient.location = stringOrEmpty(el.patientLocation.value);
   draftPatient.birthDate = stringOrEmpty(el.birthDate.value);
+  const ageBreakdown = calculateAgeBreakdownFromDate(draftPatient.birthDate);
+  if (ageBreakdown) {
+    draftPatient.age = ageBreakdown.years;
+    draftPatient.ageMonths = ageBreakdown.months;
+    if (el.patientAge) {
+      el.patientAge.value = String(ageBreakdown.years);
+    }
+    if (el.patientAgeMonths) {
+      el.patientAgeMonths.value = String(ageBreakdown.months);
+    }
+  } else {
+    if (el.patientAge) {
+      el.patientAge.value = "";
+    }
+    if (el.patientAgeMonths) {
+      el.patientAgeMonths.value = "";
+    }
+  }
   draftPatient.birthPlace = stringOrEmpty(el.birthPlace?.value);
   draftPatient.phone = stringOrEmpty(el.phone.value);
   draftPatient.officePhone = stringOrEmpty(el.officePhone?.value);
@@ -1029,6 +1047,24 @@ function hydrateFormFromDraft() {
   el.patientSex.value = draftPatient.sex || "";
   el.patientLocation.value = draftPatient.location || "";
   el.birthDate.value = draftPatient.birthDate || "";
+  if (draftPatient.birthDate) {
+    const ageBreakdown = calculateAgeBreakdownFromDate(draftPatient.birthDate);
+    if (ageBreakdown) {
+      draftPatient.age = ageBreakdown.years;
+      draftPatient.ageMonths = ageBreakdown.months;
+      el.patientAge.value = toInputNumber(ageBreakdown.years);
+      if (el.patientAgeMonths) {
+        el.patientAgeMonths.value = toInputNumber(ageBreakdown.months);
+      }
+    } else {
+      draftPatient.age = "";
+      draftPatient.ageMonths = "";
+      el.patientAge.value = "";
+      if (el.patientAgeMonths) {
+        el.patientAgeMonths.value = "";
+      }
+    }
+  }
   if (el.birthPlace) {
     el.birthPlace.value = draftPatient.birthPlace || "";
   }

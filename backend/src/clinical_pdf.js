@@ -233,6 +233,46 @@ function normalizeNumericText(value, maxLength) {
   return digits.slice(0, Math.max(1, Number(maxLength || digits.length)));
 }
 
+function calculateAgeBreakdownFromBirthDate(dateValue) {
+  const parsed = parseDateParts(dateValue);
+  if (!parsed.year || !parsed.month || !parsed.day) {
+    return null;
+  }
+
+  const year = Number(parsed.year);
+  const monthIndex = Number(parsed.month) - 1;
+  const day = Number(parsed.day);
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const birthOnly = new Date(year, monthIndex, day);
+  if (Number.isNaN(birthOnly.valueOf())) {
+    return null;
+  }
+
+  const now = new Date();
+  const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (birthOnly.getTime() > todayOnly.getTime()) {
+    return null;
+  }
+
+  let years = todayOnly.getFullYear() - birthOnly.getFullYear();
+  let months = todayOnly.getMonth() - birthOnly.getMonth();
+  if (todayOnly.getDate() < birthOnly.getDate()) {
+    months -= 1;
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) {
+    return null;
+  }
+
+  return { years, months };
+}
+
 function summarizeList(items, maxItems) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
   if (list.length === 0) {
@@ -363,7 +403,11 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const background = [p.allergies, p.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
   const clinicalContext = normalizeClinicalContext(clinicalContextInput);
 
-  const rawAgeMonths = String(p.ageMonths || p.months || "").trim();
+  const ageBreakdown = calculateAgeBreakdownFromBirthDate(p.birthDate);
+  const rawAgeYears = ageBreakdown ? String(ageBreakdown.years) : String(p.age || "").trim();
+  const rawAgeMonths = ageBreakdown
+    ? String(ageBreakdown.months)
+    : String(p.ageMonths || p.months || "").trim();
   const parsedAgeMonths = /^\d{1,2}$/.test(rawAgeMonths) ? Number(rawAgeMonths) : NaN;
   const ageMonths = Number.isFinite(parsedAgeMonths) && parsedAgeMonths >= 0 && parsedAgeMonths <= 11
     ? String(parsedAgeMonths)
@@ -376,8 +420,8 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     lastNameFather: nameParts.lastNameFather,
     lastNameMother: nameParts.lastNameMother,
     recordReference: String(p.clinicalRecordReference || "").trim(),
-    ageText: String(p.age || "").trim(),
-    ageYears: String(p.age || "").trim(),
+    ageText: rawAgeYears,
+    ageYears: rawAgeYears,
     ageMonths,
     sexLabel: String(p.sex || "").trim(),
     isMale,
@@ -545,6 +589,9 @@ function normalizeFillEntries(rawEntries) {
       id: String(entry?.id || "").trim() || `pdf-entry-${normalized.length + 1}`,
       value,
       matches,
+      sectionMatches: Array.isArray(entry?.sectionMatches)
+        ? entry.sectionMatches.map((token) => String(token || "").trim()).filter(Boolean)
+        : [],
       exact: Boolean(entry?.exact),
       maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
       maxWidth: Number(entry?.maxWidth || 210),
@@ -688,6 +735,68 @@ function createTextRect(x, y, metrics) {
   };
 }
 
+function computeAvailableWidthOnRow(items, anchorX, anchorY, fallbackWidth) {
+  const safeFallback = Math.max(48, Number(fallbackWidth || 170));
+  if (!Array.isArray(items) || items.length === 0) {
+    return safeFallback;
+  }
+
+  const tolerance = 2.6;
+  let nearestRightX = null;
+  for (const item of items) {
+    const x = Number(item?.x || 0);
+    const y = Number(item?.y || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
+    if (Math.abs(y - anchorY) > tolerance) {
+      continue;
+    }
+    if (x <= anchorX + 6) {
+      continue;
+    }
+    if (nearestRightX === null || x < nearestRightX) {
+      nearestRightX = x;
+    }
+  }
+
+  if (nearestRightX === null) {
+    return safeFallback;
+  }
+
+  const available = nearestRightX - anchorX - 4;
+  if (!Number.isFinite(available) || available < 48) {
+    return safeFallback;
+  }
+  return Math.max(48, Math.min(safeFallback, available));
+}
+
+function getSectionAnchorY(items, sectionMatches) {
+  if (!Array.isArray(items) || items.length === 0 || !Array.isArray(sectionMatches) || sectionMatches.length === 0) {
+    return null;
+  }
+
+  const sectionRule = {
+    matches: sectionMatches,
+    exact: false
+  };
+  let best = null;
+  for (const item of items) {
+    const score = getPdfMatchScore(item?.norm, sectionRule);
+    if (score <= 0) {
+      continue;
+    }
+    const y = Number(item?.y || 0);
+    if (!Number.isFinite(y)) {
+      continue;
+    }
+    if (!best || score > best.score || (score === best.score && y > best.y)) {
+      best = { score, y };
+    }
+  }
+  return best ? best.y : null;
+}
+
 function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects, items) {
   const x = Number(rule?.x || 0);
   const baseY = Number(rule?.y || 0);
@@ -774,6 +883,7 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
 function resolveEntryCoordinates(entry, items) {
   const rule = {
     matches: Array.isArray(entry?.matches) ? entry.matches : [],
+    sectionMatches: Array.isArray(entry?.sectionMatches) ? entry.sectionMatches : [],
     exact: Boolean(entry?.exact),
     maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
     maxWidth: Number(entry?.maxWidth || 210),
@@ -802,6 +912,7 @@ function resolveEntryCoordinates(entry, items) {
   }
 
   const safeItems = Array.isArray(items) ? items : [];
+  const sectionAnchorY = getSectionAnchorY(safeItems, rule.sectionMatches);
   const candidates = [];
   for (const item of safeItems) {
     const score = getPdfMatchScore(item.norm, rule);
@@ -819,10 +930,21 @@ function resolveEntryCoordinates(entry, items) {
     if (!Number.isFinite(resolvedX) || !Number.isFinite(resolvedY)) {
       continue;
     }
+    let adjustedScore = score;
+    if (Number.isFinite(sectionAnchorY)) {
+      if (resolvedY > sectionAnchorY + 6) {
+        adjustedScore -= 2.4;
+      } else {
+        const verticalDelta = Math.abs(sectionAnchorY - resolvedY);
+        adjustedScore += Math.max(0, 2.6 - (verticalDelta / 210));
+      }
+    }
+    const maxWidthHint = computeAvailableWidthOnRow(safeItems, resolvedX, y, rule.maxWidth);
     candidates.push({
-      score,
+      score: adjustedScore,
       x: resolvedX,
       y: resolvedY,
+      maxWidthHint,
       anchorKey: `${Math.round(x)}:${Math.round(y)}`
     });
   }
@@ -842,7 +964,8 @@ function resolveEntryCoordinates(entry, items) {
     resolvedRules.push({
       ...rule,
       x: candidate.x,
-      y: candidate.y
+      y: candidate.y,
+      maxWidth: Math.max(48, Number(candidate.maxWidthHint || rule.maxWidth || 210))
     });
     if (resolvedRules.length >= rule.maxPerPage) {
       break;

@@ -175,13 +175,18 @@
                 </label>
 
                 <label class="field">
-                  <span>Edad</span>
-                  <input type="number" id="patientAge" min="0" max="120">
+                  <span>Fecha de nacimiento</span>
+                  <input type="date" id="birthDate">
                 </label>
 
                 <label class="field">
-                  <span>Meses (edad)</span>
-                  <input type="number" id="patientAgeMonths" min="0" max="11">
+                  <span>Edad (automático)</span>
+                  <input type="number" id="patientAge" min="0" max="120" readonly>
+                </label>
+
+                <label class="field">
+                  <span>Meses (edad automático)</span>
+                  <input type="number" id="patientAgeMonths" min="0" max="11" readonly>
                 </label>
 
                 <label class="field">
@@ -197,11 +202,6 @@
                 <label class="field">
                   <span>Ubicacion</span>
                   <input type="text" id="patientLocation" placeholder="Ciudad / Direccion">
-                </label>
-
-                <label class="field">
-                  <span>Fecha de nacimiento</span>
-                  <input type="date" id="birthDate">
                 </label>
 
                 <label class="field">
@@ -393,6 +393,15 @@
                 <div class="status-picker">
                   <label for="toothStatusSelect">Estado activo</label>
                   <select id="toothStatusSelect"></select>
+                </div>
+
+                <div class="status-picker">
+                  <label for="odontogramTemplateSelect">Plantilla</label>
+                  <select id="odontogramTemplateSelect">
+                    <option value="anatomic">Anatomico por pieza</option>
+                    <option value="grid">Indice de higiene (cuadros)</option>
+                    <option value="classic">Clinico lineal</option>
+                  </select>
                 </div>
 
                 <button type="button" id="quickAddStatusBtn" class="btn btn-secondary">Nueva enfermedad/estado</button>
@@ -623,7 +632,7 @@
             <section id="upcomingPlannerSuite" class="planner-suite">
               <header class="planner-topbar">
                 <div class="planner-month-block">
-                  <h3 id="plannerMonthLabel">abr 2026</h3>
+                  <h3 id="plannerMonthLabel">Abril 2026</h3>
                   <p id="plannerMonthSub" class="planner-month-sub">Calendario clínico</p>
                 </div>
                 <div class="planner-top-actions">
@@ -634,8 +643,18 @@
 
               <div class="planner-filter-row">
                 <div class="upcoming-display-toggle">
-                  <button type="button" class="table-btn is-active" data-upcoming-display="calendar">Cuadriculado</button>
-                  <button type="button" class="table-btn" data-upcoming-display="day">Día por día</button>
+                  <button type="button" class="table-btn is-active" data-upcoming-display="calendar">
+                    <span class="display-mode-icon display-mode-icon-grid" aria-hidden="true">
+                      <span></span><span></span><span></span><span></span>
+                    </span>
+                    <span>Cuadriculado</span>
+                  </button>
+                  <button type="button" class="table-btn" data-upcoming-display="day">
+                    <span class="display-mode-icon display-mode-icon-list" aria-hidden="true">
+                      <span></span><span></span><span></span>
+                    </span>
+                    <span>Día por día</span>
+                  </button>
                 </div>
               </div>
 

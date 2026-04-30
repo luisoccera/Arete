@@ -503,6 +503,82 @@ function normalizeClinicalNumericText(value, maxLength) {
   return digits.slice(0, Math.max(1, Number(maxLength || digits.length)));
 }
 
+function calculateClinicalAgeBreakdownFromBirthDate(dateValue) {
+  const parsed = parseDatePartsForClinicalPdf(dateValue);
+  if (!parsed.year || !parsed.month || !parsed.day) {
+    return null;
+  }
+
+  const year = Number(parsed.year);
+  const monthIndex = Number(parsed.month) - 1;
+  const day = Number(parsed.day);
+  if (!Number.isFinite(year) || !Number.isFinite(monthIndex) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const birthOnly = new Date(year, monthIndex, day);
+  if (Number.isNaN(birthOnly.valueOf())) {
+    return null;
+  }
+  const today = new Date();
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (birthOnly.getTime() > todayOnly.getTime()) {
+    return null;
+  }
+
+  let years = todayOnly.getFullYear() - birthOnly.getFullYear();
+  let months = todayOnly.getMonth() - birthOnly.getMonth();
+  if (todayOnly.getDate() < birthOnly.getDate()) {
+    months -= 1;
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) {
+    return null;
+  }
+
+  return { years, months };
+}
+
+function buildClinicalFieldAutoMatches(field) {
+  const label = stringOrEmpty(field?.label);
+  const section = stringOrEmpty(field?.section);
+  const idLabel = stringOrEmpty(field?.id).replace(/_/g, " ");
+  const candidates = [label, section, idLabel];
+
+  if (label.includes(":")) {
+    const parts = label.split(":").map((part) => part.trim()).filter(Boolean);
+    candidates.push(...parts);
+  }
+  if (label.includes("-")) {
+    const parts = label.split("-").map((part) => part.trim()).filter(Boolean);
+    candidates.push(...parts);
+  }
+  const withoutParens = label.replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
+  if (withoutParens && withoutParens !== label) {
+    candidates.push(withoutParens);
+  }
+
+  const seen = new Set();
+  const matches = [];
+  for (const token of candidates) {
+    const safe = stringOrEmpty(token);
+    if (!safe) {
+      continue;
+    }
+    const norm = normalizeClinicalPdfText(safe);
+    if (!norm || norm.length < 3 || seen.has(norm)) {
+      continue;
+    }
+    seen.add(norm);
+    matches.push(safe);
+  }
+
+  return matches.length > 0 ? matches : [idLabel || label || "campo"];
+}
+
 function summarizeClinicalList(items, maxItems) {
   const list = Array.isArray(items) ? items.filter(Boolean) : [];
   if (list.length === 0) {
@@ -609,6 +685,9 @@ function normalizeClinicalFillEntries(rawEntries) {
       id: stringOrEmpty(entry?.id) || generateId("pdf-entry"),
       value,
       matches,
+      sectionMatches: Array.isArray(entry?.sectionMatches)
+        ? entry.sectionMatches.map((token) => stringOrEmpty(token)).filter(Boolean)
+        : [],
       exact: Boolean(entry?.exact),
       maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
       maxWidth: Number(entry?.maxWidth || 210),
@@ -687,8 +766,9 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
 
   const entries = [];
 
-  // Nota: el encabezado ya se llena con coordenadas fijas del bloque de identificación.
-  // Aquí evitamos reglas de "coincidencia por texto" para no colocar valores fuera de su línea.
+  // Nota: el encabezado se llena por coordenadas fijas del bloque de identificación.
+  // En el resto: si un campo no tiene coordenada fija todavía, se usa anclaje por etiqueta
+  // para no dejar huecos en los 11 formatos y mantener continuidad de captura.
 
   for (const field of schema.fields) {
     const value = stringOrEmpty(values[field.id]);
@@ -696,103 +776,107 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       continue;
     }
     const pdfRule = getClinicalFieldPdfRule(safeFormat, field.id);
-    if (!pdfRule || typeof pdfRule !== "object") {
-      // Evita ubicar datos en posiciones inciertas si no existe regla PDF explícita.
-      continue;
-    }
-
+    const hasRule = Boolean(pdfRule && typeof pdfRule === "object");
+    const autoMatches = buildClinicalFieldAutoMatches(field);
     const ruleType = String(pdfRule?.type || "").trim().toLowerCase();
-    if (ruleType === "mark-select") {
+
+    if (hasRule && ruleType === "mark-select") {
       const markPoint = resolveClinicalMarkMapPoint(pdfRule?.markMap, value);
       const markX = toOptionalClinicalNumber(markPoint?.x);
       const markY = toOptionalClinicalNumber(markPoint?.y);
       if (markX === null || markY === null) {
+        // Fallback a texto si no existe coordenada de marca.
+      } else {
+        entries.push({
+          id: `field-${safeFormat}-${field.id}`,
+          value: "X",
+          matches: [field.label],
+          exact: true,
+          maxPerPage: 1,
+          maxWidth: 12,
+          maxLines: 1,
+          pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
+          dx: 0,
+          dy: 0,
+          size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
+          lineHeight: null,
+          x: markX,
+          y: markY,
+          lockPosition: true,
+          align: "left",
+          maxChars: 1
+        });
         continue;
       }
-
-      entries.push({
-        id: `field-${safeFormat}-${field.id}`,
-        value: "X",
-        matches: [field.label],
-        exact: true,
-        maxPerPage: 1,
-        maxWidth: 12,
-        maxLines: 1,
-        pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
-        dx: 0,
-        dy: 0,
-        size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
-        lineHeight: null,
-        x: markX,
-        y: markY,
-        lockPosition: true,
-        align: "left",
-        maxChars: 1
-      });
-      continue;
     }
 
-    if (ruleType === "mark-single") {
+    if (hasRule && ruleType === "mark-single") {
       if (!shouldRenderClinicalSingleMark(value, pdfRule)) {
         continue;
       }
       const markX = toOptionalClinicalNumber(pdfRule?.x);
       const markY = toOptionalClinicalNumber(pdfRule?.y);
       if (markX === null || markY === null) {
+        // Fallback a texto si no existe coordenada de marca.
+      } else {
+        entries.push({
+          id: `field-${safeFormat}-${field.id}`,
+          value: "X",
+          matches: [field.label],
+          exact: true,
+          maxPerPage: 1,
+          maxWidth: 12,
+          maxLines: 1,
+          pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
+          dx: 0,
+          dy: 0,
+          size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
+          lineHeight: null,
+          x: markX,
+          y: markY,
+          lockPosition: true,
+          align: "left",
+          maxChars: 1
+        });
         continue;
       }
-      entries.push({
-        id: `field-${safeFormat}-${field.id}`,
-        value: "X",
-        matches: [field.label],
-        exact: true,
-        maxPerPage: 1,
-        maxWidth: 12,
-        maxLines: 1,
-        pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
-        dx: 0,
-        dy: 0,
-        size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 10,
-        lineHeight: null,
-        x: markX,
-        y: markY,
-        lockPosition: true,
-        align: "left",
-        maxChars: 1
-      });
-      continue;
     }
 
+    const isTextarea = field.type === "textarea";
+    const defaultMaxWidth = isTextarea ? (field.wide ? 250 : 210) : 170;
+    const defaultLines = isTextarea ? Math.max(1, Math.min(4, Number(field.rows || 2))) : 1;
+    const defaultMaxChars = isTextarea
+      ? Math.max(90, Math.min(220, Math.round((defaultMaxWidth / 3.5) * defaultLines)))
+      : 72;
+    const defaultSize = hasRule ? 7.3 : 6.9;
     const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
       ? pdfRule.matches
-      : [field.label];
+      : autoMatches;
     const fixedX = toOptionalClinicalNumber(pdfRule?.x);
     const fixedY = toOptionalClinicalNumber(pdfRule?.y);
-    if (fixedX === null || fixedY === null) {
-      // Para impresión oficial solo permitimos coordenadas fijas.
-      continue;
-    }
+    const hasFixedPoint = fixedX !== null && fixedY !== null;
 
     entries.push({
       id: `field-${safeFormat}-${field.id}`,
       value,
-      matches,
-      exact: Boolean(pdfRule?.exact),
+      matches: hasRule ? matches : autoMatches,
+      sectionMatches: [stringOrEmpty(field.section)].filter(Boolean),
+      exact: hasRule ? Boolean(pdfRule?.exact) : false,
       maxPerPage: Math.max(1, Number(pdfRule?.maxPerPage || 1)),
-      maxWidth: Number(pdfRule?.maxWidth || 220),
-      maxLines: Math.max(1, Number(pdfRule?.maxLines || 2)),
+      maxWidth: Number(pdfRule?.maxWidth || defaultMaxWidth),
+      maxLines: Math.max(1, Number(pdfRule?.maxLines || defaultLines)),
       pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
       dx: Number.isFinite(Number(pdfRule?.dx)) ? Number(pdfRule.dx) : 6,
       dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : -1,
-      size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 7.4,
+      size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : defaultSize,
       lineHeight: Number.isFinite(Number(pdfRule?.lineHeight)) ? Number(pdfRule.lineHeight) : null,
-      x: fixedX,
-      y: fixedY,
-      lockPosition: true,
+      x: hasFixedPoint ? fixedX : null,
+      y: hasFixedPoint ? fixedY : null,
+      lockPosition: hasFixedPoint ? true : false,
       align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
         ? String(pdfRule.align).toLowerCase()
         : "left",
-      maxChars: Number.isFinite(Number(pdfRule?.maxChars)) ? Number(pdfRule.maxChars) : null
+      maxChars: Number.isFinite(Number(pdfRule?.maxChars)) ? Number(pdfRule.maxChars) : defaultMaxChars
     });
   }
 
@@ -854,7 +938,11 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   const consultationReason = String(patient.otherConditions || "").trim() || String(patient.medications || "").trim();
   const background = [patient.allergies, patient.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
   const clinicalContext = clinicalContextInput || buildClinicalContextFromForm(patient, formatId);
-  const rawAgeMonths = String(patient.ageMonths || patient.months || "").trim();
+  const ageBreakdown = calculateClinicalAgeBreakdownFromBirthDate(patient.birthDate);
+  const rawAgeYears = ageBreakdown ? String(ageBreakdown.years) : String(patient.age || "").trim();
+  const rawAgeMonths = ageBreakdown
+    ? String(ageBreakdown.months)
+    : String(patient.ageMonths || patient.months || "").trim();
   const parsedAgeMonths = /^\d{1,2}$/.test(rawAgeMonths) ? Number(rawAgeMonths) : NaN;
   const ageMonths = Number.isFinite(parsedAgeMonths) && parsedAgeMonths >= 0 && parsedAgeMonths <= 11
     ? String(parsedAgeMonths)
@@ -866,8 +954,8 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     lastNameFather: nameParts.lastNameFather,
     lastNameMother: nameParts.lastNameMother,
     recordReference: stringOrEmpty(patient.clinicalRecordReference),
-    ageText: String(patient.age || "").trim(),
-    ageYears: String(patient.age || "").trim(),
+    ageText: rawAgeYears,
+    ageYears: rawAgeYears,
     ageMonths,
     sexLabel: String(patient.sex || "").trim(),
     isMale,
@@ -1137,6 +1225,68 @@ function createClinicalTextRect(x, y, metrics) {
   };
 }
 
+function computeClinicalAvailableWidthOnRow(items, anchorX, anchorY, fallbackWidth) {
+  const safeFallback = Math.max(48, Number(fallbackWidth || 170));
+  if (!Array.isArray(items) || items.length === 0) {
+    return safeFallback;
+  }
+
+  const tolerance = 2.6;
+  let nearestRightX = null;
+  for (const item of items) {
+    const x = Number(item?.x || 0);
+    const y = Number(item?.y || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
+    if (Math.abs(y - anchorY) > tolerance) {
+      continue;
+    }
+    if (x <= anchorX + 6) {
+      continue;
+    }
+    if (nearestRightX === null || x < nearestRightX) {
+      nearestRightX = x;
+    }
+  }
+
+  if (nearestRightX === null) {
+    return safeFallback;
+  }
+
+  const available = nearestRightX - anchorX - 4;
+  if (!Number.isFinite(available) || available < 48) {
+    return safeFallback;
+  }
+  return Math.max(48, Math.min(safeFallback, available));
+}
+
+function getClinicalSectionAnchorY(items, sectionMatches) {
+  if (!Array.isArray(items) || items.length === 0 || !Array.isArray(sectionMatches) || sectionMatches.length === 0) {
+    return null;
+  }
+
+  const sectionRule = {
+    matches: sectionMatches,
+    exact: false
+  };
+  let best = null;
+  for (const item of items) {
+    const score = getClinicalPdfMatchScore(item?.norm, sectionRule);
+    if (score <= 0) {
+      continue;
+    }
+    const y = Number(item?.y || 0);
+    if (!Number.isFinite(y)) {
+      continue;
+    }
+    if (!best || score > best.score || (score === best.score && y > best.y)) {
+      best = { score, y };
+    }
+  }
+  return best ? best.y : null;
+}
+
 function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects, items, pdfLib) {
   const x = Number(rule?.x || 0);
   const baseY = Number(rule?.y || 0);
@@ -1235,6 +1385,7 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
 function resolveClinicalEntryCoordinates(entry, items) {
   const rule = {
     matches: Array.isArray(entry?.matches) ? entry.matches : [],
+    sectionMatches: Array.isArray(entry?.sectionMatches) ? entry.sectionMatches : [],
     exact: Boolean(entry?.exact),
     maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
     maxWidth: Number(entry?.maxWidth || 210),
@@ -1261,6 +1412,7 @@ function resolveClinicalEntryCoordinates(entry, items) {
   }
 
   const safeItems = Array.isArray(items) ? items : [];
+  const sectionAnchorY = getClinicalSectionAnchorY(safeItems, rule.sectionMatches);
   const candidates = [];
   for (const item of safeItems) {
     const score = getClinicalPdfMatchScore(item.norm, rule);
@@ -1278,10 +1430,21 @@ function resolveClinicalEntryCoordinates(entry, items) {
     if (!Number.isFinite(resolvedX) || !Number.isFinite(resolvedY)) {
       continue;
     }
+    let adjustedScore = score;
+    if (Number.isFinite(sectionAnchorY)) {
+      if (resolvedY > sectionAnchorY + 6) {
+        adjustedScore -= 2.4;
+      } else {
+        const verticalDelta = Math.abs(sectionAnchorY - resolvedY);
+        adjustedScore += Math.max(0, 2.6 - (verticalDelta / 210));
+      }
+    }
+    const maxWidthHint = computeClinicalAvailableWidthOnRow(safeItems, resolvedX, y, rule.maxWidth);
     candidates.push({
-      score,
+      score: adjustedScore,
       x: resolvedX,
       y: resolvedY,
+      maxWidthHint,
       anchorKey: `${Math.round(x)}:${Math.round(y)}`
     });
   }
@@ -1301,7 +1464,8 @@ function resolveClinicalEntryCoordinates(entry, items) {
     resolvedRules.push({
       ...rule,
       x: candidate.x,
-      y: candidate.y
+      y: candidate.y,
+      maxWidth: Math.max(48, Number(candidate.maxWidthHint || rule.maxWidth || 210))
     });
     if (resolvedRules.length >= rule.maxPerPage) {
       break;

@@ -201,14 +201,15 @@ function parseClinicalLocationParts(locationInput) {
   const first = tokens[0] || text;
   const second = tokens[1] || "";
   const third = tokens[2] || "";
+  const hasSecondOrThird = Boolean(second || third);
 
   return {
     street: first,
-    colony: second,
-    municipality: second,
-    delegation: second,
-    state: third,
-    city: second
+    colony: second || first,
+    municipality: second || first,
+    delegation: second || first,
+    state: third || "",
+    city: hasSecondOrThird ? second : first
   };
 }
 
@@ -347,7 +348,10 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const clinicalContext = normalizeClinicalContext(clinicalContextInput);
 
   const rawAgeMonths = String(p.ageMonths || p.months || "").trim();
-  const ageMonths = /^\d{1,2}$/.test(rawAgeMonths) ? rawAgeMonths : "";
+  const parsedAgeMonths = /^\d{1,2}$/.test(rawAgeMonths) ? Number(rawAgeMonths) : NaN;
+  const ageMonths = Number.isFinite(parsedAgeMonths) && parsedAgeMonths >= 0 && parsedAgeMonths <= 11
+    ? String(parsedAgeMonths)
+    : "";
 
   const context = {
     formatId,
@@ -449,36 +453,51 @@ function getPdfMatchScore(itemNormInput, rule) {
     return 0;
   }
 
-  let bestScore = 0;
-  for (const rawMatch of rule.matches || []) {
+  const tokens = Array.isArray(rule?.matches) ? rule.matches : [];
+  if (tokens.length === 0) {
+    return 0;
+  }
+
+  let score = 0;
+  let matchedCount = 0;
+  for (const rawMatch of tokens) {
     const token = normalizeText(rawMatch);
     if (!token) {
       continue;
     }
+
+    let localScore = 0;
     const tokenWords = token.split(" ").filter(Boolean);
-    const genericSingleWord = tokenWords.length === 1 && token.length <= 14;
+    const genericSingleWord = tokenWords.length === 1 && token.length <= 8;
 
     if (rule.exact) {
       if (itemNorm === token) {
-        bestScore = Math.max(bestScore, 4);
+        localScore = 8 + Math.min(3, token.length * 0.08);
       }
-      continue;
+    } else if (itemNorm === token) {
+      localScore = 7 + Math.min(3, token.length * 0.08);
+    } else if (itemNorm.startsWith(token)) {
+      localScore = 6 + Math.min(2, token.length * 0.06);
+    } else if (!genericSingleWord && itemNorm.includes(token)) {
+      localScore = 5 + Math.min(2, token.length * 0.04);
+    } else if (!genericSingleWord) {
+      const overlappingWords = tokenWords.filter((word) => word.length > 2 && itemNorm.includes(word)).length;
+      if (overlappingWords >= 2) {
+        localScore = 3 + Math.min(2, overlappingWords * 0.5);
+      }
     }
 
-    if (itemNorm === token) {
-      bestScore = Math.max(bestScore, 4);
-      continue;
-    }
-    if (itemNorm.startsWith(token)) {
-      bestScore = Math.max(bestScore, 3);
-      continue;
-    }
-    if (!genericSingleWord && itemNorm.includes(token)) {
-      bestScore = Math.max(bestScore, 2);
+    if (localScore > 0) {
+      matchedCount += 1;
+      score += localScore;
     }
   }
 
-  return bestScore;
+  if (matchedCount === 0) {
+    return 0;
+  }
+  const coverageBonus = (matchedCount / tokens.length) * 4;
+  return score + coverageBonus;
 }
 
 function normalizeFillEntries(rawEntries) {
@@ -525,13 +544,246 @@ function normalizeFillEntries(rawEntries) {
   return normalized;
 }
 
+function doRectsOverlap(a, b) {
+  return !(
+    a.right <= b.left ||
+    b.right <= a.left ||
+    a.top <= b.bottom ||
+    b.top <= a.bottom
+  );
+}
+
+function getRectOverlapArea(a, b) {
+  const left = Math.max(a.left, b.left);
+  const right = Math.min(a.right, b.right);
+  const top = Math.min(a.top, b.top);
+  const bottom = Math.max(a.bottom, b.bottom);
+  if (right <= left || top <= bottom) {
+    return 0;
+  }
+  return (right - left) * (top - bottom);
+}
+
+function createTemplateOccupiedRects(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [];
+  }
+
+  const rects = [];
+  for (const item of items) {
+    const raw = String(item?.raw || "").trim();
+    if (!raw) {
+      continue;
+    }
+    const x = Number(item?.x || 0);
+    const y = Number(item?.y || 0);
+    const w = Number(item?.w || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || x < 10 || y < 10 || w <= 0.8) {
+      continue;
+    }
+    rects.push({
+      left: x - 1,
+      right: x + w + 1,
+      top: y + 7.2,
+      bottom: y - 2.4
+    });
+  }
+  return rects;
+}
+
+function createEntryTextMetrics(font, value, rule) {
+  const size = Number(rule?.size || 7.4);
+  const maxWidth = Number(rule?.maxWidth || 210);
+  const maxLines = Math.max(1, Number(rule?.maxLines || 2));
+  const maxChars = Number.isFinite(Number(rule?.maxChars)) ? Number(rule.maxChars) : 180;
+  const lineHeight = Number(rule?.lineHeight || size + 1.1);
+  const safeText = truncate(String(value || ""), maxChars);
+  const lines = maxLines <= 1
+    ? [shrinkTextToWidth(font, safeText, size, maxWidth)]
+    : wrapText(font, safeText, size, maxWidth).slice(0, maxLines);
+
+  const lineWidths = lines.map((line) => font.widthOfTextAtSize(line, size));
+  const widestLine = lineWidths.reduce((max, width) => Math.max(max, width), 0);
+  const effectiveWidth = Math.max(1, Math.min(maxWidth || widestLine || 1, widestLine || 1));
+
+  return {
+    lines,
+    size,
+    lineHeight,
+    effectiveWidth
+  };
+}
+
+function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects) {
+  const x = Number(rule?.x || 0);
+  const baseY = Number(rule?.y || 0);
+  if (!Number.isFinite(x) || !Number.isFinite(baseY) || x < 20 || baseY < 20) {
+    return false;
+  }
+
+  const metrics = createEntryTextMetrics(font, value, rule);
+  if (!Array.isArray(metrics.lines) || metrics.lines.length === 0) {
+    return false;
+  }
+
+  const pageTopLimit = Math.max(30, page.getHeight() - 24);
+  const pageBottomLimit = 24;
+  const attempts = [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
+  const collisionRects = Array.isArray(templateRects) && templateRects.length > 0
+    ? [...templateRects, ...occupiedRects]
+    : [...occupiedRects];
+  let chosenY = null;
+  let chosenRect = null;
+  let minOverlap = Number.POSITIVE_INFINITY;
+
+  for (const delta of attempts) {
+    const candidateY = baseY - (delta * metrics.lineHeight);
+    const top = candidateY + metrics.size;
+    const bottom = candidateY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
+    if (top > pageTopLimit || bottom < pageBottomLimit) {
+      continue;
+    }
+    const rect = {
+      left: x - 1,
+      right: x + metrics.effectiveWidth + 2,
+      top,
+      bottom
+    };
+    let overlapArea = 0;
+    for (const other of collisionRects) {
+      overlapArea += getRectOverlapArea(rect, other);
+    }
+    if (overlapArea < minOverlap) {
+      minOverlap = overlapArea;
+      chosenY = candidateY;
+      chosenRect = rect;
+      if (overlapArea <= 0.0001) {
+        break;
+      }
+    }
+  }
+
+  if (!chosenRect || !Number.isFinite(chosenY)) {
+    if (!Number.isFinite(baseY)) {
+      return false;
+    }
+    chosenY = baseY;
+    chosenRect = {
+      left: x - 1,
+      right: x + metrics.effectiveWidth + 2,
+      top: baseY + metrics.size,
+      bottom: baseY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28)
+    };
+  }
+
+  if (minOverlap > 2400) {
+    const fallbackY = baseY - (metrics.lineHeight * 3);
+    const top = fallbackY + metrics.size;
+    const bottom = fallbackY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
+    if (top <= pageTopLimit && bottom >= pageBottomLimit) {
+      chosenY = fallbackY;
+      chosenRect = {
+        left: x - 1,
+        right: x + metrics.effectiveWidth + 2,
+        top,
+        bottom
+      };
+    }
+  }
+
+  drawTextAt(page, font, value, {
+    ...rule,
+    x,
+    y: chosenY,
+    lineHeight: metrics.lineHeight
+  });
+  occupiedRects.push(chosenRect);
+  return true;
+}
+
+function resolveEntryCoordinates(entry, items) {
+  const rule = {
+    matches: Array.isArray(entry?.matches) ? entry.matches : [],
+    exact: Boolean(entry?.exact),
+    maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
+    maxWidth: Number(entry?.maxWidth || 210),
+    maxLines: Math.max(1, Number(entry?.maxLines || 2)),
+    dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
+    dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
+    size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
+    lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
+    x: toOptionalNumber(entry?.x),
+    y: toOptionalNumber(entry?.y),
+    align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
+      ? String(entry.align).toLowerCase()
+      : "left",
+    maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
+  };
+
+  if (rule.x !== null && rule.y !== null) {
+    return [rule];
+  }
+  if (!Array.isArray(rule.matches) || rule.matches.length === 0) {
+    return [];
+  }
+
+  const safeItems = Array.isArray(items) ? items : [];
+  const candidates = [];
+  for (const item of safeItems) {
+    const score = getPdfMatchScore(item.norm, rule);
+    if (score <= 0) {
+      continue;
+    }
+    const x = Number(item.x || 0);
+    const y = Number(item.y || 0);
+    const w = Number(item.w || 0);
+    if (x < 20 || y < 20) {
+      continue;
+    }
+    const resolvedX = x + w + rule.dx;
+    const resolvedY = y + rule.dy;
+    if (!Number.isFinite(resolvedX) || !Number.isFinite(resolvedY)) {
+      continue;
+    }
+    candidates.push({
+      score,
+      x: resolvedX,
+      y: resolvedY,
+      anchorKey: `${Math.round(x)}:${Math.round(y)}`
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
+  if (candidates.length === 0) {
+    return [];
+  }
+
+  const usedAnchorKeys = new Set();
+  const resolvedRules = [];
+  for (const candidate of candidates) {
+    if (usedAnchorKeys.has(candidate.anchorKey)) {
+      continue;
+    }
+    usedAnchorKeys.add(candidate.anchorKey);
+    resolvedRules.push({
+      ...rule,
+      x: candidate.x,
+      y: candidate.y
+    });
+    if (resolvedRules.length >= rule.maxPerPage) {
+      break;
+    }
+  }
+  return resolvedRules;
+}
+
 function drawFillEntriesOnPage(page, font, items, entries, pageOffset, renderedEntryIds) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return;
   }
-  const safeItems = Array.isArray(items) ? items : [];
-  const usedAnchors = new Set();
   const rendered = renderedEntryIds instanceof Set ? renderedEntryIds : new Set();
+  const occupiedRects = [];
+  const templateRects = createTemplateOccupiedRects(items);
 
   for (const entry of entries) {
     const entryId = String(entry?.id || "").trim();
@@ -547,75 +799,12 @@ function drawFillEntriesOnPage(page, font, items, entries, pageOffset, renderedE
       continue;
     }
 
-    const rule = {
-      matches: Array.isArray(entry?.matches) ? entry.matches : [],
-      exact: Boolean(entry?.exact),
-      maxPerPage: Math.max(1, Number(entry?.maxPerPage || 1)),
-      maxWidth: Number(entry?.maxWidth || 210),
-      maxLines: Math.max(1, Number(entry?.maxLines || 2)),
-      dx: Number.isFinite(Number(entry?.dx)) ? Number(entry.dx) : 6,
-      dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
-      size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
-      lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: toOptionalNumber(entry?.x),
-      y: toOptionalNumber(entry?.y),
-      align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
-        ? String(entry.align).toLowerCase()
-        : "left",
-      maxChars: Number.isFinite(Number(entry?.maxChars)) ? Number(entry.maxChars) : null
-    };
-
-    if (rule.x !== null && rule.y !== null) {
-      drawTextAt(page, font, value, {
-        x: rule.x,
-        y: rule.y,
-        maxWidth: rule.maxWidth,
-        maxLines: rule.maxLines,
-        size: rule.size,
-        lineHeight: rule.lineHeight || undefined,
-        align: rule.align,
-        maxChars: rule.maxChars || undefined
-      });
-      if (entryId) {
-        rendered.add(entryId);
-      }
-      continue;
-    }
-
-    if (rule.matches.length === 0) {
-      continue;
-    }
-
-    const candidates = [];
-    for (const item of safeItems) {
-      const score = getPdfMatchScore(item.norm, rule);
-      if (score <= 0) {
-        continue;
-      }
-      const x = Number(item.x || 0);
-      const y = Number(item.y || 0);
-      if (x < 20 || y < 20) {
-        continue;
-      }
-      candidates.push({
-        ...item,
-        score,
-        anchorKey: `${Math.round(x)}:${Math.round(y)}`
-      });
-    }
-
-    candidates.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
-
+    const resolvedRules = resolveEntryCoordinates(entry, items);
     let hitCount = 0;
-    for (const candidate of candidates) {
-      if (usedAnchors.has(candidate.anchorKey)) {
-        continue;
-      }
-      drawRuleValue(page, font, value, candidate, rule);
-      usedAnchors.add(candidate.anchorKey);
-      hitCount += 1;
-      if (hitCount >= rule.maxPerPage) {
-        break;
+    for (const resolvedRule of resolvedRules) {
+      const drawn = placeRuleWithoutOverlap(page, font, value, resolvedRule, occupiedRects, templateRects);
+      if (drawn) {
+        hitCount += 1;
       }
     }
     if (hitCount > 0 && entryId) {
@@ -730,12 +919,15 @@ function shouldSkipRuleOnIdentificationPage(rule) {
 function drawIdentificationBlock(page, font, context) {
   const ageValue = normalizeNumericText(context.ageYears || context.ageText, 3);
   const monthsValue = normalizeNumericText(context.ageMonths, 2);
-  const birthPlace = String(context.locationShort || context.location || "").trim();
+  const birthPlace = String(context.locationCity || context.locationShort || context.location || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
   const lastConsult = String(context.lastMedicalConsult || "").trim();
   const consultDay = normalizeNumericText(context.consultDay, 2);
   const consultMonth = normalizeNumericText(context.consultMonth, 2);
   const consultYear = normalizeNumericText(context.consultYear, 4);
+  const locationState = String(context.locationState || "").trim();
+  const locationCity = String(context.locationCity || "").trim();
+  const officePhone = String(context.doctorPhone || context.phone || "").trim();
 
   drawTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 });
   drawTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 });
@@ -748,73 +940,36 @@ function drawIdentificationBlock(page, font, context) {
   drawMark(page, font, context.isMale, 250.5, 364.2, 10);
   drawMark(page, font, context.isFemale, 377.5, 364.2, 10);
 
-  drawTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 138, size: 8, maxLines: 1, maxChars: 32 });
+  drawTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 132, size: 8, maxLines: 1, maxChars: 26 });
   drawTextAt(page, font, context.birthDay, { x: 440, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, context.birthMonth, { x: 476, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, context.birthYear, { x: 513, y: 338.2, maxWidth: 34, size: 8, align: "center", maxLines: 1, maxChars: 4 });
-  drawTextAt(page, font, context.locationState, { x: 264, y: 338.2, maxWidth: 56, size: 8, maxLines: 1, maxChars: 20 });
-  drawTextAt(page, font, context.locationCity, { x: 357, y: 338.2, maxWidth: 62, size: 8, maxLines: 1, maxChars: 22 });
+  if (locationState && locationState !== birthPlace) {
+    drawTextAt(page, font, locationState, { x: 264, y: 338.2, maxWidth: 56, size: 8, maxLines: 1, maxChars: 14 });
+  }
+  if (locationCity && locationCity !== birthPlace) {
+    drawTextAt(page, font, locationCity, { x: 357, y: 338.2, maxWidth: 62, size: 8, maxLines: 1, maxChars: 18 });
+  }
 
   drawTextAt(page, font, context.occupation, { x: 130, y: 317.2, maxWidth: 134, size: 8.2, maxLines: 1, maxChars: 32 });
   drawTextAt(page, font, context.occupationAlt, { x: 354, y: 317.2, maxWidth: 195, size: 8.2, maxLines: 1, maxChars: 42 });
   drawTextAt(page, font, context.civilStatus, { x: 131, y: 301.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 });
-  drawTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 255, size: 8.2, maxLines: 1, maxChars: 68 });
+  drawTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 232, size: 8.2, maxLines: 1, maxChars: 52 });
 
-  drawTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 156, size: 8.2, maxLines: 1, maxChars: 34 });
-  drawTextAt(page, font, context.locationState, { x: 122, y: 269.2, maxWidth: 130, size: 8.2, maxLines: 1, maxChars: 28 });
-  drawTextAt(page, font, context.locationMunicipality, { x: 236, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 24 });
-  drawTextAt(page, font, context.locationDelegation, { x: 429, y: 269.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 });
+  drawTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 132, size: 8.2, maxLines: 1, maxChars: 28 });
+  drawTextAt(page, font, locationState || context.locationState, { x: 122, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 20 });
+  drawTextAt(page, font, context.locationMunicipality, { x: 236, y: 269.2, maxWidth: 108, size: 8.2, maxLines: 1, maxChars: 20 });
+  drawTextAt(page, font, context.locationDelegation, { x: 429, y: 269.2, maxWidth: 92, size: 8.2, maxLines: 1, maxChars: 18 });
 
   drawTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
-  drawTextAt(page, font, context.phone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
+  drawTextAt(page, font, officePhone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 });
-  drawTextAt(page, font, context.doctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
-  drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 243, size: 8.2, maxLines: 1, maxChars: 78 });
+  drawTextAt(page, font, officePhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
+  drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 });
 
   drawTextAt(page, font, consultDay, { x: 485, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, consultMonth, { x: 509, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, consultYear, { x: 535, y: 451.4, maxWidth: 24, size: 8, align: "center", maxLines: 1, maxChars: 4 });
-}
-
-function drawRuleValue(page, font, value, item, rule) {
-  const pageWidth = page.getWidth();
-  const size = rule.size || 7.4;
-  const anchorX = Number(item?.x);
-  const anchorY = Number(item?.y);
-  const anchorW = Number(item?.w);
-  const dx = Number.isFinite(Number(rule?.dx)) ? Number(rule.dx) : 6;
-  const dy = Number.isFinite(Number(rule?.dy)) ? Number(rule.dy) : -1;
-
-  let x = (Number.isFinite(anchorX) ? anchorX : 0) + (Number.isFinite(anchorW) ? anchorW : 0) + dx;
-  const y = (Number.isFinite(anchorY) ? anchorY : 0) + dy;
-  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 20 || y < 20) {
-    return;
-  }
-
-  const maxWidth = rule.maxWidth || 190;
-  if (x > pageWidth - 40) {
-    x = Math.max(40, pageWidth - (maxWidth + 16));
-  }
-
-  const lines = wrapText(font, String(value || ""), size, rule.maxWidth || 0);
-  const maxLines = rule.maxLines || 2;
-  const lineHeight = rule.lineHeight || size + 1.1;
-
-  if (!rule.maxWidth) {
-    page.drawText(lines[0] || "", { x, y, size, font, color: rgb(0, 0, 0) });
-    return;
-  }
-
-  const visibleLines = lines.slice(0, maxLines);
-  visibleLines.forEach((line, idx) => {
-    page.drawText(line, {
-      x,
-      y: y - idx * lineHeight,
-      size,
-      font,
-      color: rgb(0, 0, 0)
-    });
-  });
 }
 
 async function getTemplateTextData(templatePath) {

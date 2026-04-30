@@ -177,6 +177,7 @@ const CLINICAL_FORM_SCHEMAS = {
     fields: [
       { id: "motivo_consulta", label: "Motivo de consulta", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Sintoma o razon principal de la consulta." },
       { id: "antecedentes_estomatologicos", label: "Antecedentes personales y familiares", type: "textarea", rows: 2, contextKey: "background", placeholder: "Antecedentes importantes para la atencion dental." },
+      { id: "habitos_higienicos_diarios", label: "Habitos higienicos diarios", type: "text", contextKey: "background", placeholder: "Ejemplo: habitos higienicos diarios." },
       { id: "diagnostico_estomatologico", label: "Diagnostico estomatologico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico clinico principal." },
       { id: "plan_estomatologico", label: "Plan de tratamiento", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Fases del tratamiento indicado." },
       { id: "pronostico_estomatologico", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Favorable, reservado, etc." },
@@ -503,6 +504,7 @@ const CLINICAL_FIELD_PDF_RULES = {
   "f1-estomatologica": {
     motivo_consulta: { matches: ["padecimiento actual", "motivo de consulta"], maxWidth: 360, maxLines: 3, pageOffset: 1, x: 148, y: 234.2, dx: 0 },
     antecedentes_estomatologicos: { matches: ["antecedentes personales patologicos", "antecedentes personales y familiares"], maxWidth: 280, maxLines: 3, pageOffset: 1, x: 265, y: 658.2, dx: 0 },
+    habitos_higienicos_diarios: { matches: ["habitos higienicos en el vestuario"], maxWidth: 128, maxLines: 1, pageOffset: 1, x: 206.6, y: 474.2, maxChars: 30 },
     diagnostico_estomatologico: { matches: ["diagnostico"], maxWidth: 380, maxLines: 2, pageOffset: 8, x: 126, y: 659.6, dx: 0 },
     plan_estomatologico: { matches: ["plan de tratamiento"], maxWidth: 330, maxLines: 3, pageOffset: 8, x: 176, y: 571.6, dx: 0 },
     pronostico_estomatologico: { matches: ["pronostico"], maxWidth: 330, maxLines: 2, pageOffset: 8, x: 176, y: 523.6, dx: 0 },

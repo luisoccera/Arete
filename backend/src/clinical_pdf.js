@@ -1064,9 +1064,9 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 });
 
-  drawTextAt(page, font, consultDay, { x: 487.2, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultMonth, { x: 512.4, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultYear, { x: 538.8, y: 451.1, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, consultDay, { x: 480.8, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultMonth, { x: 506.2, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultYear, { x: 533.5, y: 451.1, maxWidth: 17, size: 7.1, align: "center", maxLines: 1, maxChars: 4 });
 }
 
 async function getTemplateTextData(templatePath) {

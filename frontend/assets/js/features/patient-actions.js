@@ -941,7 +941,6 @@ function syncDraftClinicalRecordFields() {
   draftPatient.clinicalRecordType = normalizeClinicalRecordType(el.clinicalRecordType.value);
   draftPatient.clinicalRecordReference = stringOrEmpty(el.clinicalRecordReference.value);
   ensureDraftClinicalFormData();
-  ensureDraftClinicalSharedValues();
   ensureDraftClinicalEpisodeState();
   const activeEpisode = getDraftActiveClinicalEpisode();
   if (activeEpisode) {
@@ -955,7 +954,6 @@ function syncActiveClinicalFormatFieldsFromDom() {
     return;
   }
   ensureDraftClinicalFormData();
-  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
@@ -969,14 +967,6 @@ function syncActiveClinicalFormatFieldsFromDom() {
     }
     const value = stringOrEmpty(input.value);
     bucket[field.id] = value;
-    const contextKey = stringOrEmpty(field?.contextKey);
-    if (contextKey && shouldReuseClinicalContextKey(contextKey)) {
-      if (value) {
-        draftPatient.clinicalSharedValues[contextKey] = value;
-      } else if (stringOrEmpty(draftPatient.clinicalSharedValues[contextKey])) {
-        delete draftPatient.clinicalSharedValues[contextKey];
-      }
-    }
   }
 
   draftPatient.clinicalFormData[activeType] = bucket;

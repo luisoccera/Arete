@@ -556,31 +556,18 @@ function buildClinicalContextFromForm(patientInput, formatId) {
   const schema = getClinicalFormSchema(safeFormat);
   const values = patient.clinicalFormData?.[safeFormat] || {};
   const byKey = {};
-  const sharedValues = normalizeClinicalSharedValues(patient.clinicalSharedValues, patient.clinicalFormData);
   const detailLines = [];
-
-  for (const [key, value] of Object.entries(sharedValues)) {
-    const safeKey = stringOrEmpty(key);
-    const safeValue = stringOrEmpty(value);
-    if (!safeKey || !safeValue) {
-      continue;
-    }
-    byKey[safeKey] = safeValue;
-  }
 
   for (const field of schema.fields) {
     const explicitValue = stringOrEmpty(values[field.id]);
     const contextKey = stringOrEmpty(field?.contextKey);
-    const sharedValue = contextKey && shouldReuseClinicalContextKey(contextKey)
-      ? stringOrEmpty(byKey[contextKey])
-      : "";
-    const value = explicitValue || sharedValue;
+    const value = explicitValue;
     if (!value) {
       continue;
     }
 
     detailLines.push(`${field.label}: ${value}`);
-    if (contextKey && explicitValue && shouldReuseClinicalContextKey(contextKey)) {
+    if (contextKey) {
       byKey[contextKey] = explicitValue;
     }
   }
@@ -649,7 +636,6 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
   const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
   const schema = getClinicalFormSchema(safeFormat);
   const values = patient.clinicalFormData?.[safeFormat] || {};
-  const sharedValues = normalizeClinicalSharedValues(patient.clinicalSharedValues, patient.clinicalFormData);
   const context = contextInput && typeof contextInput === "object"
     ? contextInput
     : buildClinicalPdfContext(patient, { diseases: state.diseases, toothStatuses: state.toothStatuses }, safeFormat);
@@ -660,12 +646,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
   // Aquí evitamos reglas de "coincidencia por texto" para no colocar valores fuera de su línea.
 
   for (const field of schema.fields) {
-    const contextKey = stringOrEmpty(field?.contextKey);
-    const value = stringOrEmpty(values[field.id]) || (
-      contextKey && shouldReuseClinicalContextKey(contextKey)
-        ? stringOrEmpty(sharedValues[contextKey])
-        : ""
-    );
+    const value = stringOrEmpty(values[field.id]);
     if (!value) {
       continue;
     }
@@ -1423,9 +1404,9 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 }, pdfLib);
 
-  drawClinicalTextAt(page, font, consultDay, { x: 487.2, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultMonth, { x: 512.4, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultYear, { x: 538.8, y: 451.1, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, consultDay, { x: 480.8, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultMonth, { x: 506.2, y: 451.1, maxWidth: 11, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultYear, { x: 533.5, y: 451.1, maxWidth: 17, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function extractFilenameFromDisposition(disposition) {

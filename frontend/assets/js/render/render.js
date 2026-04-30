@@ -1067,15 +1067,7 @@ function ensureDraftClinicalSharedValues() {
 
 function getClinicalFieldDisplayValue(field, values) {
   const explicitValue = stringOrEmpty(values?.[field.id]);
-  if (explicitValue) {
-    return explicitValue;
-  }
-
-  const contextKey = stringOrEmpty(field?.contextKey);
-  if (!contextKey || !shouldReuseClinicalContextKey(contextKey)) {
-    return "";
-  }
-  return stringOrEmpty(draftPatient.clinicalSharedValues?.[contextKey]);
+  return explicitValue || "";
 }
 
 function renderClinicalFormatFields() {
@@ -1084,7 +1076,6 @@ function renderClinicalFormatFields() {
   }
 
   ensureDraftClinicalFormData();
-  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
@@ -1129,11 +1120,9 @@ function handleClinicalFormatFieldInput(event) {
     return;
   }
   ensureDraftClinicalFormData();
-  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
-  const schema = getClinicalFormSchema(activeType);
   const fieldId = input.getAttribute("data-clinical-field");
   if (!fieldId) {
     return;
@@ -1143,16 +1132,6 @@ function handleClinicalFormatFieldInput(event) {
   const bucket = draftPatient.clinicalFormData[activeType] || {};
   bucket[fieldId] = value;
   draftPatient.clinicalFormData[activeType] = bucket;
-
-  const field = schema.fields.find((entry) => entry.id === fieldId);
-  const contextKey = stringOrEmpty(field?.contextKey);
-  if (contextKey && shouldReuseClinicalContextKey(contextKey)) {
-    if (value) {
-      draftPatient.clinicalSharedValues[contextKey] = value;
-    } else if (stringOrEmpty(draftPatient.clinicalSharedValues[contextKey])) {
-      delete draftPatient.clinicalSharedValues[contextKey];
-    }
-  }
 
   persistDraftPatientIfEditing();
 }

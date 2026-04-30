@@ -1,4 +1,5 @@
-﻿function renderAll() {
+function renderAll() {
+  renderHomeOverview();
   renderStatusSelect();
   renderDentitionSwitch();
   renderDiseaseChecklist();
@@ -13,11 +14,63 @@
   renderUpcomingAppointments();
   renderUpcomingPlannerCalendar();
   renderScannedDocuments();
+  renderClinicalCyclePanel();
   renderPatientHistory();
   setActivePatientSubview(activePatientSubview);
   setActiveUpcomingSubview(activeUpcomingSubview);
   updateDeleteCurrentButtonState();
   setFormTitle();
+}
+
+function renderHomeOverview() {
+  if (!el.homeSection) {
+    return;
+  }
+
+  const totalPatients = Array.isArray(state.patients) ? state.patients.length : 0;
+  const upcomingEntries = collectUpcomingEntries({ includePast: false, includeFallback: true });
+  const totalAppointments = Array.isArray(upcomingEntries) ? upcomingEntries.length : 0;
+  const lastPatient = totalPatients > 0 ? state.patients[0] : null;
+  const lastPatientLabel = lastPatient ? getPatientFullName(lastPatient) : "Sin pacientes registrados";
+
+  el.homeSection.innerHTML = `
+    <section class="panel home-grid">
+      <div class="panel-header">
+        <div>
+          <h2>Inicio</h2>
+          <p class="panel-subtitle">Acceso rapido al expediente, registro y agenda clinica.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Resumen</th>
+              <th>Total</th>
+              <th>Detalle</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pacientes registrados</td>
+              <td>${totalPatients}</td>
+              <td>${escapeHtml(lastPatientLabel)}</td>
+            </tr>
+            <tr>
+              <td>Citas agendadas</td>
+              <td>${totalAppointments}</td>
+              <td>${totalAppointments > 0 ? "Calendario con actividad" : "Sin citas registradas"}</td>
+            </tr>
+            <tr>
+              <td>Ficha del paciente</td>
+              <td>${editingPatientId ? "Activa" : "Nueva"}</td>
+              <td>${editingPatientId ? escapeHtml(getPatientFullName(draftPatient)) : "Formulario en blanco"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
 }
 
 function renderPatientTable() {
@@ -91,6 +144,7 @@ function renderPatientTable() {
           <td>
             <div class="table-actions">
               <button type="button" class="table-btn" data-open-id="${patient.id}">Abrir</button>
+              <button type="button" class="table-btn" data-open-history-id="${patient.id}">Historia</button>
               <button type="button" class="table-btn warn" data-delete-id="${patient.id}">Eliminar</button>
             </div>
           </td>
@@ -237,7 +291,12 @@ function renderUpcomingPreviewCard(entries) {
   const timeRange = formatAppointmentTimeRange(first);
   const when = `${formatDate(first.date)}${timeRange ? ` ${timeRange}` : ""}`;
   const actionHtml = first.patientId
-    ? `<button type="button" class="table-btn" data-open-id="${first.patientId}">Abrir</button>`
+    ? `
+      <div class="table-actions">
+        <button type="button" class="table-btn" data-open-id="${first.patientId}">Abrir</button>
+        <button type="button" class="table-btn" data-open-history-id="${first.patientId}">Historia</button>
+      </div>
+    `
     : "<span class=\"patient-meta\">Sin expediente</span>";
   el.upcomingPreviewAppointment.innerHTML = `
     <article class="upcoming-next-card">
@@ -263,7 +322,12 @@ function renderUpcomingAppointments() {
     .map((entry) => {
       const timeRange = formatAppointmentTimeRange(entry);
       const actionHtml = entry.patientId
-        ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
+        ? `
+          <div class="table-actions">
+            <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+            <button type="button" class="table-btn" data-open-history-id="${entry.patientId}">Historia</button>
+          </div>
+        `
         : "<span class=\"patient-meta\">Sin expediente</span>";
       return `
         <div class="upcoming-item">
@@ -610,7 +674,10 @@ function renderUpcomingPlannerCalendar() {
           ? `<button type="button" class="catalog-btn" data-remove-upcoming-external-id="${entry.appointmentId}">Quitar</button>`
           : "";
       const openBtn = entry.patientId
-        ? `<button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>`
+        ? `
+          <button type="button" class="table-btn" data-open-id="${entry.patientId}">Abrir</button>
+          <button type="button" class="table-btn" data-open-history-id="${entry.patientId}">Historia</button>
+        `
         : "<span class=\"patient-meta\">Sin expediente</span>";
       return `
         <article class="appointment-item">
@@ -875,6 +942,80 @@ function readFileAsDataUrl(file) {
   });
 }
 
+function resolveDraftClinicalEpisodeState() {
+  const episodes = normalizeClinicalEpisodes(draftPatient.clinicalEpisodes);
+  draftPatient.clinicalEpisodes = episodes;
+
+  let activeId = stringOrEmpty(draftPatient.activeClinicalEpisodeId);
+  let activeEpisode = episodes.find((episode) => episode.id === activeId) || null;
+
+  if (!activeEpisode && episodes.length > 0) {
+    activeEpisode = getMostRelevantClinicalEpisode(episodes) || episodes[0];
+    activeId = activeEpisode ? activeEpisode.id : "";
+    draftPatient.activeClinicalEpisodeId = activeId;
+  }
+
+  const nowMs = Date.now();
+  return {
+    episodes,
+    activeEpisode,
+    isExpired: activeEpisode ? isClinicalEpisodeExpired(activeEpisode, nowMs) : false
+  };
+}
+
+function renderClinicalCyclePanel() {
+  if (!el.clinicalCycleSummary || !el.clinicalCycleList) {
+    return;
+  }
+
+  if (!editingPatientId) {
+    el.clinicalCycleSummary.textContent = "Guarda o abre un paciente para gestionar la vigencia de su historia clínica.";
+    el.clinicalCycleList.innerHTML = "<div class=\"history-empty\">Sin expediente activo.</div>";
+    return;
+  }
+
+  const { episodes, activeEpisode, isExpired } = resolveDraftClinicalEpisodeState();
+  if (!activeEpisode) {
+    el.clinicalCycleSummary.textContent = "Sin historia clínica activa. Pulsa \"Abrir historia clínica\" para iniciar una.";
+  } else {
+    const label = getClinicalRecordTypeById(activeEpisode.formatId).label;
+    const opened = formatDate(activeEpisode.openedAt);
+    const expires = formatDate(activeEpisode.expiresAt);
+    el.clinicalCycleSummary.textContent = isExpired
+      ? `Historia vencida: ${label} (abierta ${opened}, venció ${expires}). Usa \"Renovar vigencia\" para abrir un nuevo ciclo de 6 meses.`
+      : `Historia activa: ${label} (abierta ${opened}, vigente hasta ${expires}).`;
+  }
+
+  if (episodes.length === 0) {
+    el.clinicalCycleList.innerHTML = "<div class=\"history-empty\">Aún no hay ciclos de historia clínica en este expediente.</div>";
+    return;
+  }
+
+  const nowMs = Date.now();
+  el.clinicalCycleList.innerHTML = episodes
+    .map((episode, index) => {
+      const type = getClinicalRecordTypeById(episode.formatId);
+      const expired = isClinicalEpisodeExpired(episode, nowMs);
+      const isActive = stringOrEmpty(episode.id) === stringOrEmpty(draftPatient.activeClinicalEpisodeId);
+      const statusText = expired ? "Vencida" : "Vigente";
+      const statusClass = expired ? "warn" : "";
+      return `
+        <article class="history-item ${isActive ? "active" : ""}">
+          <div class="history-head">
+            <span class="history-type">Ciclo ${index + 1} · ${escapeHtml(type.label)}</span>
+            <span class="history-date">${escapeHtml(statusText)}</span>
+          </div>
+          <div class="history-title">Apertura: ${escapeHtml(formatDate(episode.openedAt))}</div>
+          <div class="history-body">Vigencia hasta ${escapeHtml(formatDate(episode.expiresAt))}.</div>
+          <div class="history-actions">
+            <button type="button" class="table-btn ${statusClass}" data-open-cycle-id="${episode.id}">Abrir ciclo</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
 function renderPatientHistory() {
   const entries = Array.isArray(draftPatient.historyEntries) ? draftPatient.historyEntries : [];
   if (entries.length === 0) {
@@ -914,12 +1055,36 @@ function ensureDraftClinicalFormData() {
   draftPatient.clinicalFormData = normalizeClinicalFormData(draftPatient.clinicalFormData);
 }
 
+function ensureDraftClinicalSharedValues() {
+  if (!draftPatient.clinicalSharedValues || typeof draftPatient.clinicalSharedValues !== "object") {
+    draftPatient.clinicalSharedValues = {};
+  }
+  draftPatient.clinicalSharedValues = normalizeClinicalSharedValues(
+    draftPatient.clinicalSharedValues,
+    draftPatient.clinicalFormData
+  );
+}
+
+function getClinicalFieldDisplayValue(field, values) {
+  const explicitValue = stringOrEmpty(values?.[field.id]);
+  if (explicitValue) {
+    return explicitValue;
+  }
+
+  const contextKey = stringOrEmpty(field?.contextKey);
+  if (!contextKey || !shouldReuseClinicalContextKey(contextKey)) {
+    return "";
+  }
+  return stringOrEmpty(draftPatient.clinicalSharedValues?.[contextKey]);
+}
+
 function renderClinicalFormatFields() {
   if (!el.clinicalFormatFields) {
     return;
   }
 
   ensureDraftClinicalFormData();
+  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
@@ -933,7 +1098,7 @@ function renderClinicalFormatFields() {
 
   el.clinicalFormatFields.innerHTML = schema.fields
     .map((field) => {
-      const fieldValue = values[field.id] || "";
+      const fieldValue = getClinicalFieldDisplayValue(field, values);
       const inputType = field.type || "text";
       if (inputType === "textarea") {
         return `
@@ -964,9 +1129,11 @@ function handleClinicalFormatFieldInput(event) {
     return;
   }
   ensureDraftClinicalFormData();
+  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
+  const schema = getClinicalFormSchema(activeType);
   const fieldId = input.getAttribute("data-clinical-field");
   if (!fieldId) {
     return;
@@ -976,6 +1143,17 @@ function handleClinicalFormatFieldInput(event) {
   const bucket = draftPatient.clinicalFormData[activeType] || {};
   bucket[fieldId] = value;
   draftPatient.clinicalFormData[activeType] = bucket;
+
+  const field = schema.fields.find((entry) => entry.id === fieldId);
+  const contextKey = stringOrEmpty(field?.contextKey);
+  if (contextKey && shouldReuseClinicalContextKey(contextKey)) {
+    if (value) {
+      draftPatient.clinicalSharedValues[contextKey] = value;
+    } else if (stringOrEmpty(draftPatient.clinicalSharedValues[contextKey])) {
+      delete draftPatient.clinicalSharedValues[contextKey];
+    }
+  }
+
   persistDraftPatientIfEditing();
 }
 
@@ -1262,14 +1440,15 @@ function collectOdontogramStatusIds(odontogram) {
   return Array.from(set);
 }
 
-function openPatient(id) {
+function openPatient(id, preferredSubview) {
   const found = state.patients.find((patient) => patient.id === id);
   if (!found) {
     return;
   }
 
+  const targetSubview = preferredSubview === "history" ? "history" : "profile";
   setActiveView("patient");
-  setActivePatientSubview("profile");
+  setActivePatientSubview(targetSubview);
   editingPatientId = id;
   draftPatient = deepClone(found);
   draftPatient = normalizePatient(draftPatient);
@@ -1281,11 +1460,16 @@ function openPatient(id) {
   renderDiseaseChecklist();
   renderOdontogram();
   renderAppointmentList();
+  renderClinicalCyclePanel();
   renderPatientHistory();
   resetAppointmentInputs();
   resetPatientMediaInput();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
-  setFeedback(`Editando expediente de ${getPatientFullName(found)}.`);
+  if (targetSubview === "history") {
+    setFeedback(`Historial clinico abierto para ${getPatientFullName(found)}.`);
+  } else {
+    setFeedback(`Editando expediente de ${getPatientFullName(found)}.`);
+  }
 }
 

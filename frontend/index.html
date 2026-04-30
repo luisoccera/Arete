@@ -136,6 +136,7 @@
 
       <section class="view-section" data-view-section="patient">
         <nav class="patient-subtabs" aria-label="Registro del paciente">
+          <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
           <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
           <button type="button" class="patient-subtab" data-patient-tab="pathologies">Patologias</button>
           <button type="button" class="patient-subtab" data-patient-tab="media">Imagenes</button>
@@ -150,6 +151,7 @@
                 <p class="panel-subtitle">Completa los datos clinicos y guarda el expediente.</p>
               </div>
               <div class="form-actions">
+                <button type="button" id="openPatientHistoryBtn" class="btn btn-ghost">Abrir historia clínica</button>
                 <button type="button" id="savePatientBtn" class="btn btn-primary">Guardar paciente</button>
                 <button type="button" id="deleteCurrentPatientBtn" class="btn btn-danger" disabled>Eliminar paciente</button>
               </div>
@@ -178,6 +180,11 @@
                 </label>
 
                 <label class="field">
+                  <span>Meses (edad)</span>
+                  <input type="number" id="patientAgeMonths" min="0" max="11">
+                </label>
+
+                <label class="field">
                   <span>Sexo</span>
                   <select id="patientSex">
                     <option value="">Seleccionar</option>
@@ -198,6 +205,11 @@
                 </label>
 
                 <label class="field">
+                  <span>Lugar de nacimiento</span>
+                  <input type="text" id="birthPlace" placeholder="Ciudad de nacimiento">
+                </label>
+
+                <label class="field">
                   <span>Telefono</span>
                   <input type="tel" id="phone" placeholder="+52 000 000 0000">
                 </label>
@@ -208,8 +220,33 @@
                 </label>
 
                 <label class="field">
+                  <span>Escolaridad</span>
+                  <input type="text" id="educationLevel" placeholder="Nivel de estudios">
+                </label>
+
+                <label class="field">
+                  <span>Estado civil</span>
+                  <input type="text" id="civilStatus" placeholder="Ejemplo: soltero/a">
+                </label>
+
+                <label class="field">
                   <span>Cirujano dentista a cargo</span>
                   <input type="text" id="dentistName">
+                </label>
+
+                <label class="field">
+                  <span>Nombre del medico familiar</span>
+                  <input type="text" id="familyDoctorName">
+                </label>
+
+                <label class="field">
+                  <span>Telefono de oficina</span>
+                  <input type="tel" id="officePhone" placeholder="+52 000 000 0000">
+                </label>
+
+                <label class="field">
+                  <span>Telefono del medico familiar</span>
+                  <input type="tel" id="familyDoctorPhone" placeholder="+52 000 000 0000">
                 </label>
 
                 <label class="field">
@@ -226,7 +263,55 @@
                   <span>Inicio de tratamiento</span>
                   <input type="date" id="treatmentStart">
                 </label>
+
+                <label class="field">
+                  <span>Fecha de ultima consulta medica</span>
+                  <input type="date" id="lastMedicalConsultDate">
+                </label>
+
+                <label class="field">
+                  <span>Motivo de ultima consulta medica</span>
+                  <input type="text" id="lastMedicalConsultReason" placeholder="Ejemplo: control general">
+                </label>
               </div>
+
+              <section class="card">
+                <h3>Domicilio detallado para formato oficial</h3>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Calle</span>
+                    <input type="text" id="streetAddress">
+                  </label>
+                  <label class="field">
+                    <span>Num. exterior</span>
+                    <input type="text" id="exteriorNumber">
+                  </label>
+                  <label class="field">
+                    <span>Num. interior</span>
+                    <input type="text" id="interiorNumber">
+                  </label>
+                  <label class="field">
+                    <span>Colonia</span>
+                    <input type="text" id="neighborhood">
+                  </label>
+                  <label class="field">
+                    <span>Municipio</span>
+                    <input type="text" id="municipality">
+                  </label>
+                  <label class="field">
+                    <span>Delegacion</span>
+                    <input type="text" id="delegation">
+                  </label>
+                  <label class="field">
+                    <span>Estado</span>
+                    <input type="text" id="stateName">
+                  </label>
+                  <label class="field">
+                    <span>Ciudad</span>
+                    <input type="text" id="cityName">
+                  </label>
+                </div>
+              </section>
 
               <div class="field-group">
                 <label class="field field-full">
@@ -405,6 +490,18 @@
 
         <section class="patient-subview" data-patient-subview="history">
           <section class="panel panel-history">
+          <section class="card clinical-cycle-card">
+            <div class="card-title-row">
+              <h3>Control de vigencia clínica (6 meses)</h3>
+              <div class="doc-actions">
+                <button type="button" id="openClinicalHistoryBtn" class="btn btn-secondary">Abrir historia clínica</button>
+                <button type="button" id="renewClinicalHistoryBtn" class="btn btn-ghost">Renovar vigencia</button>
+              </div>
+            </div>
+            <p id="clinicalCycleSummary" class="card-help">Sin historia clínica activa.</p>
+            <div id="clinicalCycleList" class="history-list"></div>
+          </section>
+
           <section class="card clinical-doc-card">
             <div class="card-title-row">
               <h3>Historia clinica imprimible</h3>

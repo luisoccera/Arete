@@ -26,6 +26,11 @@ function getStatusById(id) {
   return state.toothStatuses.find((status) => status.id === id) || null;
 }
 
+function shouldReuseClinicalContextKey(key) {
+  const safeKey = stringOrEmpty(key);
+  return Boolean(safeKey) && CLINICAL_REUSABLE_CONTEXT_KEYS.has(safeKey);
+}
+
 function setFeedback(text, mode) {
   el.feedbackMessage.textContent = text;
   el.feedbackMessage.dataset.mode = mode || "ok";

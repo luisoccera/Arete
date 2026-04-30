@@ -1319,6 +1319,11 @@ tbody tr.active {
   gap: 0.26rem;
 }
 
+.history-item.active {
+  border-color: #63d2e8;
+  box-shadow: 0 0 0 1px #63d2e844 inset;
+}
+
 .history-head {
   display: flex;
   justify-content: space-between;
@@ -2138,6 +2143,12 @@ td {
   border-color: #d2bca0;
   color: #473628;
   background: #fbf4e9;
+}
+
+.history-item.active {
+  border-color: #c4a982;
+  box-shadow: 0 0 0 1px #ddc19b inset;
+  background: #fff4e4;
 }
 
 .catalog-btn {

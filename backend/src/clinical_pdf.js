@@ -338,6 +338,22 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
   const diseaseSummary = summarizeList(diseaseNames, 6);
   const odontoSummary = summarizeOdontogram(p, statusMap);
   const notes = summarizeNotes(p);
+  const birthPlace = String(p.birthPlace || p.cityName || "").trim();
+  const streetAddress = String(p.streetAddress || "").trim() || locationParts.street;
+  const exteriorNumber = String(p.exteriorNumber || "").trim();
+  const interiorNumber = String(p.interiorNumber || "").trim();
+  const neighborhood = String(p.neighborhood || "").trim() || locationParts.colony;
+  const municipality = String(p.municipality || "").trim() || locationParts.municipality;
+  const delegation = String(p.delegation || "").trim() || locationParts.delegation;
+  const stateName = String(p.stateName || "").trim() || locationParts.state;
+  const cityName = String(p.cityName || "").trim() || locationParts.city;
+  const officePhone = String(p.officePhone || p.clinicPhone || "").trim();
+  const familyDoctorName = String(p.familyDoctorName || p.familyDoctor || "").trim();
+  const familyDoctorPhone = String(p.familyDoctorPhone || p.doctorPhone || "").trim();
+  const educationLevel = String(p.educationLevel || p.schooling || "").trim();
+  const civilStatus = String(p.civilStatus || "").trim();
+  const lastMedicalDate = parseDateParts(p.lastMedicalConsultDate || "");
+  const lastMedicalReason = String(p.lastMedicalConsultReason || "").trim();
 
   const sexText = String(p.sex || "").toLowerCase();
   const isMale = sexText.includes("masc");
@@ -366,23 +382,29 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     sexLabel: String(p.sex || "").trim(),
     isMale,
     isFemale,
-    birthPlaceDate: [String(p.location || "").trim(), birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
+    birthPlace,
+    birthPlaceDate: [birthPlace, birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
     birthDay: birthDate.day,
     birthMonth: birthDate.month,
     birthYear: birthDate.year,
     location: String(p.location || "").trim(),
-    locationShort: String(p.location || "").trim(),
-    locationStreet: locationParts.street,
-    locationColony: locationParts.colony,
-    locationMunicipality: locationParts.municipality,
-    locationDelegation: locationParts.delegation,
-    locationState: locationParts.state,
-    locationCity: locationParts.city,
+    locationShort: cityName || stateName || String(p.location || "").trim(),
+    locationStreet: streetAddress,
+    locationExterior: exteriorNumber,
+    locationInterior: interiorNumber,
+    locationColony: neighborhood,
+    locationMunicipality: municipality,
+    locationDelegation: delegation,
+    locationState: stateName,
+    locationCity: cityName,
     occupation: String(p.occupation || "").trim(),
-    occupationAlt: String(p.occupation || "").trim(),
-    civilStatus: "No especificado",
+    occupationAlt: educationLevel,
+    civilStatus,
     phone: String(p.phone || "").trim(),
-    doctorPhone: String(p.doctorPhone || p.familyDoctorPhone || "").trim(),
+    officePhone,
+    doctorPhone: familyDoctorPhone,
+    familyDoctorName,
+    familyDoctorPhone,
     dentistName: String(p.dentistName || "").trim(),
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
@@ -390,8 +412,8 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     consultYear: consultDate.year,
     lastMedicalConsult: truncate(
       [
-        consultDate.label !== "-" ? consultDate.label : "",
-        String(consultationReason || "").trim()
+        lastMedicalDate.label !== "-" ? lastMedicalDate.label : "",
+        lastMedicalReason
       ]
         .filter(Boolean)
         .join(" - "),
@@ -534,6 +556,7 @@ function normalizeFillEntries(rawEntries) {
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
       x: toOptionalNumber(entry?.x),
       y: toOptionalNumber(entry?.y),
+      lockPosition: Boolean(entry?.lockPosition),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -562,6 +585,17 @@ function getRectOverlapArea(a, b) {
     return 0;
   }
   return (right - left) * (top - bottom);
+}
+
+function sumRectOverlapArea(rect, others) {
+  if (!rect || !Array.isArray(others) || others.length === 0) {
+    return 0;
+  }
+  let area = 0;
+  for (const other of others) {
+    area += getRectOverlapArea(rect, other);
+  }
+  return area;
 }
 
 function createTemplateOccupiedRects(items) {
@@ -614,7 +648,47 @@ function createEntryTextMetrics(font, value, rule) {
   };
 }
 
-function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects) {
+function findBestAnchorPlacement(rule, items) {
+  if (!rule || !Array.isArray(rule.matches) || rule.matches.length === 0 || !Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  const scored = [];
+  for (const item of items) {
+    const score = getPdfMatchScore(item?.norm, rule);
+    if (score <= 0) {
+      continue;
+    }
+    const x = Number(item?.x || 0);
+    const y = Number(item?.y || 0);
+    const w = Number(item?.w || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || x < 16 || y < 16) {
+      continue;
+    }
+    scored.push({
+      score,
+      x: x + w + Number(rule?.dx || 0),
+      y: y + Number(rule?.dy || 0)
+    });
+  }
+
+  if (scored.length === 0) {
+    return null;
+  }
+  scored.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
+  return scored[0];
+}
+
+function createTextRect(x, y, metrics) {
+  return {
+    left: x - 1,
+    right: x + metrics.effectiveWidth + 2,
+    top: y + metrics.size,
+    bottom: y - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28)
+  };
+}
+
+function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects, items) {
   const x = Number(rule?.x || 0);
   const baseY = Number(rule?.y || 0);
   if (!Number.isFinite(x) || !Number.isFinite(baseY) || x < 20 || baseY < 20) {
@@ -624,6 +698,34 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
   const metrics = createEntryTextMetrics(font, value, rule);
   if (!Array.isArray(metrics.lines) || metrics.lines.length === 0) {
     return false;
+  }
+
+  if (rule?.lockPosition) {
+    let drawX = x;
+    let drawY = baseY;
+    let chosenRect = createTextRect(drawX, drawY, metrics);
+    const fixedOverlap = sumRectOverlapArea(chosenRect, templateRects);
+
+    const anchor = findBestAnchorPlacement(rule, items);
+    if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) {
+      const anchoredRect = createTextRect(anchor.x, anchor.y, metrics);
+      const anchorOverlap = sumRectOverlapArea(anchoredRect, templateRects);
+      const farFromAnchor = Math.abs(anchor.x - x) + Math.abs(anchor.y - baseY) > 90;
+      if (anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
+        drawX = anchor.x;
+        drawY = anchor.y;
+        chosenRect = anchoredRect;
+      }
+    }
+
+    drawTextAt(page, font, value, {
+      ...rule,
+      x: drawX,
+      y: drawY,
+      lineHeight: metrics.lineHeight
+    });
+    occupiedRects.push(chosenRect);
+    return true;
   }
 
   const pageTopLimit = Math.max(30, page.getHeight() - 24);
@@ -643,12 +745,7 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
     if (top > pageTopLimit || bottom < pageBottomLimit) {
       continue;
     }
-    const rect = {
-      left: x - 1,
-      right: x + metrics.effectiveWidth + 2,
-      top,
-      bottom
-    };
+    const rect = createTextRect(x, candidateY, metrics);
     let overlapArea = 0;
     for (const other of collisionRects) {
       overlapArea += getRectOverlapArea(rect, other);
@@ -668,12 +765,7 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
       return false;
     }
     chosenY = baseY;
-    chosenRect = {
-      left: x - 1,
-      right: x + metrics.effectiveWidth + 2,
-      top: baseY + metrics.size,
-      bottom: baseY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28)
-    };
+    chosenRect = createTextRect(x, baseY, metrics);
   }
 
   if (minOverlap > 2400) {
@@ -682,12 +774,7 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
     const bottom = fallbackY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
     if (top <= pageTopLimit && bottom >= pageBottomLimit) {
       chosenY = fallbackY;
-      chosenRect = {
-        left: x - 1,
-        right: x + metrics.effectiveWidth + 2,
-        top,
-        bottom
-      };
+      chosenRect = createTextRect(x, fallbackY, metrics);
     }
   }
 
@@ -714,6 +801,7 @@ function resolveEntryCoordinates(entry, items) {
     lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
     x: toOptionalNumber(entry?.x),
     y: toOptionalNumber(entry?.y),
+    lockPosition: Boolean(entry?.lockPosition),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",
@@ -721,7 +809,10 @@ function resolveEntryCoordinates(entry, items) {
   };
 
   if (rule.x !== null && rule.y !== null) {
-    return [rule];
+    return [{
+      ...rule,
+      lockPosition: rule.lockPosition || (rule.x !== null && rule.y !== null)
+    }];
   }
   if (!Array.isArray(rule.matches) || rule.matches.length === 0) {
     return [];
@@ -802,7 +893,7 @@ function drawFillEntriesOnPage(page, font, items, entries, pageOffset, renderedE
     const resolvedRules = resolveEntryCoordinates(entry, items);
     let hitCount = 0;
     for (const resolvedRule of resolvedRules) {
-      const drawn = placeRuleWithoutOverlap(page, font, value, resolvedRule, occupiedRects, templateRects);
+      const drawn = placeRuleWithoutOverlap(page, font, value, resolvedRule, occupiedRects, templateRects, items);
       if (drawn) {
         hitCount += 1;
       }
@@ -919,7 +1010,7 @@ function shouldSkipRuleOnIdentificationPage(rule) {
 function drawIdentificationBlock(page, font, context) {
   const ageValue = normalizeNumericText(context.ageYears || context.ageText, 3);
   const monthsValue = normalizeNumericText(context.ageMonths, 2);
-  const birthPlace = String(context.locationCity || context.locationShort || context.location || "").trim();
+  const birthPlace = String(context.birthPlace || context.locationCity || context.locationShort || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
   const lastConsult = String(context.lastMedicalConsult || "").trim();
   const consultDay = normalizeNumericText(context.consultDay, 2);
@@ -927,7 +1018,11 @@ function drawIdentificationBlock(page, font, context) {
   const consultYear = normalizeNumericText(context.consultYear, 4);
   const locationState = String(context.locationState || "").trim();
   const locationCity = String(context.locationCity || "").trim();
-  const officePhone = String(context.doctorPhone || context.phone || "").trim();
+  const officePhone = String(context.officePhone || "").trim();
+  const familyDoctorName = String(context.familyDoctorName || "").trim();
+  const familyDoctorPhone = String(context.familyDoctorPhone || "").trim();
+  const locationExterior = String(context.locationExterior || "").trim();
+  const locationInterior = String(context.locationInterior || "").trim();
 
   drawTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 });
   drawTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 });
@@ -940,7 +1035,7 @@ function drawIdentificationBlock(page, font, context) {
   drawMark(page, font, context.isMale, 250.5, 364.2, 10);
   drawMark(page, font, context.isFemale, 377.5, 364.2, 10);
 
-  drawTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 132, size: 8, maxLines: 1, maxChars: 26 });
+  drawTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 104, size: 8, maxLines: 1, maxChars: 18 });
   drawTextAt(page, font, context.birthDay, { x: 440, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, context.birthMonth, { x: 476, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, context.birthYear, { x: 513, y: 338.2, maxWidth: 34, size: 8, align: "center", maxLines: 1, maxChars: 4 });
@@ -956,6 +1051,8 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, context.civilStatus, { x: 131, y: 301.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 });
   drawTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 232, size: 8.2, maxLines: 1, maxChars: 52 });
 
+  drawTextAt(page, font, locationExterior, { x: 122, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 });
+  drawTextAt(page, font, locationInterior, { x: 285, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 });
   drawTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 132, size: 8.2, maxLines: 1, maxChars: 28 });
   drawTextAt(page, font, locationState || context.locationState, { x: 122, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 20 });
   drawTextAt(page, font, context.locationMunicipality, { x: 236, y: 269.2, maxWidth: 108, size: 8.2, maxLines: 1, maxChars: 20 });
@@ -963,13 +1060,13 @@ function drawIdentificationBlock(page, font, context) {
 
   drawTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, officePhone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
-  drawTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 });
-  drawTextAt(page, font, officePhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
+  drawTextAt(page, font, familyDoctorName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 });
+  drawTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 });
 
-  drawTextAt(page, font, consultDay, { x: 485, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultMonth, { x: 509, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultYear, { x: 535, y: 451.4, maxWidth: 24, size: 8, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, consultDay, { x: 487.2, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultMonth, { x: 512.4, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultYear, { x: 538.8, y: 451.1, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 4 });
 }
 
 async function getTemplateTextData(templatePath) {

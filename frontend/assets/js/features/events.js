@@ -3,15 +3,6 @@
     setActiveView("patient");
     startNewPatient(true);
   });
-  if (el.openPatientWorkspaceBtn) {
-    el.openPatientWorkspaceBtn.addEventListener("click", () => {
-      setActiveView("patient");
-      startNewPatient(true);
-    });
-  }
-  if (el.openPathologiesBtn) {
-    el.openPathologiesBtn.addEventListener("click", focusPathologiesSection);
-  }
   for (const button of el.viewTabs) {
     button.addEventListener("click", () => {
       const targetView = button.getAttribute("data-view-tab");
@@ -38,6 +29,11 @@
     });
   }
   el.savePatientBtn.addEventListener("click", savePatient);
+  if (el.openPatientHistoryBtn) {
+    el.openPatientHistoryBtn.addEventListener("click", () => {
+      openClinicalHistoryForCurrentPatient(false);
+    });
+  }
   el.deleteCurrentPatientBtn.addEventListener("click", () => {
     if (!editingPatientId) {
       setFeedback("Primero abre un paciente para poder eliminarlo.", "error");
@@ -55,6 +51,16 @@
   el.exportClinicalDocBtn.addEventListener("click", downloadClinicalDocument);
   el.printClinicalDocBtn.addEventListener("click", printClinicalDocument);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
+  if (el.openClinicalHistoryBtn) {
+    el.openClinicalHistoryBtn.addEventListener("click", () => {
+      openClinicalHistoryForCurrentPatient(false);
+    });
+  }
+  if (el.renewClinicalHistoryBtn) {
+    el.renewClinicalHistoryBtn.addEventListener("click", () => {
+      openClinicalHistoryForCurrentPatient(true);
+    });
+  }
   el.clearOdontogramBtn.addEventListener("click", clearDraftOdontogram);
   el.quickAddStatusBtn.addEventListener("click", () => {
     el.newStatusName.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -110,6 +116,12 @@
   });
 
   el.patientRows.addEventListener("click", (event) => {
+    const openHistoryBtn = event.target.closest("[data-open-history-id]");
+    if (openHistoryBtn) {
+      openPatient(openHistoryBtn.getAttribute("data-open-history-id"), "history");
+      return;
+    }
+
     const openBtn = event.target.closest("[data-open-id]");
     if (openBtn) {
       openPatient(openBtn.getAttribute("data-open-id"));
@@ -123,6 +135,12 @@
   });
 
   el.upcomingList.addEventListener("click", (event) => {
+    const openHistoryBtn = event.target.closest("[data-open-history-id]");
+    if (openHistoryBtn) {
+      openPatient(openHistoryBtn.getAttribute("data-open-history-id"), "history");
+      return;
+    }
+
     const openBtn = event.target.closest("[data-open-id]");
     if (!openBtn) {
       return;
@@ -131,6 +149,12 @@
   });
   if (el.upcomingPreviewAppointment) {
     el.upcomingPreviewAppointment.addEventListener("click", (event) => {
+      const openHistoryBtn = event.target.closest("[data-open-history-id]");
+      if (openHistoryBtn) {
+        openPatient(openHistoryBtn.getAttribute("data-open-history-id"), "history");
+        return;
+      }
+
       const openBtn = event.target.closest("[data-open-id]");
       if (!openBtn) {
         return;
@@ -268,6 +292,12 @@
   }
   if (el.upcomingDayList) {
     el.upcomingDayList.addEventListener("click", (event) => {
+      const openHistoryBtn = event.target.closest("[data-open-history-id]");
+      if (openHistoryBtn) {
+        openPatient(openHistoryBtn.getAttribute("data-open-history-id"), "history");
+        return;
+      }
+
       const openBtn = event.target.closest("[data-open-id]");
       if (openBtn) {
         openPatient(openBtn.getAttribute("data-open-id"));
@@ -323,6 +353,15 @@
     }
     removeHistoryEntry(removeBtn.getAttribute("data-remove-history-id"));
   });
+  if (el.clinicalCycleList) {
+    el.clinicalCycleList.addEventListener("click", (event) => {
+      const openBtn = event.target.closest("[data-open-cycle-id]");
+      if (!openBtn) {
+        return;
+      }
+      openClinicalCycleById(openBtn.getAttribute("data-open-cycle-id"));
+    });
+  }
 
   el.appointmentList.addEventListener("click", (event) => {
     const removeBtn = event.target.closest("[data-remove-appointment-id]");

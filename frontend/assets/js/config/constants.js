@@ -177,7 +177,7 @@ const CLINICAL_FORM_SCHEMAS = {
     fields: [
       { id: "motivo_consulta", label: "Motivo de consulta", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Sintoma o razon principal de la consulta." },
       { id: "antecedentes_estomatologicos", label: "Antecedentes personales y familiares", type: "textarea", rows: 2, contextKey: "background", placeholder: "Antecedentes importantes para la atencion dental." },
-      { id: "habitos_higienicos_diarios", label: "Habitos higienicos diarios", type: "text", contextKey: "background", placeholder: "Ejemplo: habitos higienicos diarios." },
+      { id: "habitos_higienicos_diarios", label: "Habitos higienicos diarios", type: "text", contextKey: "hygieneHabitsDaily", placeholder: "Ejemplo: habitos higienicos diarios." },
       { id: "diagnostico_estomatologico", label: "Diagnostico estomatologico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico clinico principal." },
       { id: "plan_estomatologico", label: "Plan de tratamiento", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Fases del tratamiento indicado." },
       { id: "pronostico_estomatologico", label: "Pronostico", type: "text", contextKey: "prognosis", placeholder: "Favorable, reservado, etc." },
@@ -309,6 +309,17 @@ const CLINICAL_FORMAT_START_PAGES = {
   "f10-ortodoncia": 41,
   "f11-odontopediatria": 53
 };
+
+const CLINICAL_REUSABLE_CONTEXT_KEYS = new Set([
+  "consultReason",
+  "diagnosis",
+  "treatmentPlan",
+  "prognosis",
+  "notes",
+  "medications",
+  "allergies",
+  "odontoSummary"
+]);
 
 const CLINICAL_FORMAT_ORDER = Object.keys(CLINICAL_FORMAT_START_PAGES);
 

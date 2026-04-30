@@ -1,4 +1,4 @@
-﻿function startNewPatient(showMessage) {
+function startNewPatient(showMessage) {
   editingPatientId = null;
   draftPatient = createEmptyPatient();
   setActivePatientSubview("profile");
@@ -11,6 +11,7 @@
   renderOdontogram();
   renderAppointmentList();
   renderPatientMedia();
+  renderClinicalCyclePanel();
   renderPatientHistory();
   resetAppointmentInputs();
   resetPatientMediaInput();
@@ -22,9 +23,164 @@
   }
 }
 
+function ensureDraftClinicalEpisodeState() {
+  draftPatient.clinicalRecordType = normalizeClinicalRecordType(
+    draftPatient.clinicalRecordType || el.clinicalRecordType?.value
+  );
+  draftPatient.clinicalEpisodes = normalizeClinicalEpisodes(draftPatient.clinicalEpisodes);
+  draftPatient.activeClinicalEpisodeId = stringOrEmpty(draftPatient.activeClinicalEpisodeId);
+
+  if (draftPatient.clinicalEpisodes.length === 0) {
+    draftPatient.activeClinicalEpisodeId = "";
+    return;
+  }
+
+  const hasActive = draftPatient.clinicalEpisodes.some(
+    (episode) => episode.id === draftPatient.activeClinicalEpisodeId
+  );
+  if (!hasActive) {
+    const fallbackEpisode = getMostRelevantClinicalEpisode(draftPatient.clinicalEpisodes) || draftPatient.clinicalEpisodes[0];
+    draftPatient.activeClinicalEpisodeId = fallbackEpisode ? fallbackEpisode.id : "";
+  }
+}
+
+function getDraftActiveClinicalEpisode() {
+  ensureDraftClinicalEpisodeState();
+  if (!draftPatient.activeClinicalEpisodeId) {
+    return null;
+  }
+  return draftPatient.clinicalEpisodes.find((episode) => episode.id === draftPatient.activeClinicalEpisodeId) || null;
+}
+
+function createClinicalEpisode(formatId, openedAtInput) {
+  ensureDraftClinicalEpisodeState();
+  const safeFormatId = normalizeClinicalRecordType(formatId || draftPatient.clinicalRecordType);
+  const openedAt = isValidDate(openedAtInput) ? String(openedAtInput) : new Date().toISOString();
+  const expiresAt = addMonthsToIsoDate(openedAt, 6);
+  const typeLabel = getClinicalRecordTypeById(safeFormatId).label;
+
+  const newEpisode = {
+    id: generateId("cycle"),
+    formatId: safeFormatId,
+    openedAt,
+    expiresAt,
+    status: "activa",
+    title: typeLabel
+  };
+
+  draftPatient.clinicalEpisodes = [newEpisode, ...draftPatient.clinicalEpisodes].slice(0, 6);
+  draftPatient.activeClinicalEpisodeId = newEpisode.id;
+  draftPatient.clinicalRecordType = safeFormatId;
+  if (el.clinicalRecordType) {
+    el.clinicalRecordType.value = safeFormatId;
+  }
+  return newEpisode;
+}
+
+function ensureClinicalEpisodeForCurrentPatient(options = {}) {
+  ensureDraftClinicalEpisodeState();
+  const forceRenew = Boolean(options.forceRenew);
+  const preferredFormat = normalizeClinicalRecordType(
+    options.preferredFormatId || el.clinicalRecordType?.value || draftPatient.clinicalRecordType
+  );
+
+  let activeEpisode = getDraftActiveClinicalEpisode();
+  const wasExpired = activeEpisode ? isClinicalEpisodeExpired(activeEpisode, Date.now()) : false;
+  let created = false;
+
+  if (forceRenew || !activeEpisode || wasExpired) {
+    activeEpisode = createClinicalEpisode(preferredFormat);
+    created = true;
+  }
+
+  if (activeEpisode) {
+    draftPatient.activeClinicalEpisodeId = activeEpisode.id;
+    draftPatient.clinicalRecordType = normalizeClinicalRecordType(activeEpisode.formatId || preferredFormat);
+    if (el.clinicalRecordType) {
+      el.clinicalRecordType.value = draftPatient.clinicalRecordType;
+    }
+  }
+
+  return {
+    episode: activeEpisode,
+    created,
+    wasExpired
+  };
+}
+
+function openClinicalHistoryForCurrentPatient(forceRenew) {
+  syncDraftFromForm();
+
+  if (!draftPatient.name) {
+    setActivePatientSubview("profile");
+    setFeedback("Primero captura el nombre del paciente para abrir su historia clínica.", "error");
+    el.patientName.focus();
+    return;
+  }
+
+  const result = ensureClinicalEpisodeForCurrentPatient({ forceRenew: Boolean(forceRenew) });
+  if (!result.episode) {
+    setFeedback("No se pudo abrir la historia clínica del paciente.", "error");
+    return;
+  }
+
+  if (result.created) {
+    const formatLabel = getClinicalRecordTypeById(result.episode.formatId).label;
+    addHistoryEntry({
+      type: "clinical-note",
+      title: `Historia clínica iniciada (${formatLabel})`,
+      description: `Se abrió un ciclo con vigencia de 6 meses (hasta ${formatDate(result.episode.expiresAt)}).`
+    });
+  }
+
+  renderClinicalFormatFields();
+  renderClinicalCyclePanel();
+  renderPatientHistory();
+  setActivePatientSubview("history");
+  persistDraftPatientIfEditing();
+  setFeedback(
+    result.created
+      ? `Historia clínica abierta. Vigencia hasta ${formatDate(result.episode.expiresAt)}.`
+      : `Historia clínica activa (${getClinicalRecordTypeById(result.episode.formatId).label}).`
+  );
+}
+
+function openClinicalCycleById(cycleId) {
+  const safeCycleId = stringOrEmpty(cycleId);
+  if (!safeCycleId) {
+    return;
+  }
+
+  syncDraftFromForm();
+  ensureDraftClinicalEpisodeState();
+  const target = draftPatient.clinicalEpisodes.find((episode) => episode.id === safeCycleId);
+  if (!target) {
+    setFeedback("No se encontró el ciclo clínico seleccionado.", "error");
+    return;
+  }
+
+  draftPatient.activeClinicalEpisodeId = target.id;
+  draftPatient.clinicalRecordType = normalizeClinicalRecordType(target.formatId || draftPatient.clinicalRecordType);
+  if (el.clinicalRecordType) {
+    el.clinicalRecordType.value = draftPatient.clinicalRecordType;
+  }
+
+  renderClinicalFormatFields();
+  renderClinicalCyclePanel();
+  setActivePatientSubview("history");
+  persistDraftPatientIfEditing();
+  const expired = isClinicalEpisodeExpired(target, Date.now());
+  setFeedback(
+    expired
+      ? `Ciclo abierto (vencido desde ${formatDate(target.expiresAt)}). Puedes renovarlo para un nuevo periodo de 6 meses.`
+      : `Ciclo clínico vigente abierto (hasta ${formatDate(target.expiresAt)}).`
+  );
+}
+
 function savePatient() {
   syncDraftFromForm();
   ensureDraftOdontogram();
+  ensureDraftClinicalEpisodeState();
 
   if (!draftPatient.name) {
     setFeedback("El nombre del paciente es obligatorio.", "error");
@@ -53,11 +209,13 @@ function savePatient() {
   editingPatientId = normalized.id;
   draftPatient = deepClone(normalized);
   draftPatient = normalizePatient(draftPatient);
+  renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();
   renderDentitionSwitch();
   renderAppointmentList();
   renderPatientMedia();
+  renderClinicalCyclePanel();
   renderPatientHistory();
   resetAppointmentInputs();
   resetPatientMediaInput();
@@ -83,8 +241,10 @@ function deletePatient(id) {
   if (editingPatientId === id) {
     startNewPatient(false);
   }
+  renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();
+  renderClinicalCyclePanel();
   renderPatientHistory();
   updateDeleteCurrentButtonState();
   setFeedback(`Paciente ${getPatientFullName(patient)} eliminado.`);
@@ -435,6 +595,7 @@ function addAppointmentFromUpcomingPlanner() {
     el.globalAppointmentTitle.value = "";
   }
 
+  renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();
   renderUpcomingPlannerForm();
@@ -482,6 +643,7 @@ function removeAppointmentFromPlanner(patientId, appointmentId) {
     renderAppointmentList();
   }
 
+  renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();
   renderUpcomingPlannerForm();
@@ -511,6 +673,7 @@ function removeExternalAppointmentFromPlanner(appointmentId) {
   state.externalAppointments = state.externalAppointments.filter((entry) => entry.id !== safeAppointmentId);
   persistState();
 
+  renderHomeOverview();
   renderUpcomingAppointments();
   renderUpcomingPlannerForm();
   renderUpcomingPlannerCalendar();
@@ -581,8 +744,10 @@ function persistDraftPatientIfEditing() {
   state.patients[index] = normalized;
   draftPatient = deepClone(normalized);
   persistState();
+  renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();
+  renderClinicalCyclePanel();
 }
 
 function addDisease() {
@@ -776,6 +941,13 @@ function syncDraftClinicalRecordFields() {
   draftPatient.clinicalRecordType = normalizeClinicalRecordType(el.clinicalRecordType.value);
   draftPatient.clinicalRecordReference = stringOrEmpty(el.clinicalRecordReference.value);
   ensureDraftClinicalFormData();
+  ensureDraftClinicalSharedValues();
+  ensureDraftClinicalEpisodeState();
+  const activeEpisode = getDraftActiveClinicalEpisode();
+  if (activeEpisode) {
+    activeEpisode.formatId = draftPatient.clinicalRecordType;
+    activeEpisode.title = getClinicalRecordTypeById(draftPatient.clinicalRecordType).label;
+  }
 }
 
 function syncActiveClinicalFormatFieldsFromDom() {
@@ -783,6 +955,7 @@ function syncActiveClinicalFormatFieldsFromDom() {
     return;
   }
   ensureDraftClinicalFormData();
+  ensureDraftClinicalSharedValues();
   const activeType = normalizeClinicalRecordType(
     el.clinicalRecordType?.value || draftPatient.clinicalRecordType
   );
@@ -794,7 +967,16 @@ function syncActiveClinicalFormatFieldsFromDom() {
     if (!input) {
       continue;
     }
-    bucket[field.id] = stringOrEmpty(input.value);
+    const value = stringOrEmpty(input.value);
+    bucket[field.id] = value;
+    const contextKey = stringOrEmpty(field?.contextKey);
+    if (contextKey && shouldReuseClinicalContextKey(contextKey)) {
+      if (value) {
+        draftPatient.clinicalSharedValues[contextKey] = value;
+      } else if (stringOrEmpty(draftPatient.clinicalSharedValues[contextKey])) {
+        delete draftPatient.clinicalSharedValues[contextKey];
+      }
+    }
   }
 
   draftPatient.clinicalFormData[activeType] = bucket;
@@ -805,19 +987,36 @@ function syncDraftFromForm() {
   draftPatient.lastNameFather = stringOrEmpty(el.patientLastNameFather.value);
   draftPatient.lastNameMother = stringOrEmpty(el.patientLastNameMother.value);
   draftPatient.age = numberOrEmpty(el.patientAge.value);
+  draftPatient.ageMonths = numberOrEmpty(el.patientAgeMonths?.value);
   draftPatient.sex = stringOrEmpty(el.patientSex.value);
   draftPatient.location = stringOrEmpty(el.patientLocation.value);
   draftPatient.birthDate = stringOrEmpty(el.birthDate.value);
+  draftPatient.birthPlace = stringOrEmpty(el.birthPlace?.value);
   draftPatient.phone = stringOrEmpty(el.phone.value);
+  draftPatient.officePhone = stringOrEmpty(el.officePhone?.value);
   draftPatient.occupation = stringOrEmpty(el.occupation.value);
+  draftPatient.educationLevel = stringOrEmpty(el.educationLevel?.value);
+  draftPatient.civilStatus = stringOrEmpty(el.civilStatus?.value);
+  draftPatient.streetAddress = stringOrEmpty(el.streetAddress?.value);
+  draftPatient.exteriorNumber = stringOrEmpty(el.exteriorNumber?.value);
+  draftPatient.interiorNumber = stringOrEmpty(el.interiorNumber?.value);
+  draftPatient.neighborhood = stringOrEmpty(el.neighborhood?.value);
+  draftPatient.municipality = stringOrEmpty(el.municipality?.value);
+  draftPatient.delegation = stringOrEmpty(el.delegation?.value);
+  draftPatient.stateName = stringOrEmpty(el.stateName?.value);
+  draftPatient.cityName = stringOrEmpty(el.cityName?.value);
   draftPatient.medications = stringOrEmpty(el.medications.value);
   draftPatient.dentistName = stringOrEmpty(el.dentistName.value);
+  draftPatient.familyDoctorName = stringOrEmpty(el.familyDoctorName?.value);
+  draftPatient.familyDoctorPhone = stringOrEmpty(el.familyDoctorPhone?.value);
   draftPatient.allergies = stringOrEmpty(el.allergies.value);
   syncDraftClinicalRecordFields();
   syncActiveClinicalFormatFieldsFromDom();
   draftPatient.consultationDate = stringOrEmpty(el.consultationDate.value);
   draftPatient.nextConsultationDate = stringOrEmpty(el.nextConsultationDate.value);
   draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
+  draftPatient.lastMedicalConsultDate = stringOrEmpty(el.lastMedicalConsultDate?.value);
+  draftPatient.lastMedicalConsultReason = stringOrEmpty(el.lastMedicalConsultReason?.value);
   draftPatient.brushTimes = numberOrEmpty(el.brushTimes.value);
   draftPatient.flossHabit = stringOrEmpty(el.flossHabit.value);
   draftPatient.otherConditions = stringOrEmpty(el.otherConditions.value);
@@ -829,27 +1028,80 @@ function syncDraftFromForm() {
 }
 
 function hydrateFormFromDraft() {
+  ensureDraftClinicalEpisodeState();
   el.patientName.value = draftPatient.name || "";
   el.patientLastNameFather.value = draftPatient.lastNameFather || "";
   el.patientLastNameMother.value = draftPatient.lastNameMother || "";
   el.patientAge.value = toInputNumber(draftPatient.age);
+  if (el.patientAgeMonths) {
+    el.patientAgeMonths.value = toInputNumber(draftPatient.ageMonths);
+  }
   el.patientSex.value = draftPatient.sex || "";
   el.patientLocation.value = draftPatient.location || "";
   el.birthDate.value = draftPatient.birthDate || "";
+  if (el.birthPlace) {
+    el.birthPlace.value = draftPatient.birthPlace || "";
+  }
   el.phone.value = draftPatient.phone || "";
+  if (el.officePhone) {
+    el.officePhone.value = draftPatient.officePhone || "";
+  }
   el.occupation.value = draftPatient.occupation || "";
+  if (el.educationLevel) {
+    el.educationLevel.value = draftPatient.educationLevel || "";
+  }
+  if (el.civilStatus) {
+    el.civilStatus.value = draftPatient.civilStatus || "";
+  }
+  if (el.streetAddress) {
+    el.streetAddress.value = draftPatient.streetAddress || "";
+  }
+  if (el.exteriorNumber) {
+    el.exteriorNumber.value = draftPatient.exteriorNumber || "";
+  }
+  if (el.interiorNumber) {
+    el.interiorNumber.value = draftPatient.interiorNumber || "";
+  }
+  if (el.neighborhood) {
+    el.neighborhood.value = draftPatient.neighborhood || "";
+  }
+  if (el.municipality) {
+    el.municipality.value = draftPatient.municipality || "";
+  }
+  if (el.delegation) {
+    el.delegation.value = draftPatient.delegation || "";
+  }
+  if (el.stateName) {
+    el.stateName.value = draftPatient.stateName || "";
+  }
+  if (el.cityName) {
+    el.cityName.value = draftPatient.cityName || "";
+  }
   el.medications.value = draftPatient.medications || "";
   el.dentistName.value = draftPatient.dentistName || "";
+  if (el.familyDoctorName) {
+    el.familyDoctorName.value = draftPatient.familyDoctorName || "";
+  }
+  if (el.familyDoctorPhone) {
+    el.familyDoctorPhone.value = draftPatient.familyDoctorPhone || "";
+  }
   el.allergies.value = draftPatient.allergies || "";
   el.clinicalRecordType.value = normalizeClinicalRecordType(draftPatient.clinicalRecordType);
   el.clinicalRecordReference.value = draftPatient.clinicalRecordReference || "";
   el.consultationDate.value = draftPatient.consultationDate || "";
   el.nextConsultationDate.value = draftPatient.nextConsultationDate || "";
   el.treatmentStart.value = draftPatient.treatmentStart || "";
+  if (el.lastMedicalConsultDate) {
+    el.lastMedicalConsultDate.value = draftPatient.lastMedicalConsultDate || "";
+  }
+  if (el.lastMedicalConsultReason) {
+    el.lastMedicalConsultReason.value = draftPatient.lastMedicalConsultReason || "";
+  }
   el.brushTimes.value = toInputNumber(draftPatient.brushTimes);
   el.flossHabit.value = draftPatient.flossHabit || "";
   el.otherConditions.value = draftPatient.otherConditions || "";
   renderClinicalFormatFields();
+  renderClinicalCyclePanel();
   renderPatientMedia();
 }
 
@@ -879,6 +1131,17 @@ async function downloadClinicalDocument() {
     el.patientName.focus();
     return;
   }
+
+  const cycleResult = ensureClinicalEpisodeForCurrentPatient({ forceRenew: false });
+  if (cycleResult.created && cycleResult.episode) {
+    addHistoryEntry({
+      type: "clinical-note",
+      title: "Renovación automática de historia clínica",
+      description: `Se abrió un nuevo ciclo de 6 meses (vigente hasta ${formatDate(cycleResult.episode.expiresAt)}).`
+    });
+    renderPatientHistory();
+  }
+  renderClinicalCyclePanel();
 
   setPdfActionState(true, "download");
   setFeedback("Generando PDF oficial. Espera un momento...");
@@ -911,6 +1174,17 @@ async function printClinicalDocument() {
     el.patientName.focus();
     return;
   }
+
+  const cycleResult = ensureClinicalEpisodeForCurrentPatient({ forceRenew: false });
+  if (cycleResult.created && cycleResult.episode) {
+    addHistoryEntry({
+      type: "clinical-note",
+      title: "Renovación automática de historia clínica",
+      description: `Se abrió un nuevo ciclo de 6 meses (vigente hasta ${formatDate(cycleResult.episode.expiresAt)}).`
+    });
+    renderPatientHistory();
+  }
+  renderClinicalCyclePanel();
 
   setPdfActionState(true, "print");
   setFeedback("Preparando PDF para impresion...");
@@ -949,117 +1223,115 @@ function openPrintPopupWindow() {
 
 function printPdfBlob(blob, options) {
   return new Promise((resolve, reject) => {
-    const popup = options?.popup && !options.popup.closed ? options.popup : null;
-
-    if (isLikelyIOSLikeBrowser()) {
-      const mode = triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
-      resolve(mode === "opened" ? false : true);
+    if (!(blob instanceof Blob) || blob.size < 5) {
+      reject(new Error("No se pudo imprimir porque el archivo PDF es inválido."));
       return;
     }
 
     const objectUrl = URL.createObjectURL(blob);
-
-    if (popup) {
-      try {
-        popup.location.href = objectUrl;
-      } catch {
-        // Si la navegación falla, seguimos con iframe oculto.
-      }
-
-      let attempts = 0;
-      const maxAttempts = 8;
-      const tryAutoPrint = () => {
-        attempts += 1;
-        try {
-          popup.focus();
-          popup.print();
-          window.setTimeout(() => {
-            URL.revokeObjectURL(objectUrl);
-          }, 120000);
-          resolve(true);
-        } catch {
-          if (attempts >= maxAttempts) {
-            // Dejamos el PDF abierto para impresión manual.
-            resolve(false);
-            return;
-          }
-          window.setTimeout(tryAutoPrint, 450);
-        }
-      };
-
-      window.setTimeout(tryAutoPrint, 550);
-      return;
-    }
-
-    const frame = document.createElement("iframe");
-    frame.style.position = "fixed";
-    frame.style.width = "0";
-    frame.style.height = "0";
-    frame.style.opacity = "0";
-    frame.style.border = "0";
-    frame.style.left = "-9999px";
-    frame.style.bottom = "0";
-
+    const popup = options?.popup && !options.popup.closed
+      ? options.popup
+      : null;
     let settled = false;
-    const finalize = (callback) => {
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+      }, 120000);
+    };
+    const resolveOnce = (ok) => {
       if (settled) {
         return;
       }
       settled = true;
-      window.setTimeout(() => {
-        URL.revokeObjectURL(objectUrl);
-      }, 30000);
-      if (frame.parentNode) {
-        frame.parentNode.removeChild(frame);
+      cleanup();
+      resolve(Boolean(ok));
+    };
+    const rejectOnce = (error) => {
+      if (settled) {
+        return;
       }
-      callback();
+      settled = true;
+      cleanup();
+      reject(error instanceof Error ? error : new Error("No se pudo imprimir el PDF."));
     };
 
-    frame.onerror = () => {
-      finalize(() => reject(new Error("No se pudo cargar el PDF para imprimir.")));
+    if (isLikelyIOSLikeBrowser()) {
+      const mode = triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
+      resolveOnce(mode === "opened" ? false : true);
+      return;
+    }
+
+    const openManualPreview = () => {
+      try {
+        if (popup && !popup.closed) {
+          popup.location.href = objectUrl;
+          resolveOnce(false);
+          return;
+        }
+      } catch {
+        // Continuar con fallback.
+      }
+      const manual = window.open(objectUrl, "_blank", "noopener,noreferrer");
+      if (!manual) {
+        rejectOnce(new Error("No se pudo abrir la vista previa de impresion. Revisa el bloqueador de ventanas emergentes."));
+        return;
+      }
+      resolveOnce(false);
     };
 
-    frame.onload = () => {
-      window.setTimeout(() => {
-        try {
-          const frameWindow = frame.contentWindow;
-          if (!frameWindow) {
-            finalize(() => reject(new Error("No se pudo abrir el visor de impresion.")));
-            return;
-          }
+    const tryHiddenFramePrint = () => {
+      const frame = document.createElement("iframe");
+      frame.style.position = "fixed";
+      frame.style.right = "0";
+      frame.style.bottom = "0";
+      frame.style.width = "1px";
+      frame.style.height = "1px";
+      frame.style.opacity = "0";
+      frame.style.pointerEvents = "none";
+      frame.style.border = "0";
 
-          let done = false;
-          const complete = () => {
-            if (done) {
+      const finish = (ok) => {
+        frame.remove();
+        resolveOnce(ok);
+      };
+
+      frame.onload = () => {
+        window.setTimeout(() => {
+          try {
+            const frameWindow = frame.contentWindow;
+            if (!frameWindow) {
+              openManualPreview();
               return;
             }
-            done = true;
-            frameWindow.removeEventListener("afterprint", onAfterPrint);
-            finalize(() => resolve(true));
-          };
-
-          const onAfterPrint = () => {
-            complete();
-          };
-
-          frameWindow.addEventListener("afterprint", onAfterPrint);
-          frameWindow.focus();
-          frameWindow.print();
-          window.setTimeout(complete, 2200);
-        } catch (error) {
-          // Último fallback: abrir el PDF para impresión manual.
-          try {
-            triggerPdfDownload(blob, `${sanitizeFileName(draftPatient.name || "paciente")}-impresion.pdf`);
-            finalize(() => resolve(false));
-          } catch (fallbackError) {
-            finalize(() => reject(fallbackError instanceof Error ? fallbackError : new Error("Error al imprimir el PDF.")));
+            frameWindow.focus();
+            frameWindow.print();
+            finish(true);
+          } catch {
+            openManualPreview();
           }
+        }, 520);
+      };
+      frame.onerror = () => {
+        frame.remove();
+        openManualPreview();
+      };
+
+      document.body.appendChild(frame);
+      frame.src = objectUrl;
+      window.setTimeout(() => {
+        if (!settled) {
+          frame.remove();
+          openManualPreview();
         }
-      }, 220);
+      }, 7000);
     };
 
-    document.body.appendChild(frame);
-    frame.src = objectUrl;
+    try {
+      tryHiddenFramePrint();
+    } catch (error) {
+      rejectOnce(error);
+    }
   });
 }
 

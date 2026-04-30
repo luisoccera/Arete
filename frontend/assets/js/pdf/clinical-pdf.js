@@ -1,4 +1,4 @@
-﻿function getClinicalRecordTypeById(id) {
+function getClinicalRecordTypeById(id) {
   return CLINICAL_RECORD_TYPES.find((type) => type.id === id) || CLINICAL_RECORD_TYPES[0];
 }
 
@@ -56,6 +56,29 @@ function triggerPdfDownload(blob, fileName) {
   return "downloaded";
 }
 
+async function blobHasPdfHeader(blob) {
+  if (!(blob instanceof Blob) || blob.size < 5) {
+    return false;
+  }
+  const head = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+  return (
+    head[0] === 0x25 &&
+    head[1] === 0x50 &&
+    head[2] === 0x44 &&
+    head[3] === 0x46 &&
+    head[4] === 0x2d
+  );
+}
+
+async function getBlobTextPreview(blob, maxChars) {
+  try {
+    const text = await blob.slice(0, Math.max(120, Number(maxChars || 240))).text();
+    return String(text || "").replace(/\s+/g, " ").trim().slice(0, Math.max(80, Number(maxChars || 240)));
+  } catch {
+    return "";
+  }
+}
+
 async function requestOfficialClinicalPdf() {
   const recordType = getClinicalRecordTypeById(draftPatient.clinicalRecordType);
   const normalizedPatient = normalizePatient(draftPatient);
@@ -95,19 +118,29 @@ async function requestOfficialClinicalPdf() {
 
       if (response.ok) {
         const blob = await response.blob();
-        const contentDisposition = response.headers.get("content-disposition") || "";
-        const fileName = extractFilenameFromDisposition(contentDisposition);
-        return { blob, fileName, recordType };
+        const validPdf = await blobHasPdfHeader(blob);
+        if (!validPdf) {
+          const preview = await getBlobTextPreview(blob, 260);
+          backendError = preview
+            ? `El backend respondió, pero no devolvió un PDF válido. Vista previa: ${preview}`
+            : "El backend respondió, pero no devolvió un PDF válido.";
+        } else {
+          const contentDisposition = response.headers.get("content-disposition") || "";
+          const fileName = extractFilenameFromDisposition(contentDisposition);
+          return { blob, fileName, recordType };
+        }
       }
 
-      let detail = "";
-      try {
-        const data = await response.json();
-        detail = data?.error || data?.detail || "";
-      } catch {
-        detail = await response.text();
+      if (!backendError) {
+        let detail = "";
+        try {
+          const data = await response.json();
+          detail = data?.error || data?.detail || "";
+        } catch {
+          detail = await response.text();
+        }
+        backendError = detail || "El backend no pudo generar el PDF oficial.";
       }
-      backendError = detail || "El backend no pudo generar el PDF oficial.";
     } catch {
       backendError = "No se pudo conectar con el backend para generar el PDF oficial.";
     }
@@ -523,19 +556,32 @@ function buildClinicalContextFromForm(patientInput, formatId) {
   const schema = getClinicalFormSchema(safeFormat);
   const values = patient.clinicalFormData?.[safeFormat] || {};
   const byKey = {};
+  const sharedValues = normalizeClinicalSharedValues(patient.clinicalSharedValues, patient.clinicalFormData);
   const detailLines = [];
 
+  for (const [key, value] of Object.entries(sharedValues)) {
+    const safeKey = stringOrEmpty(key);
+    const safeValue = stringOrEmpty(value);
+    if (!safeKey || !safeValue) {
+      continue;
+    }
+    byKey[safeKey] = safeValue;
+  }
+
   for (const field of schema.fields) {
-    const value = stringOrEmpty(values[field.id]);
+    const explicitValue = stringOrEmpty(values[field.id]);
+    const contextKey = stringOrEmpty(field?.contextKey);
+    const sharedValue = contextKey && shouldReuseClinicalContextKey(contextKey)
+      ? stringOrEmpty(byKey[contextKey])
+      : "";
+    const value = explicitValue || sharedValue;
     if (!value) {
       continue;
     }
 
     detailLines.push(`${field.label}: ${value}`);
-    if (field.contextKey) {
-      byKey[field.contextKey] = byKey[field.contextKey]
-        ? `${byKey[field.contextKey]} | ${value}`
-        : value;
+    if (contextKey && explicitValue && shouldReuseClinicalContextKey(contextKey)) {
+      byKey[contextKey] = explicitValue;
     }
   }
 
@@ -587,6 +633,7 @@ function normalizeClinicalFillEntries(rawEntries) {
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
       x: toOptionalClinicalNumber(entry?.x),
       y: toOptionalClinicalNumber(entry?.y),
+      lockPosition: Boolean(entry?.lockPosition),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -602,50 +649,40 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
   const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
   const schema = getClinicalFormSchema(safeFormat);
   const values = patient.clinicalFormData?.[safeFormat] || {};
+  const sharedValues = normalizeClinicalSharedValues(patient.clinicalSharedValues, patient.clinicalFormData);
   const context = contextInput && typeof contextInput === "object"
     ? contextInput
     : buildClinicalPdfContext(patient, { diseases: state.diseases, toothStatuses: state.toothStatuses }, safeFormat);
 
   const entries = [];
 
-  if (!CLINICAL_IDENTIFICATION_LAYOUT_FORMATS.has(safeFormat)) {
-    for (const headerRule of CLINICAL_HEADER_FILL_RULES) {
-      const value = stringOrEmpty(context?.[headerRule.valueKey]);
-      if (!value) {
-        continue;
-      }
-      entries.push({
-        id: headerRule.id,
-        value,
-        matches: Array.isArray(headerRule.matches) ? headerRule.matches : [],
-        exact: false,
-        maxPerPage: 1,
-        maxWidth: Number(headerRule.maxWidth || 200),
-        maxLines: Number(headerRule.maxLines || 1),
-        pageOffset: Number.isFinite(Number(headerRule.pageOffset)) ? Number(headerRule.pageOffset) : 0,
-        dx: Number.isFinite(Number(headerRule.dx)) ? Number(headerRule.dx) : 6,
-        dy: Number.isFinite(Number(headerRule.dy)) ? Number(headerRule.dy) : -1,
-        size: Number.isFinite(Number(headerRule.size)) ? Number(headerRule.size) : 7.4,
-        lineHeight: Number.isFinite(Number(headerRule.lineHeight)) ? Number(headerRule.lineHeight) : null,
-        x: Number.isFinite(Number(headerRule.x)) ? Number(headerRule.x) : null,
-        y: Number.isFinite(Number(headerRule.y)) ? Number(headerRule.y) : null,
-        align: ["left", "center", "right"].includes(String(headerRule.align || "").toLowerCase())
-          ? String(headerRule.align).toLowerCase()
-          : "left",
-        maxChars: Number.isFinite(Number(headerRule.maxChars)) ? Number(headerRule.maxChars) : null
-      });
-    }
-  }
+  // Nota: el encabezado ya se llena con coordenadas fijas del bloque de identificación.
+  // Aquí evitamos reglas de "coincidencia por texto" para no colocar valores fuera de su línea.
 
   for (const field of schema.fields) {
-    const value = stringOrEmpty(values[field.id]);
+    const contextKey = stringOrEmpty(field?.contextKey);
+    const value = stringOrEmpty(values[field.id]) || (
+      contextKey && shouldReuseClinicalContextKey(contextKey)
+        ? stringOrEmpty(sharedValues[contextKey])
+        : ""
+    );
     if (!value) {
       continue;
     }
     const pdfRule = getClinicalFieldPdfRule(safeFormat, field.id);
+    if (!pdfRule || typeof pdfRule !== "object") {
+      // Evita ubicar datos en posiciones inciertas si no existe regla PDF explícita.
+      continue;
+    }
     const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
       ? pdfRule.matches
       : [field.label];
+    const fixedX = toOptionalClinicalNumber(pdfRule?.x);
+    const fixedY = toOptionalClinicalNumber(pdfRule?.y);
+    if (fixedX === null || fixedY === null) {
+      // Para impresión oficial solo permitimos coordenadas fijas.
+      continue;
+    }
 
     entries.push({
       id: `field-${safeFormat}-${field.id}`,
@@ -660,8 +697,9 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : -1,
       size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : 7.4,
       lineHeight: Number.isFinite(Number(pdfRule?.lineHeight)) ? Number(pdfRule.lineHeight) : null,
-      x: toOptionalClinicalNumber(pdfRule?.x),
-      y: toOptionalClinicalNumber(pdfRule?.y),
+      x: fixedX,
+      y: fixedY,
+      lockPosition: true,
       align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
         ? String(pdfRule.align).toLowerCase()
         : "left",
@@ -704,6 +742,22 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   const diseaseSummary = summarizeClinicalList(diseaseNames, 6);
   const odontoSummary = summarizeClinicalOdontogram(patient, statusMap);
   const notes = summarizeClinicalNotes(patient);
+  const birthPlace = stringOrEmpty(patient.birthPlace) || String(patient.cityName || "").trim();
+  const streetAddress = stringOrEmpty(patient.streetAddress) || locationParts.street;
+  const exteriorNumber = stringOrEmpty(patient.exteriorNumber);
+  const interiorNumber = stringOrEmpty(patient.interiorNumber);
+  const neighborhood = stringOrEmpty(patient.neighborhood) || locationParts.colony;
+  const municipality = stringOrEmpty(patient.municipality) || locationParts.municipality;
+  const delegation = stringOrEmpty(patient.delegation) || locationParts.delegation;
+  const stateName = stringOrEmpty(patient.stateName) || locationParts.state;
+  const cityName = stringOrEmpty(patient.cityName) || locationParts.city;
+  const officePhone = stringOrEmpty(patient.officePhone);
+  const familyDoctorName = stringOrEmpty(patient.familyDoctorName);
+  const familyDoctorPhone = stringOrEmpty(patient.familyDoctorPhone);
+  const educationLevel = stringOrEmpty(patient.educationLevel);
+  const civilStatus = stringOrEmpty(patient.civilStatus);
+  const lastMedicalDate = parseDatePartsForClinicalPdf(patient.lastMedicalConsultDate || "");
+  const lastMedicalReason = stringOrEmpty(patient.lastMedicalConsultReason);
 
   const sexText = String(patient.sex || "").toLowerCase();
   const isMale = sexText.includes("masc");
@@ -729,23 +783,29 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     sexLabel: String(patient.sex || "").trim(),
     isMale,
     isFemale,
-    birthPlaceDate: [String(patient.location || "").trim(), birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
+    birthPlace,
+    birthPlaceDate: [birthPlace, birthDate.label !== "-" ? birthDate.label : ""].filter(Boolean).join(" - "),
     birthDay: birthDate.day,
     birthMonth: birthDate.month,
     birthYear: birthDate.year,
     location: String(patient.location || "").trim(),
-    locationShort: String(patient.location || "").trim(),
-    locationStreet: locationParts.street,
-    locationColony: locationParts.colony,
-    locationMunicipality: locationParts.municipality,
-    locationDelegation: locationParts.delegation,
-    locationState: locationParts.state,
-    locationCity: locationParts.city,
+    locationShort: cityName || stateName || String(patient.location || "").trim(),
+    locationStreet: streetAddress,
+    locationExterior: exteriorNumber,
+    locationInterior: interiorNumber,
+    locationColony: neighborhood,
+    locationMunicipality: municipality,
+    locationDelegation: delegation,
+    locationState: stateName,
+    locationCity: cityName,
     occupation: String(patient.occupation || "").trim(),
-    occupationAlt: String(patient.occupation || "").trim(),
-    civilStatus: "No especificado",
+    occupationAlt: educationLevel,
+    civilStatus,
     phone: String(patient.phone || "").trim(),
-    doctorPhone: String(patient.doctorPhone || patient.familyDoctorPhone || "").trim(),
+    officePhone,
+    doctorPhone: familyDoctorPhone,
+    familyDoctorName,
+    familyDoctorPhone,
     dentistName: String(patient.dentistName || "").trim(),
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
@@ -753,8 +813,8 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     consultYear: consultDate.year,
     lastMedicalConsult: truncateClinicalText(
       [
-        consultDate.label !== "-" ? consultDate.label : "",
-        String(consultationReason || "").trim()
+        lastMedicalDate.label !== "-" ? lastMedicalDate.label : "",
+        lastMedicalReason
       ]
         .filter(Boolean)
         .join(" - "),
@@ -882,6 +942,17 @@ function getClinicalRectOverlapArea(a, b) {
   return (right - left) * (top - bottom);
 }
 
+function getClinicalSumRectOverlapArea(rect, others) {
+  if (!rect || !Array.isArray(others) || others.length === 0) {
+    return 0;
+  }
+  let area = 0;
+  for (const other of others) {
+    area += getClinicalRectOverlapArea(rect, other);
+  }
+  return area;
+}
+
 function createClinicalTemplateRects(items) {
   if (!Array.isArray(items) || items.length === 0) {
     return [];
@@ -937,7 +1008,47 @@ function createClinicalTextMetrics(font, value, rule) {
   };
 }
 
-function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects, pdfLib) {
+function findBestClinicalAnchorPlacement(rule, items) {
+  if (!rule || !Array.isArray(rule.matches) || rule.matches.length === 0 || !Array.isArray(items) || items.length === 0) {
+    return null;
+  }
+
+  const scored = [];
+  for (const item of items) {
+    const score = getClinicalPdfMatchScore(item?.norm, rule);
+    if (score <= 0) {
+      continue;
+    }
+    const x = Number(item?.x || 0);
+    const y = Number(item?.y || 0);
+    const w = Number(item?.w || 0);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(w) || x < 16 || y < 16) {
+      continue;
+    }
+    scored.push({
+      score,
+      x: x + w + Number(rule?.dx || 0),
+      y: y + Number(rule?.dy || 0)
+    });
+  }
+
+  if (scored.length === 0) {
+    return null;
+  }
+  scored.sort((a, b) => b.score - a.score || b.y - a.y || a.x - b.x);
+  return scored[0];
+}
+
+function createClinicalTextRect(x, y, metrics) {
+  return {
+    left: x - 1,
+    right: x + metrics.effectiveWidth + 2,
+    top: y + metrics.size,
+    bottom: y - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28)
+  };
+}
+
+function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects, templateRects, items, pdfLib) {
   const x = Number(rule?.x || 0);
   const baseY = Number(rule?.y || 0);
   if (!Number.isFinite(x) || !Number.isFinite(baseY) || x < 20 || baseY < 20) {
@@ -947,6 +1058,39 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
   const metrics = createClinicalTextMetrics(font, value, rule);
   if (!Array.isArray(metrics.lines) || metrics.lines.length === 0) {
     return false;
+  }
+  if (rule?.lockPosition) {
+    let drawX = x;
+    let drawY = baseY;
+    let chosenRect = createClinicalTextRect(drawX, drawY, metrics);
+    const fixedOverlap = getClinicalSumRectOverlapArea(chosenRect, templateRects);
+
+    const anchor = findBestClinicalAnchorPlacement(rule, items);
+    if (anchor && Number.isFinite(anchor.x) && Number.isFinite(anchor.y)) {
+      const anchoredRect = createClinicalTextRect(anchor.x, anchor.y, metrics);
+      const anchorOverlap = getClinicalSumRectOverlapArea(anchoredRect, templateRects);
+      const farFromAnchor = Math.abs(anchor.x - x) + Math.abs(anchor.y - baseY) > 90;
+      if (anchorOverlap + 10 < fixedOverlap || (farFromAnchor && anchorOverlap <= fixedOverlap + 1)) {
+        drawX = anchor.x;
+        drawY = anchor.y;
+        chosenRect = anchoredRect;
+      }
+    }
+
+    drawClinicalTextAt(
+      page,
+      font,
+      value,
+      {
+        ...rule,
+        x: drawX,
+        y: drawY,
+        lineHeight: metrics.lineHeight
+      },
+      pdfLib
+    );
+    occupiedRects.push(chosenRect);
+    return true;
   }
 
   const pageTopLimit = Math.max(30, page.getHeight() - 24);
@@ -966,12 +1110,7 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
     if (top > pageTopLimit || bottom < pageBottomLimit) {
       continue;
     }
-    const rect = {
-      left: x - 1,
-      right: x + metrics.effectiveWidth + 2,
-      top,
-      bottom
-    };
+    const rect = createClinicalTextRect(x, candidateY, metrics);
     let overlapArea = 0;
     for (const other of collisionRects) {
       overlapArea += getClinicalRectOverlapArea(rect, other);
@@ -989,12 +1128,7 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
   if (!chosenRect || !Number.isFinite(chosenY)) {
     if (Number.isFinite(baseY)) {
       chosenY = baseY;
-      chosenRect = {
-        left: x - 1,
-        right: x + metrics.effectiveWidth + 2,
-        top: baseY + metrics.size,
-        bottom: baseY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28)
-      };
+      chosenRect = createClinicalTextRect(x, baseY, metrics);
     } else {
       return false;
     }
@@ -1006,12 +1140,7 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
     const bottom = fallbackY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
     if (top <= pageTopLimit && bottom >= pageBottomLimit) {
       chosenY = fallbackY;
-      chosenRect = {
-        left: x - 1,
-        right: x + metrics.effectiveWidth + 2,
-        top,
-        bottom
-      };
+      chosenRect = createClinicalTextRect(x, fallbackY, metrics);
     }
   }
 
@@ -1044,6 +1173,7 @@ function resolveClinicalEntryCoordinates(entry, items) {
     lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
     x: toOptionalClinicalNumber(entry?.x),
     y: toOptionalClinicalNumber(entry?.y),
+    lockPosition: Boolean(entry?.lockPosition),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",
@@ -1132,7 +1262,7 @@ function drawClinicalFillEntriesOnPage(page, font, items, entries, pageOffset, r
     const resolvedRules = resolveClinicalEntryCoordinates(entry, items);
     let hits = 0;
     for (const resolvedRule of resolvedRules) {
-      const drawn = placeClinicalRuleWithoutOverlap(page, font, value, resolvedRule, occupiedRects, templateRects, pdfLib);
+      const drawn = placeClinicalRuleWithoutOverlap(page, font, value, resolvedRule, occupiedRects, templateRects, items, pdfLib);
       if (drawn) {
         hits += 1;
       }
@@ -1239,7 +1369,7 @@ function drawClinicalMark(page, font, enabled, x, y, size, pdfLib) {
 function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   const ageValue = normalizeClinicalNumericText(context.ageYears || context.ageText, 3);
   const monthsValue = normalizeClinicalNumericText(context.ageMonths, 2);
-  const birthPlace = String(context.locationCity || context.locationShort || context.location || "").trim();
+  const birthPlace = String(context.birthPlace || context.locationCity || context.locationShort || "").trim();
   const consultLabel = String(context.consultDateLabel || "").trim();
   const lastConsult = String(context.lastMedicalConsult || "").trim();
   const consultDay = normalizeClinicalNumericText(context.consultDay, 2);
@@ -1247,7 +1377,11 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   const consultYear = normalizeClinicalNumericText(context.consultYear, 4);
   const locationState = String(context.locationState || "").trim();
   const locationCity = String(context.locationCity || "").trim();
-  const officePhone = String(context.doctorPhone || context.phone || "").trim();
+  const officePhone = String(context.officePhone || "").trim();
+  const familyDoctorName = String(context.familyDoctorName || "").trim();
+  const familyDoctorPhone = String(context.familyDoctorPhone || "").trim();
+  const locationExterior = String(context.locationExterior || "").trim();
+  const locationInterior = String(context.locationInterior || "").trim();
 
   drawClinicalTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 }, pdfLib);
   drawClinicalTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 }, pdfLib);
@@ -1260,7 +1394,7 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalMark(page, font, context.isMale, 250.5, 364.2, 10, pdfLib);
   drawClinicalMark(page, font, context.isFemale, 377.5, 364.2, 10, pdfLib);
 
-  drawClinicalTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 132, size: 8, maxLines: 1, maxChars: 26 }, pdfLib);
+  drawClinicalTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 104, size: 8, maxLines: 1, maxChars: 18 }, pdfLib);
   drawClinicalTextAt(page, font, context.birthDay, { x: 440, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
   drawClinicalTextAt(page, font, context.birthMonth, { x: 476, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
   drawClinicalTextAt(page, font, context.birthYear, { x: 513, y: 338.2, maxWidth: 34, size: 8, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
@@ -1276,6 +1410,8 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, context.civilStatus, { x: 131, y: 301.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 }, pdfLib);
   drawClinicalTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 232, size: 8.2, maxLines: 1, maxChars: 52 }, pdfLib);
 
+  drawClinicalTextAt(page, font, locationExterior, { x: 122, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 }, pdfLib);
+  drawClinicalTextAt(page, font, locationInterior, { x: 285, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 }, pdfLib);
   drawClinicalTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 132, size: 8.2, maxLines: 1, maxChars: 28 }, pdfLib);
   drawClinicalTextAt(page, font, locationState || context.locationState, { x: 122, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 20 }, pdfLib);
   drawClinicalTextAt(page, font, context.locationMunicipality, { x: 236, y: 269.2, maxWidth: 108, size: 8.2, maxLines: 1, maxChars: 20 }, pdfLib);
@@ -1283,13 +1419,13 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
 
   drawClinicalTextAt(page, font, context.phone, { x: 120, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, officePhone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
-  drawClinicalTextAt(page, font, context.dentistName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 }, pdfLib);
-  drawClinicalTextAt(page, font, officePhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
+  drawClinicalTextAt(page, font, familyDoctorName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 }, pdfLib);
+  drawClinicalTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 }, pdfLib);
 
-  drawClinicalTextAt(page, font, consultDay, { x: 485, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultMonth, { x: 509, y: 451.4, maxWidth: 14, size: 8, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultYear, { x: 535, y: 451.4, maxWidth: 24, size: 8, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, consultDay, { x: 487.2, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultMonth, { x: 512.4, y: 451.1, maxWidth: 12, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultYear, { x: 538.8, y: 451.1, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function extractFilenameFromDisposition(disposition) {

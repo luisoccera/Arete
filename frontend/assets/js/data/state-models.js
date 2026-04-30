@@ -23,23 +23,43 @@ function createEmptyPatient() {
     lastNameFather: "",
     lastNameMother: "",
     age: "",
+    ageMonths: "",
     sex: "",
     location: "",
     birthDate: "",
+    birthPlace: "",
+    educationLevel: "",
+    civilStatus: "",
+    streetAddress: "",
+    exteriorNumber: "",
+    interiorNumber: "",
+    neighborhood: "",
+    municipality: "",
+    delegation: "",
+    stateName: "",
+    cityName: "",
     phone: "",
+    officePhone: "",
     occupation: "",
     medications: "",
     dentistName: "",
+    familyDoctorName: "",
+    familyDoctorPhone: "",
     allergies: "",
     clinicalRecordType: CLINICAL_RECORD_TYPES[0].id,
     clinicalRecordReference: "",
     consultationDate: "",
     nextConsultationDate: "",
     treatmentStart: "",
+    lastMedicalConsultDate: "",
+    lastMedicalConsultReason: "",
     brushTimes: "",
     flossHabit: "",
     otherConditions: "",
     clinicalFormData: createEmptyClinicalFormData(),
+    clinicalSharedValues: {},
+    clinicalEpisodes: [],
+    activeClinicalEpisodeId: "",
     diseaseIds: [],
     appointments: [],
     mediaEntries: [],
@@ -164,10 +184,24 @@ function normalizePatient(rawPatient) {
   patient.sex = stringOrEmpty(patient.sex);
   patient.location = stringOrEmpty(patient.location);
   patient.birthDate = stringOrEmpty(patient.birthDate);
+  patient.birthPlace = stringOrEmpty(patient.birthPlace);
   patient.phone = stringOrEmpty(patient.phone);
+  patient.officePhone = stringOrEmpty(patient.officePhone || patient.clinicPhone);
   patient.occupation = stringOrEmpty(patient.occupation);
+  patient.educationLevel = stringOrEmpty(patient.educationLevel || patient.schooling);
+  patient.civilStatus = stringOrEmpty(patient.civilStatus);
+  patient.streetAddress = stringOrEmpty(patient.streetAddress || patient.addressStreet);
+  patient.exteriorNumber = stringOrEmpty(patient.exteriorNumber || patient.addressExterior);
+  patient.interiorNumber = stringOrEmpty(patient.interiorNumber || patient.addressInterior);
+  patient.neighborhood = stringOrEmpty(patient.neighborhood || patient.addressNeighborhood);
+  patient.municipality = stringOrEmpty(patient.municipality || patient.addressMunicipality);
+  patient.delegation = stringOrEmpty(patient.delegation || patient.addressDelegation);
+  patient.stateName = stringOrEmpty(patient.stateName || patient.addressState);
+  patient.cityName = stringOrEmpty(patient.cityName || patient.addressCity);
   patient.medications = stringOrEmpty(patient.medications);
   patient.dentistName = stringOrEmpty(patient.dentistName);
+  patient.familyDoctorName = stringOrEmpty(patient.familyDoctorName || patient.familyDoctor);
+  patient.familyDoctorPhone = stringOrEmpty(patient.familyDoctorPhone || patient.doctorPhone);
   patient.allergies = stringOrEmpty(patient.allergies);
   patient.clinicalRecordType = normalizeClinicalRecordType(
     patient.clinicalRecordType || patient.recordType || patient.historyType
@@ -178,16 +212,42 @@ function normalizePatient(rawPatient) {
   patient.clinicalFormData = normalizeClinicalFormData(
     patient.clinicalFormData || patient.clinicalForms || patient.formDataByType
   );
+  patient.clinicalSharedValues = normalizeClinicalSharedValues(
+    patient.clinicalSharedValues || patient.sharedClinicalValues,
+    patient.clinicalFormData
+  );
+  patient.clinicalEpisodes = normalizeClinicalEpisodes(
+    patient.clinicalEpisodes || patient.clinicalCycles || patient.recordCycles
+  );
+  patient.activeClinicalEpisodeId = stringOrEmpty(
+    patient.activeClinicalEpisodeId || patient.currentClinicalEpisodeId
+  );
+  if (patient.clinicalEpisodes.length > 0) {
+    const hasActiveId = patient.clinicalEpisodes.some((episode) => episode.id === patient.activeClinicalEpisodeId);
+    if (!hasActiveId) {
+      const activeEpisode = getMostRelevantClinicalEpisode(patient.clinicalEpisodes);
+      patient.activeClinicalEpisodeId = activeEpisode ? activeEpisode.id : patient.clinicalEpisodes[0].id;
+    }
+  } else {
+    patient.activeClinicalEpisodeId = "";
+  }
   patient.consultationDate = stringOrEmpty(patient.consultationDate);
   patient.nextConsultationDate = stringOrEmpty(
     patient.nextConsultationDate || patient.nextConsultation || patient.followUpDate
   );
   patient.treatmentStart = stringOrEmpty(patient.treatmentStart);
+  patient.lastMedicalConsultDate = stringOrEmpty(patient.lastMedicalConsultDate);
+  patient.lastMedicalConsultReason = stringOrEmpty(patient.lastMedicalConsultReason);
   patient.flossHabit = stringOrEmpty(patient.flossHabit);
   patient.otherConditions = stringOrEmpty(patient.otherConditions);
   patient.createdAt = stringOrEmpty(patient.createdAt);
   patient.updatedAt = stringOrEmpty(patient.updatedAt);
   patient.age = numberOrEmpty(patient.age);
+  patient.ageMonths = numberOrEmpty(patient.ageMonths);
+  if (patient.ageMonths !== "") {
+    const months = Number(patient.ageMonths);
+    patient.ageMonths = Number.isFinite(months) && months >= 0 && months <= 11 ? months : "";
+  }
   patient.brushTimes = numberOrEmpty(patient.brushTimes);
 
   if (!patient.id || typeof patient.id !== "string") {
@@ -387,6 +447,104 @@ function normalizeClinicalFormData(rawData) {
   }
 
   return base;
+}
+
+function normalizeClinicalSharedValues(rawValues, clinicalFormData) {
+  const shared = {};
+  const source = rawValues && typeof rawValues === "object" ? rawValues : {};
+  for (const [key, value] of Object.entries(source)) {
+    const cleanKey = stringOrEmpty(key);
+    const cleanValue = stringOrEmpty(value);
+    if (!cleanKey || !cleanValue || !shouldReuseClinicalContextKey(cleanKey)) {
+      continue;
+    }
+    shared[cleanKey] = cleanValue;
+  }
+
+  const data = clinicalFormData && typeof clinicalFormData === "object"
+    ? clinicalFormData
+    : createEmptyClinicalFormData();
+  for (const type of CLINICAL_RECORD_TYPES) {
+    const schema = getClinicalFormSchema(type.id);
+    const bucket = data[type.id] && typeof data[type.id] === "object" ? data[type.id] : {};
+    for (const field of schema.fields) {
+      const contextKey = stringOrEmpty(field?.contextKey);
+      if (!contextKey || shared[contextKey] || !shouldReuseClinicalContextKey(contextKey)) {
+        continue;
+      }
+      const fieldValue = stringOrEmpty(bucket[field.id]);
+      if (fieldValue) {
+        shared[contextKey] = fieldValue;
+      }
+    }
+  }
+
+  return shared;
+}
+
+function addMonthsToIsoDate(isoDate, monthsToAdd) {
+  if (!isValidDate(isoDate)) {
+    return "";
+  }
+  const date = new Date(isoDate);
+  const copy = new Date(date.getTime());
+  copy.setMonth(copy.getMonth() + Number(monthsToAdd || 0));
+  return copy.toISOString();
+}
+
+function isClinicalEpisodeExpired(episode, nowMs) {
+  const expiresAt = stringOrEmpty(episode?.expiresAt);
+  if (!expiresAt || !isValidDate(expiresAt)) {
+    return false;
+  }
+  const endMs = new Date(expiresAt).getTime();
+  return endMs < (Number.isFinite(nowMs) ? nowMs : Date.now());
+}
+
+function getMostRelevantClinicalEpisode(episodes) {
+  const list = Array.isArray(episodes) ? episodes : [];
+  if (list.length === 0) {
+    return null;
+  }
+  const now = Date.now();
+  const active = list.find((episode) => !isClinicalEpisodeExpired(episode, now));
+  return active || list[0];
+}
+
+function normalizeClinicalEpisodes(rawEpisodes) {
+  if (!Array.isArray(rawEpisodes)) {
+    return [];
+  }
+
+  const normalized = [];
+  for (const entry of rawEpisodes) {
+    const formatId = normalizeClinicalRecordType(entry?.formatId || entry?.recordType || entry?.historyType);
+    const openedAt = isValidDate(entry?.openedAt)
+      ? String(entry.openedAt)
+      : (isValidDate(entry?.createdAt) ? String(entry.createdAt) : "");
+    let expiresAt = isValidDate(entry?.expiresAt)
+      ? String(entry.expiresAt)
+      : "";
+    if (!expiresAt && openedAt) {
+      expiresAt = addMonthsToIsoDate(openedAt, 6);
+    }
+
+    normalized.push({
+      id: stringOrEmpty(entry?.id) || generateId("cycle"),
+      formatId,
+      openedAt,
+      expiresAt,
+      status: stringOrEmpty(entry?.status),
+      title: stringOrEmpty(entry?.title)
+    });
+  }
+
+  normalized.sort((a, b) => {
+    const aTs = isValidDate(a.openedAt) ? new Date(a.openedAt).getTime() : 0;
+    const bTs = isValidDate(b.openedAt) ? new Date(b.openedAt).getTime() : 0;
+    return bTs - aTs;
+  });
+  return normalized.slice(0, 6);
 }
 
 function normalizeHistoryEntries(rawEntries) {

@@ -980,15 +980,33 @@ tbody tr.active {
 }
 
 .planner-suite .upcoming-display-toggle .table-btn {
-  border-color: #bdbdbd;
-  background: #ffffff;
-  color: #000000;
+  border-color: #c5ccd4;
+  background: #eef2f6;
+  color: #2f3b49;
 }
 
 .planner-suite .upcoming-display-toggle .table-btn.is-active {
-  border-color: #000000;
-  background: #ffffff;
-  color: #000000;
+  font-weight: 800;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn[data-upcoming-display="calendar"].is-active {
+  border-color: #b99260;
+  background: linear-gradient(135deg, #f7e6ca, #ecd2a7);
+  box-shadow: 0 0 0 1px #d8ba93 inset;
+  color: #3b2f20;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn[data-upcoming-display="day"] {
+  border-color: #b7c9de;
+  background: #edf3fb;
+  color: #2b486c;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn[data-upcoming-display="day"].is-active {
+  border-color: #6d8db8;
+  background: linear-gradient(135deg, #dbe9fc, #c6dbf5);
+  box-shadow: 0 0 0 1px #aac0df inset;
+  color: #173a62;
 }
 
 .planner-suite .upcoming-calendar-grid {
@@ -1003,6 +1021,11 @@ tbody tr.active {
 .planner-suite .upcoming-calendar-grid.is-list-mode {
   border-color: #cfcfcf;
   background: #ffffff;
+}
+
+.planner-suite .upcoming-calendar-grid.is-day-mode {
+  border-color: #b8c9de;
+  background: linear-gradient(180deg, #f5f9ff 0%, #edf3fb 100%);
 }
 
 .planner-suite .upcoming-month-banner {
@@ -1089,6 +1112,42 @@ tbody tr.active {
 
 .planner-day-panel .appointment-meta {
   color: #4a4a4a;
+}
+
+.planner-suite .upcoming-day-nav {
+  background: #eef4fc;
+  border: 1px solid #c7d5e6;
+  border-radius: 12px;
+  padding: 0.5rem;
+}
+
+.planner-suite .upcoming-day-nav .table-btn {
+  background: #ffffff;
+  color: #204468;
+  border-color: #b0c3db;
+}
+
+.planner-suite .upcoming-day-nav .table-btn.is-active {
+  border-color: #6d8db8;
+  background: #dbe9fc;
+  color: #173a62;
+}
+
+.planner-suite .upcoming-day-nav-count {
+  color: #264564;
+}
+
+.planner-suite .upcoming-day-mode-list .appointment-item {
+  border-color: #c7d3e4;
+  background: #ffffff;
+}
+
+.planner-suite .upcoming-day-mode-list .appointment-title {
+  color: #1f2f3f;
+}
+
+.planner-suite .upcoming-day-mode-list .appointment-meta {
+  color: #486077;
 }
 
 .upcoming-day-nav {

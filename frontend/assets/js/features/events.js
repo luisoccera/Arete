@@ -281,6 +281,7 @@
       }
       upcomingSelectedDate = day;
       upcomingCalendarMonth = day.slice(0, 7);
+      upcomingCalendarMode = "day";
       if (el.globalAppointmentDate) {
         el.globalAppointmentDate.value = day;
       }

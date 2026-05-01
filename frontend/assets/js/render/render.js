@@ -1288,9 +1288,6 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
   const renderToothNode = (toothNumber) => {
     const toothId = String(toothNumber);
     const wholeStatusIds = getMarkIds("teeth", toothId);
-    const wholeStatusColors = wholeStatusIds
-      .map((statusId) => getStatusById(statusId)?.color)
-      .filter(Boolean);
     const partStates = ODONTO_TOOTH_PARTS.map((part) => {
       const markKey = buildOdontoToothMarkKey(toothId, part.id);
       const statusIds = getMarkIds("teeth", markKey);
@@ -1300,13 +1297,21 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
         statusIds
       };
     });
+    const hasAnyPartMarks = partStates.some((part) => part.statusIds.length > 0);
+    if (!hasAnyPartMarks && wholeStatusIds.length > 0) {
+      const centerPart = partStates.find((part) => part.id === "center");
+      if (centerPart) {
+        centerPart.statusIds = wholeStatusIds.slice();
+      }
+    }
     const partStatusIds = partStates.flatMap((part) => part.statusIds);
     const statusIds = Array.from(new Set([...wholeStatusIds, ...partStatusIds]));
     const previewIds = statusIds.slice(0, 24);
     const overflowCount = Math.max(0, statusIds.length - previewIds.length);
     const toothSpec = getToothRenderSpec(toothNumber, mode);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
-    const fillConfig = buildToothFill(wholeStatusColors, gradientId);
+    // La base del diente se mantiene neutra para evitar mezcla visual con marcas por superficie.
+    const fillConfig = buildToothFill([], gradientId);
     const nodeTemplate = template === "grid" ? "grid" : (template === "classic" ? "classic" : "anatomic");
     const isGridTemplate = nodeTemplate === "grid";
     const sizeScale = mode === "child" ? 1.26 : 1.22;
@@ -1475,6 +1480,17 @@ function buildToothFill(colors, gradientId) {
 
 function applyOdontoMark(bucket, key) {
   ensureDraftOdontogram();
+
+  const parsedToothKey = bucket === "teeth" ? splitOdontoToothKey(key) : { toothId: "", partId: "" };
+  const isSegmentedToothKey = bucket === "teeth" && Boolean(parsedToothKey.partId);
+  if (isSegmentedToothKey && parsedToothKey.toothId) {
+    // Si existe marca global previa de la pieza, la retiramos para no mezclar estilos
+    // con el nuevo marcado por superficies.
+    const rootToothId = parsedToothKey.toothId;
+    if (Array.isArray(draftPatient.odontogram?.teeth?.[rootToothId])) {
+      delete draftPatient.odontogram.teeth[rootToothId];
+    }
+  }
 
   const current = getMarkIds(bucket, key);
   const targetLabel = getOdontoTargetLabel(bucket, key);

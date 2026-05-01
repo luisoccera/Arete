@@ -778,6 +778,11 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
     }
     const pdfRule = getClinicalFieldPdfRule(safeFormat, field.id);
     const hasRule = Boolean(pdfRule && typeof pdfRule === "object");
+    if (!hasRule) {
+      // Modo estricto: no intentamos ubicar automaticamente campos sin regla de mapeo.
+      // Esto evita que valores se impriman sobre lineas o etiquetas equivocadas.
+      continue;
+    }
     const autoMatches = buildClinicalFieldAutoMatches(field);
     const ruleType = String(pdfRule?.type || "").trim().toLowerCase();
 

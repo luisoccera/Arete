@@ -90,11 +90,8 @@ function handleToothNodeClick(event) {
     applyOdontoMark("teeth", markKey);
     return;
   }
-
-  const toothBtn = event.target.closest("[data-tooth-id]");
-  if (!toothBtn) {
-    return;
-  }
-  applyOdontoMark("teeth", toothBtn.getAttribute("data-tooth-id"));
+  // En odontograma segmentado se marca por zona; evitamos clic general en toda la pieza
+  // para no mezclar estados de "pieza completa" con estados por superficie.
+  return;
 }
 

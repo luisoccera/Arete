@@ -90,10 +90,9 @@ async function requestOfficialClinicalPdf() {
   const pdfContext = buildClinicalPdfContext(
     normalizedPatient,
     dictionaries,
-    recordType.id,
-    clinicalContext
+    recordType.id
   );
-  const clinicalFillEntries = buildClinicalPdfFillEntries(normalizedPatient, recordType.id, pdfContext);
+  const clinicalFillEntries = buildClinicalPdfFillEntries(normalizedPatient, recordType.id);
 
   const payload = {
     formatId: recordType.id,
@@ -166,8 +165,7 @@ async function generateOfficialClinicalPdfInBrowser(payload) {
   const context = buildClinicalPdfContext(
     payload?.patient,
     payload?.dictionaries,
-    selected.formatId,
-    payload?.clinicalContext
+    selected.formatId
   );
   const clinicalFillEntries = normalizeClinicalFillEntries(payload?.clinicalFillEntries);
 
@@ -662,6 +660,35 @@ function getClinicalFieldPdfRule(formatId, fieldId) {
     : null;
 }
 
+function buildClinicalFallbackPdfRule(field) {
+  const inputType = String(field?.type || "text").toLowerCase();
+  const isTextarea = inputType === "textarea";
+  const defaultMaxWidth = isTextarea ? (field?.wide ? 250 : 210) : 170;
+  const defaultLines = isTextarea ? Math.max(1, Math.min(4, Number(field?.rows || 2))) : 1;
+  const defaultMaxChars = isTextarea
+    ? Math.max(90, Math.min(220, Math.round((defaultMaxWidth / 3.5) * defaultLines)))
+    : 72;
+
+  return {
+    matches: [stringOrEmpty(field?.label)].filter(Boolean),
+    exact: true,
+    maxPerPage: 1,
+    maxWidth: defaultMaxWidth,
+    maxLines: defaultLines,
+    pageOffset: null,
+    dx: 4,
+    dy: 0,
+    size: 7.1,
+    lineHeight: null,
+    x: null,
+    y: null,
+    lockPosition: false,
+    strictAnchor: true,
+    align: "left",
+    maxChars: defaultMaxChars
+  };
+}
+
 function normalizeClinicalFillEntries(rawEntries) {
   if (!Array.isArray(rawEntries)) {
     return [];
@@ -756,37 +783,33 @@ function shouldRenderClinicalSingleMark(value, rule) {
   return truthyValues.has(normalizedValue);
 }
 
-function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
+function buildClinicalPdfFillEntries(patientInput, formatId) {
   const patient = normalizePatient(patientInput || {});
   const safeFormat = normalizeClinicalRecordType(formatId || patient.clinicalRecordType);
   const schema = getClinicalFormSchema(safeFormat);
   const values = patient.clinicalFormData?.[safeFormat] || {};
-  const context = contextInput && typeof contextInput === "object"
-    ? contextInput
-    : buildClinicalPdfContext(patient, { diseases: state.diseases, toothStatuses: state.toothStatuses }, safeFormat);
 
   const entries = [];
 
-  // Nota: el encabezado se llena por coordenadas fijas del bloque de identificación.
-  // En el resto: si un campo no tiene coordenada fija todavía, se usa anclaje por etiqueta
-  // para no dejar huecos en los 11 formatos y mantener continuidad de captura.
+  // Modo independiente por formato:
+  // cada campo del cuestionario activo intenta renderizarse en su propio PDF,
+  // incluso si aun no existe regla manual, usando una regla fallback estricta.
+  // Esto evita herencia cruzada entre formatos y mantiene la captura completa.
 
   for (const field of schema.fields) {
     const value = stringOrEmpty(values[field.id]);
     if (!value) {
       continue;
     }
-    const pdfRule = getClinicalFieldPdfRule(safeFormat, field.id);
-    const hasRule = Boolean(pdfRule && typeof pdfRule === "object");
-    if (!hasRule) {
-      // Modo estricto: no intentamos ubicar automaticamente campos sin regla de mapeo.
-      // Esto evita que valores se impriman sobre lineas o etiquetas equivocadas.
-      continue;
-    }
+    const manualRule = getClinicalFieldPdfRule(safeFormat, field.id);
+    const hasManualRule = Boolean(manualRule && typeof manualRule === "object");
+    const pdfRule = hasManualRule
+      ? manualRule
+      : buildClinicalFallbackPdfRule(field);
     const autoMatches = buildClinicalFieldAutoMatches(field);
     const ruleType = String(pdfRule?.type || "").trim().toLowerCase();
 
-    if (hasRule && ruleType === "mark-select") {
+    if (ruleType === "mark-select") {
       const markPoint = resolveClinicalMarkMapPoint(pdfRule?.markMap, value);
       const markX = toOptionalClinicalNumber(markPoint?.x);
       const markY = toOptionalClinicalNumber(markPoint?.y);
@@ -816,7 +839,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       }
     }
 
-    if (hasRule && ruleType === "mark-single") {
+    if (ruleType === "mark-single") {
       if (!shouldRenderClinicalSingleMark(value, pdfRule)) {
         continue;
       }
@@ -854,7 +877,6 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
     const defaultMaxChars = isTextarea
       ? Math.max(90, Math.min(220, Math.round((defaultMaxWidth / 3.5) * defaultLines)))
       : 72;
-    const defaultSize = hasRule ? 7.3 : 6.9;
     const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
       ? pdfRule.matches
       : autoMatches;
@@ -864,14 +886,19 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
     const fixedX = toOptionalClinicalNumber(pdfRule?.x);
     const fixedY = toOptionalClinicalNumber(pdfRule?.y);
     const hasFixedPoint = fixedX !== null && fixedY !== null;
-    const strictAnchor = !hasRule && !hasFixedPoint;
+    const strictAnchor = Boolean(pdfRule?.strictAnchor) || (!hasFixedPoint && !hasManualRule);
+    const isExact = typeof pdfRule?.exact === "boolean" ? Boolean(pdfRule.exact) : true;
+    const defaultSize = hasManualRule ? 7.3 : 7.1;
+    const align = ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
+      ? String(pdfRule.align).toLowerCase()
+      : "left";
 
     entries.push({
       id: `field-${safeFormat}-${field.id}`,
       value,
-      matches: hasRule ? matches : autoMatches,
+      matches,
       sectionMatches: [stringOrEmpty(field.section)].filter(Boolean),
-      exact: hasRule ? Boolean(pdfRule?.exact) : true,
+      exact: isExact,
       maxPerPage: Math.max(1, Number(pdfRule?.maxPerPage || 1)),
       maxWidth: Number(pdfRule?.maxWidth || defaultMaxWidth),
       maxLines: Math.max(1, Number(pdfRule?.maxLines || defaultLines)),
@@ -884,9 +911,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
       y: hasFixedPoint ? fixedY : null,
       lockPosition: hasFixedPoint ? true : false,
       strictAnchor,
-      align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
-        ? String(pdfRule.align).toLowerCase()
-        : "left",
+      align,
       maxChars: Number.isFinite(Number(pdfRule?.maxChars)) ? Number(pdfRule.maxChars) : defaultMaxChars
     });
   }
@@ -894,7 +919,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
   return normalizeClinicalFillEntries(entries);
 }
 
-function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalContextInput) {
+function buildClinicalPdfContext(patientInput, dictionaries, formatId) {
   const patient = normalizePatient(patientInput || {});
   let explicitFirstNames = stringOrEmpty(patient.name);
   let explicitLastNameFather = stringOrEmpty(patient.lastNameFather);
@@ -948,7 +973,6 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
   const isFemale = sexText.includes("fem");
   const consultationReason = String(patient.otherConditions || "").trim() || String(patient.medications || "").trim();
   const background = [patient.allergies, patient.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
-  const clinicalContext = clinicalContextInput || buildClinicalContextFromForm(patient, formatId);
   const ageBreakdown = calculateClinicalAgeBreakdownFromBirthDate(patient.birthDate);
   const rawAgeYears = ageBreakdown ? String(ageBreakdown.years) : String(patient.age || "").trim();
   const rawAgeMonths = ageBreakdown
@@ -1024,33 +1048,8 @@ function buildClinicalPdfContext(patientInput, dictionaries, formatId, clinicalC
     odontoSummary: truncateClinicalText(odontoSummary || "Sin marcas registradas.", 170)
   };
 
-  const maxByKey = {
-    consultReason: 170,
-    diagnosis: 180,
-    treatmentPlan: 180,
-    prognosis: 120,
-    medications: 170,
-    allergies: 170,
-    background: 180,
-    notes: 170,
-    odontoSummary: 170
-  };
-
-  for (const [key, value] of Object.entries(clinicalContext.byKey || {})) {
-    if (!value) {
-      continue;
-    }
-    const max = maxByKey[key] || 180;
-    context[key] = truncateClinicalText(value, max);
-  }
-
-  if (Array.isArray(clinicalContext.details) && clinicalContext.details.length > 0) {
-    const detailsText = truncateClinicalText(clinicalContext.details.join(" | "), 260);
-    context.notes = truncateClinicalText(
-      context.notes ? `${context.notes} | ${detailsText}` : detailsText,
-      170
-    );
-  }
+  // Importante: no heredamos valores cruzados de otros formatos para el contexto.
+  // El llenado de contenido clínico lo determina exclusivamente el formulario activo.
 
   return context;
 }

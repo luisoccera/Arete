@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node backend/src/index.js",
-    "check": "node --check backend/src/index.js && node --check backend/src/clinical_pdf.js"
+    "check": "node --check backend/src/index.js && node --check backend/src/clinical_pdf.js",
+    "audit:pdf-coverage": "node scripts/clinical/audit-pdf-coverage.js"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",

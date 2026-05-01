@@ -213,10 +213,9 @@ function normalizePatient(rawPatient) {
   patient.clinicalFormData = normalizeClinicalFormData(
     patient.clinicalFormData || patient.clinicalForms || patient.formDataByType
   );
-  patient.clinicalSharedValues = normalizeClinicalSharedValues(
-    patient.clinicalSharedValues || patient.sharedClinicalValues,
-    patient.clinicalFormData
-  );
+  // Desacoplado por formato:
+  // no propagamos ni heredamos valores entre cuestionarios clinicos.
+  patient.clinicalSharedValues = {};
   patient.clinicalEpisodes = normalizeClinicalEpisodes(
     patient.clinicalEpisodes || patient.clinicalCycles || patient.recordCycles
   );

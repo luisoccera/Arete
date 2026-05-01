@@ -320,27 +320,7 @@ function summarizeNotes(patient) {
   return summarizeList(texts, 3);
 }
 
-function normalizeClinicalContext(rawContext) {
-  const source = rawContext && typeof rawContext === "object" ? rawContext : {};
-  const byKey = source.byKey && typeof source.byKey === "object" ? source.byKey : {};
-  const details = Array.isArray(source.details) ? source.details : [];
-  const normalizedByKey = {};
-
-  for (const [key, value] of Object.entries(byKey)) {
-    const clean = String(value || "").trim();
-    if (!clean) {
-      continue;
-    }
-    normalizedByKey[key] = clean;
-  }
-
-  return {
-    byKey: normalizedByKey,
-    details: details.map((value) => String(value || "").trim()).filter(Boolean)
-  };
-}
-
-function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
+function buildContext(patient, dictionaries, formatId) {
   const p = patient && typeof patient === "object" ? patient : {};
   let explicitFirstNames = String(p.name || "").trim();
   let explicitLastNameFather = String(p.lastNameFather || p.surnameFather || p.apellidoPaterno || "").trim();
@@ -401,7 +381,6 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
 
   const consultationReason = String(p.otherConditions || "").trim() || String(p.medications || "").trim();
   const background = [p.allergies, p.medications].map((x) => String(x || "").trim()).filter(Boolean).join(" | ");
-  const clinicalContext = normalizeClinicalContext(clinicalContextInput);
 
   const ageBreakdown = calculateAgeBreakdownFromBirthDate(p.birthDate);
   const rawAgeYears = ageBreakdown ? String(ageBreakdown.years) : String(p.age || "").trim();
@@ -479,27 +458,10 @@ function buildContext(patient, dictionaries, formatId, clinicalContextInput) {
     odontoSummary: truncate(odontoSummary || "Sin marcas registradas.", 170)
   };
 
-  const maxByKey = {
-    consultReason: 170,
-    diagnosis: 180,
-    treatmentPlan: 180,
-    prognosis: 120,
-    medications: 170,
-    allergies: 170,
-    background: 180,
-    notes: 170,
-    odontoSummary: 170
-  };
-
-  for (const [key, value] of Object.entries(clinicalContext.byKey)) {
-    const max = maxByKey[key] || 180;
-    context[key] = truncate(value, max);
-  }
-
-  if (clinicalContext.details.length > 0) {
-    const detailsText = truncate(clinicalContext.details.join(" | "), 260);
-    context.notes = truncate(context.notes ? `${context.notes} | ${detailsText}` : detailsText, 170);
-  }
+  // Modo independiente por formato:
+  // el backend mantiene solo el bloque base de identificacion del paciente.
+  // Los campos clinicos del formato se colocan con `clinicalFillEntries`
+  // calculados por el frontend activo, evitando herencia cruzada.
 
   return context;
 }
@@ -1237,7 +1199,7 @@ async function generateClinicalPdf(options) {
   const selected = resolveFormatRange(options?.formatId, textData.totalPages);
   const patient = options?.patient && typeof options.patient === "object" ? options.patient : {};
   const dictionaries = options?.dictionaries && typeof options.dictionaries === "object" ? options.dictionaries : {};
-  const context = buildContext(patient, dictionaries, selected.formatId, options?.clinicalContext);
+  const context = buildContext(patient, dictionaries, selected.formatId);
   const clinicalFillEntries = normalizeFillEntries(options?.clinicalFillEntries);
 
   const sourcePdf = await PDFDocument.load(templateBytes, { ignoreEncryption: true });

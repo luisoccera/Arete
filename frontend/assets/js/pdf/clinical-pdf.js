@@ -690,9 +690,9 @@ function buildClinicalFallbackPdfRule(field) {
 }
 
 function shouldUseClinicalAutoFallback() {
-  // Modo estricto: evita ubicar texto por heuristica cuando no hay coordenadas
-  // manuales del formato, para impedir sobreposicion con lineas/etiquetas del PDF.
-  return false;
+  // Nuevo flujo V2: si un campo aun no tiene coordenada manual, se calcula por
+  // anclaje de etiqueta, pero con validacion de colision para mantener limpieza.
+  return true;
 }
 
 function normalizeClinicalFillEntries(rawEntries) {
@@ -734,6 +734,7 @@ function normalizeClinicalFillEntries(rawEntries) {
       y: toOptionalClinicalNumber(entry?.y),
       lockPosition: Boolean(entry?.lockPosition),
       strictAnchor: Boolean(entry?.strictAnchor),
+      allowDynamicAnchor: Boolean(entry?.allowDynamicAnchor),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -797,9 +798,8 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
 
   const entries = [];
 
-  // Modo independiente por formato y estricto de impresion:
-  // solo se renderizan campos con regla manual del formato activo.
-  // Los campos aun no mapeados se omiten para evitar sobreposicion en el PDF.
+  // Se borra el llenado viejo y se usa un registro V2:
+  // regla manual cuando existe, o anclaje dinamico limpio cuando no existe.
   const allowAutoFallback = shouldUseClinicalAutoFallback();
 
   for (const field of schema.fields) {
@@ -896,7 +896,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
     const hasFixedPoint = fixedX !== null && fixedY !== null;
     const strictAnchor = hasManualRule
       ? Boolean(pdfRule?.strictAnchor)
-      : true;
+      : false;
     const isExact = typeof pdfRule?.exact === "boolean" ? Boolean(pdfRule.exact) : true;
     const defaultSize = hasManualRule ? 7.3 : 7.1;
     const align = ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
@@ -921,6 +921,7 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
       y: hasFixedPoint ? fixedY : null,
       lockPosition: hasFixedPoint ? true : false,
       strictAnchor,
+      allowDynamicAnchor: !hasFixedPoint,
       align,
       maxChars: Number.isFinite(Number(pdfRule?.maxChars)) ? Number(pdfRule.maxChars) : defaultMaxChars
     });
@@ -1318,26 +1319,12 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
   if (!Array.isArray(metrics.lines) || metrics.lines.length === 0) {
     return false;
   }
-  if (rule?.lockPosition || rule?.strictAnchor) {
-    drawClinicalTextAt(
-      page,
-      font,
-      value,
-      {
-        ...rule,
-        x,
-        y: baseY,
-        lineHeight: metrics.lineHeight
-      },
-      pdfLib
-    );
-    occupiedRects.push(createClinicalTextRect(x, baseY, metrics));
-    return true;
-  }
-
   const pageTopLimit = Math.max(30, page.getHeight() - 24);
   const pageBottomLimit = 24;
-  const attempts = [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
+  const isLocked = Boolean(rule?.lockPosition || rule?.strictAnchor);
+  const attempts = isLocked
+    ? [0, 0.18, -0.18, 0.36, -0.36, 0.54, -0.54]
+    : [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
   const collisionRects = Array.isArray(templateRects) && templateRects.length > 0
     ? [...templateRects, ...occupiedRects]
     : [...occupiedRects];
@@ -1376,14 +1363,13 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
     }
   }
 
-  if (minOverlap > 2400) {
-    const fallbackY = baseY - (metrics.lineHeight * 3);
-    const top = fallbackY + metrics.size;
-    const bottom = fallbackY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
-    if (top <= pageTopLimit && bottom >= pageBottomLimit) {
-      chosenY = fallbackY;
-      chosenRect = createClinicalTextRect(x, fallbackY, metrics);
-    }
+  if (isLocked && minOverlap > 4) {
+    // Si la coordenada fija pisaria texto impreso, se omite para evitar suciedad.
+    return false;
+  }
+  if (!isLocked && minOverlap > 120) {
+    // En anclaje dinamico, tambien evitamos pintar en zonas saturadas.
+    return false;
   }
 
   drawClinicalTextAt(
@@ -1418,6 +1404,7 @@ function resolveClinicalEntryCoordinates(entry, items) {
     y: toOptionalClinicalNumber(entry?.y),
     lockPosition: Boolean(entry?.lockPosition),
     strictAnchor: Boolean(entry?.strictAnchor),
+    allowDynamicAnchor: Boolean(entry?.allowDynamicAnchor),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",
@@ -1426,6 +1413,10 @@ function resolveClinicalEntryCoordinates(entry, items) {
 
   if (rule.x !== null && rule.y !== null) {
     return [rule];
+  }
+
+  if (!rule.allowDynamicAnchor) {
+    return [];
   }
 
   if (!Array.isArray(rule.matches) || rule.matches.length === 0) {
@@ -1680,9 +1671,9 @@ function drawClinicalIdentificationBlock(page, font, context, pdfLib) {
   drawClinicalTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 }, pdfLib);
   drawClinicalTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 }, pdfLib);
 
-  drawClinicalTextAt(page, font, consultDay, { x: 472.5, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultMonth, { x: 499.2, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
-  drawClinicalTextAt(page, font, consultYear, { x: 525.8, y: 461.6, maxWidth: 28, size: 7.1, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
+  drawClinicalTextAt(page, font, consultDay, { x: 474.6, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultMonth, { x: 500.8, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 }, pdfLib);
+  drawClinicalTextAt(page, font, consultYear, { x: 527.4, y: 461.8, maxWidth: 24, size: 6.7, align: "center", maxLines: 1, maxChars: 4 }, pdfLib);
 }
 
 function extractFilenameFromDisposition(disposition) {

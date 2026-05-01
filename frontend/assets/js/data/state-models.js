@@ -210,9 +210,9 @@ function normalizePatient(rawPatient) {
   patient.clinicalRecordReference = stringOrEmpty(
     patient.clinicalRecordReference || patient.recordReference || patient.folio
   );
-  patient.clinicalFormData = normalizeClinicalFormData(
-    patient.clinicalFormData || patient.clinicalForms || patient.formDataByType
-  );
+  // Reinicio solicitado: se elimina el registro anterior de llenado PDF por formato
+  // para iniciar un mapeo nuevo limpio.
+  patient.clinicalFormData = createEmptyClinicalFormData();
   // Desacoplado por formato:
   // no propagamos ni heredamos valores entre cuestionarios clinicos.
   patient.clinicalSharedValues = {};

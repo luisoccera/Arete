@@ -783,20 +783,12 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
     return false;
   }
 
-  if (rule?.lockPosition) {
-    drawTextAt(page, font, value, {
-      ...rule,
-      x,
-      y: baseY,
-      lineHeight: metrics.lineHeight
-    });
-    occupiedRects.push(createTextRect(x, baseY, metrics));
-    return true;
-  }
-
   const pageTopLimit = Math.max(30, page.getHeight() - 24);
   const pageBottomLimit = 24;
-  const attempts = [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
+  const isLocked = Boolean(rule?.lockPosition);
+  const attempts = isLocked
+    ? [0, 0.18, -0.18, 0.36, -0.36, 0.54, -0.54]
+    : [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
   const collisionRects = Array.isArray(templateRects) && templateRects.length > 0
     ? [...templateRects, ...occupiedRects]
     : [...occupiedRects];
@@ -834,14 +826,11 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
     chosenRect = createTextRect(x, baseY, metrics);
   }
 
-  if (minOverlap > 2400) {
-    const fallbackY = baseY - (metrics.lineHeight * 3);
-    const top = fallbackY + metrics.size;
-    const bottom = fallbackY - ((metrics.lines.length - 1) * metrics.lineHeight) - (metrics.size * 0.28);
-    if (top <= pageTopLimit && bottom >= pageBottomLimit) {
-      chosenY = fallbackY;
-      chosenRect = createTextRect(x, fallbackY, metrics);
-    }
+  if (isLocked && minOverlap > 4) {
+    return false;
+  }
+  if (!isLocked && minOverlap > 120) {
+    return false;
   }
 
   drawTextAt(page, font, value, {
@@ -1149,9 +1138,9 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 });
 
-  drawTextAt(page, font, consultDay, { x: 472.5, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultMonth, { x: 499.2, y: 461.6, maxWidth: 18, size: 7.1, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, consultYear, { x: 525.8, y: 461.6, maxWidth: 28, size: 7.1, align: "center", maxLines: 1, maxChars: 4 });
+  drawTextAt(page, font, consultDay, { x: 474.6, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultMonth, { x: 500.8, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, consultYear, { x: 527.4, y: 461.8, maxWidth: 24, size: 6.7, align: "center", maxLines: 1, maxChars: 4 });
 }
 
 async function getTemplateTextData(templatePath) {

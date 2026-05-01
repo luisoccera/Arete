@@ -2,6 +2,7 @@ function renderAll() {
   renderHomeOverview();
   renderStatusSelect();
   renderDentitionSwitch();
+  renderOdontogramTemplateSelect();
   renderDiseaseChecklist();
   renderDiseaseCatalog();
   renderStatusCatalog();
@@ -453,10 +454,7 @@ function renderPlannerMonthLabel() {
     el.plannerMonthLabel.textContent = "Calendario";
     return;
   }
-  el.plannerMonthLabel.textContent = monthDate.toLocaleDateString("es-MX", {
-    month: "short",
-    year: "numeric"
-  });
+  el.plannerMonthLabel.textContent = formatMonthYearLabel(monthDate, "es-MX") || "Calendario";
 }
 
 function formatFileSize(sizeBytes) {
@@ -537,6 +535,24 @@ function shiftUpcomingSelectedDate(deltaDays) {
   }
 }
 
+function renderUpcomingDisplayButtonLabel(button) {
+  if (!button) {
+    return;
+  }
+  const modeAttr = stringOrEmpty(button.getAttribute("data-upcoming-display"));
+  const normalizedMode = modeAttr === "list" ? "day" : modeAttr;
+  const label = normalizedMode === "day" ? "Día por día" : "Cuadriculado";
+  const iconClass = normalizedMode === "day" ? "display-mode-icon-list" : "display-mode-icon-grid";
+  const iconCells = normalizedMode === "day"
+    ? "<span></span><span></span><span></span>"
+    : "<span></span><span></span><span></span><span></span>";
+  button.innerHTML = `
+    <span class="display-mode-icon ${iconClass}" aria-hidden="true">${iconCells}</span>
+    <span>${label}</span>
+  `;
+  button.setAttribute("aria-label", label);
+}
+
 function renderUpcomingPlannerCalendar() {
   if (!el.upcomingCalendarGrid || !el.upcomingDayList || !el.upcomingDayTitle) {
     return;
@@ -548,9 +564,7 @@ function renderUpcomingPlannerCalendar() {
     const isActive = normalizedMode === upcomingCalendarMode;
     button.classList.toggle("is-active", isActive);
     button.setAttribute("aria-pressed", isActive ? "true" : "false");
-    if (modeAttr === "list") {
-      button.textContent = "Día por día";
-    }
+    renderUpcomingDisplayButtonLabel(button);
   }
 
   upcomingCalendarMonth = normalizeMonthInputValue(upcomingCalendarMonth);
@@ -590,7 +604,7 @@ function renderUpcomingPlannerCalendar() {
     const selectedDateObject = parseDateValue(upcomingSelectedDate);
     const dayEntries = byDate.get(upcomingSelectedDate) || [];
     const dayLabel = selectedDateObject
-      ? selectedDateObject.toLocaleDateString("es-MX", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
+      ? formatFullDateLabel(selectedDateObject, "es-MX")
       : upcomingSelectedDate;
     const dayPreview = dayEntries.length === 0
       ? "<div class=\"history-empty\">No hay citas para este día.</div>"
@@ -648,7 +662,7 @@ function renderUpcomingPlannerCalendar() {
       `);
     }
     el.upcomingCalendarGrid.innerHTML = `
-      <div class="upcoming-month-banner">${escapeHtml(firstDay.toLocaleDateString("es-MX", { month: "long", year: "numeric" }))}</div>
+      <div class="upcoming-month-banner">${escapeHtml(formatMonthYearLabel(firstDay, "es-MX"))}</div>
       <div class="upcoming-calendar-head">${weekLabels}</div>
       <div class="upcoming-calendar-body">${cells.join("")}</div>
     `;
@@ -657,7 +671,7 @@ function renderUpcomingPlannerCalendar() {
   const selectedList = byDate.get(upcomingSelectedDate) || [];
   const selectedDateValue = parseDateValue(upcomingSelectedDate);
   el.upcomingDayTitle.textContent = selectedDateValue
-    ? `Citas del día ${selectedDateValue.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })}`
+    ? `Citas del día ${capitalizeFirstLetter(selectedDateValue.toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" }), "es-MX")}`
     : "Citas del día";
 
   if (selectedList.length === 0) {
@@ -968,12 +982,6 @@ function renderClinicalCyclePanel() {
     return;
   }
 
-  if (!editingPatientId) {
-    el.clinicalCycleSummary.textContent = "Guarda o abre un paciente para gestionar la vigencia de su historia clínica.";
-    el.clinicalCycleList.innerHTML = "<div class=\"history-empty\">Sin expediente activo.</div>";
-    return;
-  }
-
   const { episodes, activeEpisode, isExpired } = resolveDraftClinicalEpisodeState();
   if (!activeEpisode) {
     el.clinicalCycleSummary.textContent = "Sin historia clínica activa. Pulsa \"Abrir historia clínica\" para iniciar una.";
@@ -1087,31 +1095,68 @@ function renderClinicalFormatFields() {
     el.clinicalFormatTitle.textContent = `Campos de ${schema.title}`;
   }
 
-  el.clinicalFormatFields.innerHTML = schema.fields
-    .map((field) => {
-      const fieldValue = getClinicalFieldDisplayValue(field, values);
-      const inputType = field.type || "text";
-      if (inputType === "textarea") {
-        return `
-          <label class="field field-full format-field format-field-wide">
-            <span>${escapeHtml(field.label)}</span>
-            <textarea data-clinical-field="${escapeHtml(field.id)}" rows="${Number(field.rows || 2)}" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(fieldValue)}</textarea>
-          </label>
-        `;
-      }
-      return `
-        <label class="field format-field">
+  const html = [];
+  let currentSection = "";
+
+  for (const field of schema.fields) {
+    const fieldValue = getClinicalFieldDisplayValue(field, values);
+    const inputType = field.type || "text";
+    const section = stringOrEmpty(field.section);
+    const isWide = Boolean(field.wide || inputType === "textarea");
+
+    if (section && section !== currentSection) {
+      currentSection = section;
+      html.push(`
+        <div class="format-section-title">${escapeHtml(section)}</div>
+      `);
+    }
+
+    if (inputType === "textarea") {
+      html.push(`
+        <label class="field field-full format-field ${isWide ? "format-field-wide" : ""}">
           <span>${escapeHtml(field.label)}</span>
-          <input
-            type="${escapeHtml(inputType)}"
-            data-clinical-field="${escapeHtml(field.id)}"
-            value="${escapeHtml(fieldValue)}"
-            placeholder="${escapeHtml(field.placeholder || "")}"
-          >
+          <textarea class="clinical-input" data-clinical-field="${escapeHtml(field.id)}" rows="${Number(field.rows || 2)}" placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(fieldValue)}</textarea>
         </label>
-      `;
-    })
-    .join("");
+      `);
+      continue;
+    }
+
+    if (inputType === "select") {
+      const options = Array.isArray(field.options) ? field.options : [];
+      const optionHtml = options
+        .map((opt) => {
+          const value = escapeHtml(stringOrEmpty(opt?.value));
+          const label = escapeHtml(stringOrEmpty(opt?.label));
+          const selected = value === fieldValue ? " selected" : "";
+          return `<option value="${value}"${selected}>${label}</option>`;
+        })
+        .join("");
+      html.push(`
+        <label class="field format-field ${isWide ? "field-full format-field-wide" : ""}">
+          <span>${escapeHtml(field.label)}</span>
+          <select class="clinical-input clinical-select" data-clinical-field="${escapeHtml(field.id)}">
+            ${optionHtml}
+          </select>
+        </label>
+      `);
+      continue;
+    }
+
+    html.push(`
+      <label class="field format-field ${isWide ? "field-full format-field-wide" : ""}">
+        <span>${escapeHtml(field.label)}</span>
+        <input
+          class="clinical-input"
+          type="${escapeHtml(inputType)}"
+          data-clinical-field="${escapeHtml(field.id)}"
+          value="${escapeHtml(fieldValue)}"
+          placeholder="${escapeHtml(field.placeholder || "")}"
+        >
+      </label>
+    `);
+  }
+
+  el.clinicalFormatFields.innerHTML = html.join("");
 }
 
 function handleClinicalFormatFieldInput(event) {
@@ -1175,18 +1220,44 @@ function renderDentitionSwitch() {
   }
 }
 
+function renderOdontogramTemplateSelect() {
+  if (!el.odontogramTemplateSelect) {
+    return;
+  }
+  const optionEntries = Object.entries(ODONTOGRAM_TEMPLATES || {});
+  const currentOptions = Array.from(el.odontogramTemplateSelect.options).map((option) => option.value);
+  const shouldRebuild = optionEntries.length !== currentOptions.length
+    || optionEntries.some(([value]) => !currentOptions.includes(value));
+
+  if (shouldRebuild) {
+    el.odontogramTemplateSelect.innerHTML = optionEntries
+      .map(([value, config]) => `<option value="${escapeHtml(value)}">${escapeHtml(config?.label || value)}</option>`)
+      .join("");
+  }
+
+  const template = getCurrentOdontogramTemplate();
+  if (el.odontogramTemplateSelect.value !== template) {
+    el.odontogramTemplateSelect.value = template;
+  }
+}
+
 function renderOdontogram() {
   const mode = getCurrentDentitionMode();
+  const template = getCurrentOdontogramTemplate();
   const layout = DENTITION_LAYOUTS[mode];
-  el.dentitionLabel.textContent = layout.centerLabel || layout.label;
+  const templateConfig = ODONTOGRAM_TEMPLATES[template] || ODONTOGRAM_TEMPLATES.anatomic;
+  el.dentitionLabel.textContent = `${layout.centerLabel || layout.label} · ${templateConfig.label}`;
   if (el.dentitionStandardHint) {
-    el.dentitionStandardHint.textContent = layout.commonHint || "";
+    el.dentitionStandardHint.textContent = `${layout.commonHint || ""} ${templateConfig.hint || ""}`.trim();
   }
   el.jawBackdrop.classList.toggle("is-adult", mode === "adult");
   el.jawBackdrop.classList.toggle("is-child", mode === "child");
+  el.jawBackdrop.classList.toggle("template-anatomic", template === "anatomic");
+  el.jawBackdrop.classList.toggle("template-grid", template === "grid");
+  el.jawBackdrop.classList.toggle("template-classic", template === "classic");
 
-  renderJawArc(el.upperJawArc, layout.upper, "upper", mode);
-  renderJawArc(el.lowerJawArc, layout.lower, "lower", mode);
+  renderJawArc(el.upperJawArc, layout.upper, "upper", mode, template);
+  renderJawArc(el.lowerJawArc, layout.lower, "lower", mode, template);
 
   el.zoneList.innerHTML = ODONTO_ZONES.map((zone) => {
     const statusIds = getMarkIds("zones", zone.id);
@@ -1207,7 +1278,7 @@ function renderOdontogram() {
   }).join("");
 }
 
-function renderJawArc(container, toothNumbers, arcPosition, mode) {
+function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
   const splitIndex = Math.floor(toothNumbers.length / 2);
   const rightQuadrant = toothNumbers.slice(0, splitIndex);
   const leftQuadrant = toothNumbers.slice(splitIndex);
@@ -1223,6 +1294,10 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
     const toothSpec = getToothRenderSpec(toothNumber, mode);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
     const fillConfig = buildToothFill(statusColors, gradientId);
+    const nodeTemplate = template === "grid" ? "grid" : (template === "classic" ? "classic" : "anatomic");
+    const isGridTemplate = nodeTemplate === "grid";
+    const widthOverride = isGridTemplate ? (mode === "child" ? 36 : 38) : toothSpec.width;
+    const heightOverride = isGridTemplate ? (mode === "child" ? 45 : 49) : toothSpec.height;
 
     const chips = previewIds
       .map((statusId) => {
@@ -1238,20 +1313,33 @@ function renderJawArc(container, toothNumbers, arcPosition, mode) {
       ? statusIds.map((id) => getStatusById(id)?.name).filter(Boolean).join(", ")
       : "Sin marcas";
 
-    return `
-      <button
-        type="button"
-        class="tooth-node ${mode === "child" ? "child" : ""} jaw-${arcPosition} ${toothSpec.mirror ? "mirror" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
-        data-tooth-id="${toothId}"
-        title="Diente ${toothId}: ${escapeHtml(titleText)}"
-        style="--tooth-w:${toothSpec.width}px; --tooth-h:${toothSpec.height}px;"
-      >
-        <span class="tooth-art" aria-hidden="true">
+    const toothArt = isGridTemplate
+      ? `
+          <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-grid">
+            ${fillConfig.defs}
+            <rect class="tooth-grid-fill" x="8" y="8" width="32" height="36" fill="${fillConfig.fill}"></rect>
+            <rect class="tooth-grid-outline" x="8" y="8" width="32" height="36"></rect>
+            <path class="tooth-grid-lines" d="M8 8 L24 26 L40 8 M8 44 L24 26 L40 44 M24 8 L24 44 M8 26 L40 26"></path>
+          </svg>
+        `
+      : `
           <svg viewBox="0 0 48 52" class="tooth-svg">
             ${fillConfig.defs}
             <path class="tooth-fill-shape" d="${TOOTH_PATHS[toothSpec.path]}" fill="${fillConfig.fill}"></path>
             <path class="tooth-outline-shape" d="${TOOTH_PATHS[toothSpec.path]}"></path>
           </svg>
+        `;
+
+    return `
+      <button
+        type="button"
+        class="tooth-node ${mode === "child" ? "child" : ""} template-${nodeTemplate} jaw-${arcPosition} ${toothSpec.mirror ? "mirror" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
+        data-tooth-id="${toothId}"
+        title="Diente ${toothId}: ${escapeHtml(titleText)}"
+        style="--tooth-w:${widthOverride}px; --tooth-h:${heightOverride}px;"
+      >
+        <span class="tooth-art" aria-hidden="true">
+          ${toothArt}
         </span>
         <span class="tooth-id">${toothId}</span>
         <span class="tooth-color-grid">${chips}</span>

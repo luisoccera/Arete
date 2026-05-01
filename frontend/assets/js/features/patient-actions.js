@@ -133,6 +133,8 @@ function openClinicalHistoryForCurrentPatient(forceRenew) {
     });
   }
 
+  upsertDraftPatientSilently();
+
   renderClinicalFormatFields();
   renderClinicalCyclePanel();
   renderPatientHistory();
@@ -165,6 +167,8 @@ function openClinicalCycleById(cycleId) {
     el.clinicalRecordType.value = draftPatient.clinicalRecordType;
   }
 
+  upsertDraftPatientSilently();
+
   renderClinicalFormatFields();
   renderClinicalCyclePanel();
   setActivePatientSubview("history");
@@ -177,15 +181,9 @@ function openClinicalCycleById(cycleId) {
   );
 }
 
-function savePatient() {
-  syncDraftFromForm();
-  ensureDraftOdontogram();
-  ensureDraftClinicalEpisodeState();
-
+function upsertDraftPatientSilently() {
   if (!draftPatient.name) {
-    setFeedback("El nombre del paciente es obligatorio.", "error");
-    el.patientName.focus();
-    return;
+    return null;
   }
 
   const now = new Date().toISOString();
@@ -207,8 +205,28 @@ function savePatient() {
 
   persistState();
   editingPatientId = normalized.id;
-  draftPatient = deepClone(normalized);
-  draftPatient = normalizePatient(draftPatient);
+  draftPatient = normalizePatient(deepClone(normalized));
+  updateDeleteCurrentButtonState();
+  return normalized;
+}
+
+function savePatient() {
+  syncDraftFromForm();
+  ensureDraftOdontogram();
+  ensureDraftClinicalEpisodeState();
+
+  if (!draftPatient.name) {
+    setFeedback("El nombre del paciente es obligatorio.", "error");
+    el.patientName.focus();
+    return;
+  }
+
+  const normalized = upsertDraftPatientSilently();
+  if (!normalized) {
+    setFeedback("No se pudo guardar el paciente.", "error");
+    return;
+  }
+
   renderHomeOverview();
   renderPatientTable();
   renderUpcomingAppointments();

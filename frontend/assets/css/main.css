@@ -537,6 +537,20 @@ tbody tr.active {
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
 }
 
+.format-section-title {
+  grid-column: 1 / -1;
+  margin-top: 0.22rem;
+  margin-bottom: -0.04rem;
+  padding: 0.42rem 0.6rem;
+  border: 1px solid #d7c8b2;
+  border-radius: 10px;
+  background: linear-gradient(130deg, #fcf6eb, #efe1c9);
+  color: #4d3c28;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
 .format-field-wide {
   grid-column: 1 / -1;
 }
@@ -544,6 +558,41 @@ tbody tr.active {
 .format-fields-grid textarea {
   resize: vertical;
   min-height: 74px;
+}
+
+.format-fields-grid .clinical-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 42px;
+  border: 1px solid #d4bda1;
+  border-radius: var(--radius-ui);
+  background: #fffdfa;
+  color: #34281d;
+  padding: 0.57rem 0.64rem;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.format-fields-grid textarea.clinical-input {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.format-fields-grid select.clinical-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8f7758 50%),
+    linear-gradient(135deg, #8f7758 50%, transparent 50%),
+    linear-gradient(to right, #eadcc8, #eadcc8);
+  background-position:
+    calc(100% - 16px) calc(50% - 2px),
+    calc(100% - 11px) calc(50% - 2px),
+    calc(100% - 30px) 50%;
+  background-size: 5px 5px, 5px 5px, 1px 58%;
+  background-repeat: no-repeat;
 }
 
 .badge-count {
@@ -983,6 +1032,40 @@ tbody tr.active {
   border-color: #c5ccd4;
   background: #eef2f6;
   color: #2f3b49;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  white-space: nowrap;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn .display-mode-icon {
+  display: inline-grid;
+  flex: 0 0 auto;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn .display-mode-icon-grid {
+  grid-template-columns: repeat(2, 5px);
+  gap: 2px;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn .display-mode-icon-grid span {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.82;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn .display-mode-icon-list {
+  gap: 2px;
+}
+
+.planner-suite .upcoming-display-toggle .table-btn .display-mode-icon-list span {
+  width: 11px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.78;
 }
 
 .planner-suite .upcoming-display-toggle .table-btn.is-active {
@@ -1906,6 +1989,151 @@ tbody tr.active {
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+.tooth-grid-fill {
+  stroke: none;
+}
+
+.tooth-grid-outline,
+.tooth-grid-lines {
+  fill: none;
+  stroke: #1d3248;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tooth-grid-outline {
+  stroke-width: 1.8;
+}
+
+.tooth-grid-lines {
+  stroke-width: 1.35;
+}
+
+.jaw-backdrop.template-anatomic {
+  background: radial-gradient(circle at 50% 42%, #ffe2ce, #f5cdba);
+  border-color: #d7b999;
+}
+
+.jaw-backdrop.template-grid {
+  background: #ffffff;
+  border-color: #313131;
+  box-shadow: inset 0 0 0 1px #d0d0d0;
+}
+
+.jaw-backdrop.template-grid .jaw-heading-row {
+  color: #161616;
+}
+
+.jaw-backdrop.template-grid .jaw-divider-horizontal,
+.jaw-backdrop.template-grid .jaw-divider-vertical {
+  background: #1f2937;
+  box-shadow: none;
+}
+
+.jaw-backdrop.template-grid .jaw-quadrant {
+  gap: 0.34rem;
+}
+
+.jaw-backdrop.template-grid .tooth-node {
+  width: var(--tooth-w);
+  height: var(--tooth-h);
+}
+
+.jaw-backdrop.template-grid .tooth-node .tooth-art {
+  filter: none;
+}
+
+.jaw-backdrop.template-grid .tooth-node .tooth-id {
+  color: #0b0b0b;
+  text-shadow: none;
+  font-size: 0.66rem;
+}
+
+.jaw-backdrop.template-grid .tooth-color-grid {
+  left: 50%;
+  top: 7px;
+  transform: translateX(-50%);
+  width: 10px;
+  max-height: calc(var(--tooth-h) - 13px);
+  gap: 2px;
+}
+
+.jaw-backdrop.template-grid .tooth-color-chip {
+  height: 6px;
+  border-radius: 1px;
+  border-color: #1118278a;
+}
+
+.jaw-backdrop.template-classic {
+  background: #fdfdfd;
+  border-color: #3a3a3a;
+  box-shadow: inset 0 0 0 1px #d1d1d1;
+}
+
+.jaw-backdrop.template-classic::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 49.8%, #303030 49.8%, #303030 50.2%, transparent 50.2%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 12px,
+      #d5d8dc 12px 13px
+    );
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.jaw-backdrop.template-classic > * {
+  position: relative;
+  z-index: 1;
+}
+
+.jaw-backdrop.template-classic .jaw-heading-row {
+  color: #131313;
+}
+
+.jaw-backdrop.template-classic .jaw-divider-horizontal,
+.jaw-backdrop.template-classic .jaw-divider-vertical {
+  background: #1f2937;
+  box-shadow: none;
+}
+
+.jaw-backdrop.template-classic .jaw-quadrant {
+  gap: 0.28rem;
+}
+
+.jaw-backdrop.template-classic .tooth-node .tooth-art {
+  filter: none;
+}
+
+.jaw-backdrop.template-classic .tooth-fill-shape {
+  opacity: 0.95;
+}
+
+.jaw-backdrop.template-classic .tooth-outline-shape {
+  stroke: #191919;
+  stroke-width: 1.5;
+}
+
+.jaw-backdrop.template-classic .tooth-node .tooth-id {
+  color: #090909;
+  text-shadow: none;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.jaw-backdrop.template-classic .tooth-color-grid {
+  left: 50%;
+  top: 4px;
+  transform: translateX(-50%);
+  width: 9px;
+  gap: 1px;
 }
 
 .jaw-help {

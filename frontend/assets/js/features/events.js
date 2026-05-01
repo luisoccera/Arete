@@ -436,7 +436,7 @@
       persistDraftPatientIfEditing();
       renderOdontogramTemplateSelect();
       renderOdontogram();
-      const label = ODONTOGRAM_TEMPLATES[template]?.label || template;
+      const label = getOdontogramTemplatesMap()[template]?.label || template;
       setFeedback(`Plantilla de odontograma: ${label}.`);
     });
   }

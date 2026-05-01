@@ -36,20 +36,70 @@ function setFeedback(text, mode) {
   el.feedbackMessage.dataset.mode = mode || "ok";
 }
 
-function calculateAgeFromDate(dateString) {
-  const birthDate = new Date(dateString);
-  if (Number.isNaN(birthDate.valueOf())) {
-    return NaN;
+function calculateAgeBreakdownFromDate(dateString) {
+  const birthDate = parseDateValue(dateString);
+  if (!birthDate) {
+    return null;
   }
 
   const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  const pendingBirthday = monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate());
-  if (pendingBirthday) {
-    age -= 1;
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const birthOnly = new Date(birthDate.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+  if (birthOnly.getTime() > todayOnly.getTime()) {
+    return null;
   }
-  return age;
+
+  let years = todayOnly.getFullYear() - birthOnly.getFullYear();
+  let months = todayOnly.getMonth() - birthOnly.getMonth();
+  if (todayOnly.getDate() < birthOnly.getDate()) {
+    months -= 1;
+  }
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+  if (years < 0) {
+    return null;
+  }
+
+  return { years, months };
+}
+
+function calculateAgeFromDate(dateString) {
+  const breakdown = calculateAgeBreakdownFromDate(dateString);
+  return breakdown ? breakdown.years : NaN;
+}
+
+function capitalizeFirstLetter(text, locale = "es-MX") {
+  const safe = String(text || "").trim();
+  if (!safe) {
+    return "";
+  }
+  return safe.charAt(0).toLocaleUpperCase(locale) + safe.slice(1);
+}
+
+function formatMonthYearLabel(date, locale = "es-MX") {
+  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+    return "";
+  }
+  const raw = date.toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric"
+  });
+  return capitalizeFirstLetter(raw, locale);
+}
+
+function formatFullDateLabel(date, locale = "es-MX") {
+  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+    return "";
+  }
+  const raw = date.toLocaleDateString(locale, {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  });
+  return capitalizeFirstLetter(raw, locale);
 }
 
 function sanitizeColor(value, fallback) {
@@ -91,6 +141,24 @@ function getTodayInputDate() {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function formatDateToInputValue(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.valueOf())) {
+    return "";
+  }
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function normalizeDateInputValue(value) {
+  const parsed = parseDateValue(value);
+  if (!parsed) {
+    return "";
+  }
+  return formatDateToInputValue(parsed);
 }
 
 function getStartOfToday() {
@@ -291,6 +359,50 @@ function getCurrentDentitionMode() {
 
 function isValidDentitionMode(mode) {
   return mode === "adult" || mode === "child";
+}
+
+function getOdontogramTemplatesMap() {
+  const fallback = {
+    anatomic: {
+      label: "Anatomico por pieza",
+      centerSuffix: "anatomico",
+      hint: "Plantilla anatomica por pieza con morfologia individual."
+    },
+    grid: {
+      label: "Indice de higiene (cuadros)",
+      centerSuffix: "indice de higiene",
+      hint: "Plantilla en cuadros tipo indice de higiene para marcado rapido."
+    },
+    classic: {
+      label: "Clinico lineal",
+      centerSuffix: "clinico lineal",
+      hint: "Plantilla lineal clasica con lineado clinico tradicional."
+    }
+  };
+
+  if (typeof ODONTOGRAM_TEMPLATES === "undefined" || !ODONTOGRAM_TEMPLATES || typeof ODONTOGRAM_TEMPLATES !== "object") {
+    return fallback;
+  }
+  const keys = Object.keys(ODONTOGRAM_TEMPLATES);
+  if (keys.length === 0) {
+    return fallback;
+  }
+  return ODONTOGRAM_TEMPLATES;
+}
+
+function isValidOdontogramTemplate(template) {
+  const templates = getOdontogramTemplatesMap();
+  return Object.prototype.hasOwnProperty.call(templates, template);
+}
+
+function getCurrentOdontogramTemplate() {
+  const templates = getOdontogramTemplatesMap();
+  const template = stringOrEmpty(draftPatient.odontogramTemplate || "anatomic");
+  if (isValidOdontogramTemplate(template)) {
+    return template;
+  }
+  const firstKey = Object.keys(templates)[0];
+  return firstKey || "anatomic";
 }
 
 function getToothPositionInfo(toothNumber) {

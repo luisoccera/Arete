@@ -64,6 +64,7 @@ function createEmptyPatient() {
     appointments: [],
     mediaEntries: [],
     odontogramMode: "adult",
+    odontogramTemplate: "anatomic",
     odontogram: {
       teeth: {},
       zones: {}
@@ -183,7 +184,7 @@ function normalizePatient(rawPatient) {
   }
   patient.sex = stringOrEmpty(patient.sex);
   patient.location = stringOrEmpty(patient.location);
-  patient.birthDate = stringOrEmpty(patient.birthDate);
+  patient.birthDate = normalizeDateInputValue(patient.birthDate);
   patient.birthPlace = stringOrEmpty(patient.birthPlace);
   patient.phone = stringOrEmpty(patient.phone);
   patient.officePhone = stringOrEmpty(patient.officePhone || patient.clinicPhone);
@@ -231,12 +232,13 @@ function normalizePatient(rawPatient) {
   } else {
     patient.activeClinicalEpisodeId = "";
   }
-  patient.consultationDate = stringOrEmpty(patient.consultationDate);
+  patient.consultationDate = normalizeDateInputValue(patient.consultationDate);
   patient.nextConsultationDate = stringOrEmpty(
     patient.nextConsultationDate || patient.nextConsultation || patient.followUpDate
   );
-  patient.treatmentStart = stringOrEmpty(patient.treatmentStart);
-  patient.lastMedicalConsultDate = stringOrEmpty(patient.lastMedicalConsultDate);
+  patient.nextConsultationDate = normalizeDateInputValue(patient.nextConsultationDate);
+  patient.treatmentStart = normalizeDateInputValue(patient.treatmentStart);
+  patient.lastMedicalConsultDate = normalizeDateInputValue(patient.lastMedicalConsultDate);
   patient.lastMedicalConsultReason = stringOrEmpty(patient.lastMedicalConsultReason);
   patient.flossHabit = stringOrEmpty(patient.flossHabit);
   patient.otherConditions = stringOrEmpty(patient.otherConditions);
@@ -261,6 +263,9 @@ function normalizePatient(rawPatient) {
   patient.mediaEntries = normalizePatientMediaEntries(patient.mediaEntries || patient.images || patient.media);
 
   patient.odontogramMode = isValidDentitionMode(patient.odontogramMode) ? patient.odontogramMode : "adult";
+  patient.odontogramTemplate = isValidOdontogramTemplate(patient.odontogramTemplate)
+    ? patient.odontogramTemplate
+    : "anatomic";
 
   patient.odontogram = {
     teeth: normalizeMarks(patient.odontogram?.teeth),
@@ -693,6 +698,20 @@ function resolveStaticAssetUrl(relativePath) {
   return new URL(asset, document.baseURI).toString();
 }
 
+function stateHasMeaningfulData(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") {
+    return false;
+  }
+  const patientsCount = Array.isArray(snapshot.patients) ? snapshot.patients.length : 0;
+  const externalAppointmentsCount = Array.isArray(snapshot.externalAppointments)
+    ? snapshot.externalAppointments.length
+    : 0;
+  const scannedDocumentsCount = Array.isArray(snapshot.scannedDocuments)
+    ? snapshot.scannedDocuments.length
+    : 0;
+  return patientsCount > 0 || externalAppointmentsCount > 0 || scannedDocumentsCount > 0;
+}
+
 async function initializeBackendStorage() {
   if (!apiBaseUrl) {
     return;
@@ -702,6 +721,7 @@ async function initializeBackendStorage() {
   }
 
   try {
+    const localSnapshot = normalizeState(state);
     const healthResponse = await apiRequest("/api/health", { method: "GET" }, 3500);
     if (!healthResponse.ok) {
       return;
@@ -720,11 +740,18 @@ async function initializeBackendStorage() {
     }
 
     const payload = await stateResponse.json();
-    state = normalizeState(payload?.data || payload);
+    const backendSnapshot = normalizeState(payload?.data || payload);
+    const shouldKeepLocalData = stateHasMeaningfulData(localSnapshot) && !stateHasMeaningfulData(backendSnapshot);
+    state = shouldKeepLocalData ? localSnapshot : backendSnapshot;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     renderAll();
     if (!editingPatientId) {
       startNewPatient(false);
+    }
+    if (shouldKeepLocalData) {
+      queueRemotePersist();
+      setFeedback("Backend conectado. Se conservó tu información local y se sincronizará al servidor.");
+      return;
     }
     setFeedback("Backend conectado. Datos sincronizados correctamente.");
   } catch (error) {

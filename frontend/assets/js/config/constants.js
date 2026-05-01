@@ -647,6 +647,24 @@ const CLINICAL_FORM_SCHEMAS = {
   }
 };
 
+const ODONTOGRAM_TEMPLATES = {
+  anatomic: {
+    label: "Anatomico por pieza",
+    centerSuffix: "anatomico",
+    hint: "Plantilla anatomica por pieza con morfologia individual."
+  },
+  grid: {
+    label: "Indice de higiene (cuadros)",
+    centerSuffix: "indice de higiene",
+    hint: "Plantilla en cuadros tipo indice de higiene para marcado rapido."
+  },
+  classic: {
+    label: "Clinico lineal",
+    centerSuffix: "clinico lineal",
+    hint: "Plantilla lineal clasica con lineado clinico tradicional."
+  }
+};
+
 const CLINICAL_FORMAT_START_PAGES = {
   "f1-estomatologica": 1,
   "f2-preventiva": 13,

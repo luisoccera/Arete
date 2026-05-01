@@ -36,7 +36,7 @@ function setActivePatientSubview(view) {
 
 function setActiveUpcomingSubview(view) {
   const validViews = new Set(["overview", "planner"]);
-  const nextView = validViews.has(view) ? view : "overview";
+  const nextView = validViews.has(view) ? view : "planner";
   activeUpcomingSubview = nextView;
 
   for (const button of el.upcomingSubTabs || []) {

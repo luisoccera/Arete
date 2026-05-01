@@ -87,6 +87,7 @@
   dentitionLabel: document.getElementById("dentitionLabel"),
   dentitionStandardHint: document.getElementById("dentitionStandardHint"),
   dentitionSwitchButtons: Array.from(document.querySelectorAll("[data-dentition]")),
+  odontogramTemplateSelect: document.getElementById("odontogramTemplateSelect"),
   clearOdontogramBtn: document.getElementById("clearOdontogramBtn"),
   quickAddStatusBtn: document.getElementById("quickAddStatusBtn"),
   toothStatusSelect: document.getElementById("toothStatusSelect"),
@@ -161,7 +162,7 @@ let editingPatientId = null;
 let selectedStatusId = "";
 let activeView = "home";
 let activePatientSubview = "profile";
-let activeUpcomingSubview = "overview";
+let activeUpcomingSubview = "planner";
 let upcomingCalendarMode = "calendar";
 let upcomingCalendarMonth = getTodayInputDate().slice(0, 7);
 let upcomingSelectedDate = getTodayInputDate();
@@ -185,7 +186,7 @@ async function init() {
   setAppLocked(true);
   setAuthView("login");
   setActiveView("home");
-  setActiveUpcomingSubview("overview");
+  setActiveUpcomingSubview("planner");
   renderAll();
   startNewPatient(false);
   await initializeAuth();

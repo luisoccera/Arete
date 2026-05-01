@@ -541,7 +541,7 @@ function renderUpcomingDisplayButtonLabel(button) {
   }
   const modeAttr = stringOrEmpty(button.getAttribute("data-upcoming-display"));
   const normalizedMode = modeAttr === "list" ? "day" : modeAttr;
-  const label = normalizedMode === "day" ? "Día por día" : "Cuadriculado";
+  const label = normalizedMode === "day" ? "Lista" : "Cuadriculado";
   const iconClass = normalizedMode === "day" ? "display-mode-icon-list" : "display-mode-icon-grid";
   const iconCells = normalizedMode === "day"
     ? "<span></span><span></span><span></span>"
@@ -1224,7 +1224,8 @@ function renderOdontogramTemplateSelect() {
   if (!el.odontogramTemplateSelect) {
     return;
   }
-  const optionEntries = Object.entries(ODONTOGRAM_TEMPLATES || {});
+  const templates = getOdontogramTemplatesMap();
+  const optionEntries = Object.entries(templates);
   const currentOptions = Array.from(el.odontogramTemplateSelect.options).map((option) => option.value);
   const shouldRebuild = optionEntries.length !== currentOptions.length
     || optionEntries.some(([value]) => !currentOptions.includes(value));
@@ -1245,7 +1246,8 @@ function renderOdontogram() {
   const mode = getCurrentDentitionMode();
   const template = getCurrentOdontogramTemplate();
   const layout = DENTITION_LAYOUTS[mode];
-  const templateConfig = ODONTOGRAM_TEMPLATES[template] || ODONTOGRAM_TEMPLATES.anatomic;
+  const templates = getOdontogramTemplatesMap();
+  const templateConfig = templates[template] || templates.anatomic;
   el.dentitionLabel.textContent = `${layout.centerLabel || layout.label} · ${templateConfig.label}`;
   if (el.dentitionStandardHint) {
     el.dentitionStandardHint.textContent = `${layout.commonHint || ""} ${templateConfig.hint || ""}`.trim();

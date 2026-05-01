@@ -1243,6 +1243,7 @@ function renderOdontogramTemplateSelect() {
 }
 
 function renderOdontogram() {
+  ensureDraftOdontogram();
   const mode = getCurrentDentitionMode();
   const template = getCurrentOdontogramTemplate();
   const layout = DENTITION_LAYOUTS[mode];
@@ -1306,8 +1307,11 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
     }
     const partStatusIds = partStates.flatMap((part) => part.statusIds);
     const statusIds = Array.from(new Set([...wholeStatusIds, ...partStatusIds]));
-    const previewIds = statusIds.slice(0, 24);
-    const overflowCount = Math.max(0, statusIds.length - previewIds.length);
+    const shouldShowColorChips = !hasAnyPartMarks;
+    const previewIds = shouldShowColorChips ? statusIds.slice(0, 24) : [];
+    const overflowCount = shouldShowColorChips
+      ? Math.max(0, statusIds.length - previewIds.length)
+      : 0;
     const toothSpec = getToothRenderSpec(toothNumber, mode);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
     // La base del diente se mantiene neutra para evitar mezcla visual con marcas por superficie.
@@ -1401,8 +1405,8 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
           ${partMarkup}
         </span>
         <span class="tooth-id">${toothId}</span>
-        <span class="tooth-color-grid">${chips}</span>
-        ${overflowCount > 0 ? `<span class="tooth-more">+${overflowCount}</span>` : ""}
+        ${shouldShowColorChips ? `<span class="tooth-color-grid">${chips}</span>` : ""}
+        ${shouldShowColorChips && overflowCount > 0 ? `<span class="tooth-more">+${overflowCount}</span>` : ""}
       </button>
     `;
   };
@@ -1520,33 +1524,62 @@ function applyOdontoMark(bucket, key) {
   }
 
   const statusName = getStatusById(selectedStatusId)?.name || "estado";
-  const next = current.slice();
-  const existingIndex = next.indexOf(selectedStatusId);
-
-  if (existingIndex >= 0) {
-    next.splice(existingIndex, 1);
-    if (next.length === 0) {
+  if (isSegmentedToothKey) {
+    if (current.length === 1 && current[0] === selectedStatusId) {
       delete draftPatient.odontogram[bucket][key];
+      addHistoryEntry({
+        type: "odontogram-change",
+        title: `Estado removido en ${targetLabel}`,
+        description: `Se removio "${statusName}" de ${targetLabel}.`,
+        statusIds: [selectedStatusId]
+      });
+      setFeedback(`Estado ${statusName} removido de ${feedbackTarget}.`);
     } else {
-      draftPatient.odontogram[bucket][key] = next;
+      const previousName = current.length > 0
+        ? current
+          .map((statusId) => getStatusById(statusId)?.name)
+          .filter(Boolean)
+          .join(", ")
+        : "";
+      draftPatient.odontogram[bucket][key] = [selectedStatusId];
+      addHistoryEntry({
+        type: "odontogram-change",
+        title: `${current.length > 0 ? "Estado actualizado" : "Estado agregado"} en ${targetLabel}`,
+        description: current.length > 0
+          ? `Se reemplazo "${previousName || "estado previo"}" por "${statusName}" en ${targetLabel}.`
+          : `Se agrego "${statusName}" en ${targetLabel}.`,
+        statusIds: [selectedStatusId]
+      });
+      setFeedback(`Estado ${statusName} aplicado en ${feedbackTarget}.`);
     }
-    addHistoryEntry({
-      type: "odontogram-change",
-      title: `Estado removido en ${targetLabel}`,
-      description: `Se removio "${statusName}" de ${targetLabel}.`,
-      statusIds: [selectedStatusId]
-    });
-    setFeedback(`Estado ${statusName} removido de ${feedbackTarget}.`);
   } else {
-    next.push(selectedStatusId);
-    draftPatient.odontogram[bucket][key] = next;
-    addHistoryEntry({
-      type: "odontogram-change",
-      title: `Estado agregado en ${targetLabel}`,
-      description: `Se agrego "${statusName}" en ${targetLabel}.`,
-      statusIds: [selectedStatusId]
-    });
-    setFeedback(`Estado ${statusName} agregado en ${feedbackTarget}.`);
+    const next = current.slice();
+    const existingIndex = next.indexOf(selectedStatusId);
+    if (existingIndex >= 0) {
+      next.splice(existingIndex, 1);
+      if (next.length === 0) {
+        delete draftPatient.odontogram[bucket][key];
+      } else {
+        draftPatient.odontogram[bucket][key] = next;
+      }
+      addHistoryEntry({
+        type: "odontogram-change",
+        title: `Estado removido en ${targetLabel}`,
+        description: `Se removio "${statusName}" de ${targetLabel}.`,
+        statusIds: [selectedStatusId]
+      });
+      setFeedback(`Estado ${statusName} removido de ${feedbackTarget}.`);
+    } else {
+      next.push(selectedStatusId);
+      draftPatient.odontogram[bucket][key] = next;
+      addHistoryEntry({
+        type: "odontogram-change",
+        title: `Estado agregado en ${targetLabel}`,
+        description: `Se agrego "${statusName}" en ${targetLabel}.`,
+        statusIds: [selectedStatusId]
+      });
+      setFeedback(`Estado ${statusName} agregado en ${feedbackTarget}.`);
+    }
   }
 
   persistDraftPatientIfEditing();
@@ -1560,6 +1593,16 @@ function ensureDraftOdontogram() {
   }
   draftPatient.odontogram.teeth = normalizeMarks(draftPatient.odontogram.teeth);
   draftPatient.odontogram.zones = normalizeMarks(draftPatient.odontogram.zones);
+
+  // Normaliza subzonas por pieza: cada superficie conserva un solo estado activo.
+  // Esto evita dobles marcas superpuestas en el mismo espacio.
+  for (const [toothKey, statusIds] of Object.entries(draftPatient.odontogram.teeth)) {
+    const parsed = splitOdontoToothKey(toothKey);
+    if (!parsed.partId || !Array.isArray(statusIds) || statusIds.length <= 1) {
+      continue;
+    }
+    draftPatient.odontogram.teeth[toothKey] = [statusIds[statusIds.length - 1]];
+  }
 }
 
 function getMarkIds(bucket, key) {
@@ -1567,7 +1610,14 @@ function getMarkIds(bucket, key) {
   if (!marks || typeof marks !== "object") {
     return [];
   }
-  return normalizeMarkList(marks[key]);
+  const normalized = normalizeMarkList(marks[key]);
+  if (bucket === "teeth") {
+    const { partId } = splitOdontoToothKey(key);
+    if (partId && normalized.length > 1) {
+      return [normalized[normalized.length - 1]];
+    }
+  }
+  return normalized;
 }
 
 function clearDraftOdontogram() {

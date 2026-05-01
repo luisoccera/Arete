@@ -1978,6 +1978,62 @@ tbody tr.active {
   border-radius: 7px;
 }
 
+.jaw-backdrop.template-anatomic .tooth-part-map {
+  inset: 11% 18%;
+}
+
+.tooth-node.template-anatomic .tooth-part {
+  border: none;
+  box-shadow: none;
+  background: var(--part-mark, transparent);
+  opacity: 0.95;
+}
+
+.tooth-node.template-anatomic .tooth-part-top {
+  top: 2%;
+  left: 21%;
+  width: 58%;
+  height: 25%;
+  border-radius: 0;
+  clip-path: polygon(16% 0, 84% 0, 100% 72%, 0 72%);
+}
+
+.tooth-node.template-anatomic .tooth-part-right {
+  top: 23%;
+  right: 4%;
+  width: 30%;
+  height: 54%;
+  border-radius: 0;
+  clip-path: polygon(0 10%, 100% 22%, 100% 78%, 0 90%, 12% 50%);
+}
+
+.tooth-node.template-anatomic .tooth-part-bottom {
+  left: 21%;
+  bottom: 2%;
+  width: 58%;
+  height: 25%;
+  border-radius: 0;
+  clip-path: polygon(0 28%, 100% 28%, 84% 100%, 16% 100%);
+}
+
+.tooth-node.template-anatomic .tooth-part-left {
+  top: 23%;
+  left: 4%;
+  width: 30%;
+  height: 54%;
+  border-radius: 0;
+  clip-path: polygon(100% 10%, 0 22%, 0 78%, 100% 90%, 88% 50%);
+}
+
+.tooth-node.template-anatomic .tooth-part-center {
+  top: 31%;
+  left: 31%;
+  width: 38%;
+  height: 38%;
+  border-radius: 0;
+  clip-path: polygon(12% 0, 88% 0, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0 88%, 0 12%);
+}
+
 .tooth-fill-shape {
   stroke: none;
 }

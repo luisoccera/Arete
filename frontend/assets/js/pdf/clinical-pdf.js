@@ -689,6 +689,12 @@ function buildClinicalFallbackPdfRule(field) {
   };
 }
 
+function shouldUseClinicalAutoFallback() {
+  // Modo estricto: evita ubicar texto por heuristica cuando no hay coordenadas
+  // manuales del formato, para impedir sobreposicion con lineas/etiquetas del PDF.
+  return false;
+}
+
 function normalizeClinicalFillEntries(rawEntries) {
   if (!Array.isArray(rawEntries)) {
     return [];
@@ -791,10 +797,10 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
 
   const entries = [];
 
-  // Modo independiente por formato:
-  // cada campo del cuestionario activo intenta renderizarse en su propio PDF,
-  // incluso si aun no existe regla manual, usando una regla fallback estricta.
-  // Esto evita herencia cruzada entre formatos y mantiene la captura completa.
+  // Modo independiente por formato y estricto de impresion:
+  // solo se renderizan campos con regla manual del formato activo.
+  // Los campos aun no mapeados se omiten para evitar sobreposicion en el PDF.
+  const allowAutoFallback = shouldUseClinicalAutoFallback();
 
   for (const field of schema.fields) {
     const value = stringOrEmpty(values[field.id]);
@@ -803,9 +809,11 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
     }
     const manualRule = getClinicalFieldPdfRule(safeFormat, field.id);
     const hasManualRule = Boolean(manualRule && typeof manualRule === "object");
-    const pdfRule = hasManualRule
-      ? manualRule
-      : buildClinicalFallbackPdfRule(field);
+    if (!hasManualRule && !allowAutoFallback) {
+      continue;
+    }
+
+    const pdfRule = hasManualRule ? manualRule : buildClinicalFallbackPdfRule(field);
     const autoMatches = buildClinicalFieldAutoMatches(field);
     const ruleType = String(pdfRule?.type || "").trim().toLowerCase();
 
@@ -886,7 +894,9 @@ function buildClinicalPdfFillEntries(patientInput, formatId) {
     const fixedX = toOptionalClinicalNumber(pdfRule?.x);
     const fixedY = toOptionalClinicalNumber(pdfRule?.y);
     const hasFixedPoint = fixedX !== null && fixedY !== null;
-    const strictAnchor = Boolean(pdfRule?.strictAnchor) || (!hasFixedPoint && !hasManualRule);
+    const strictAnchor = hasManualRule
+      ? Boolean(pdfRule?.strictAnchor)
+      : true;
     const isExact = typeof pdfRule?.exact === "boolean" ? Boolean(pdfRule.exact) : true;
     const defaultSize = hasManualRule ? 7.3 : 7.1;
     const align = ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())

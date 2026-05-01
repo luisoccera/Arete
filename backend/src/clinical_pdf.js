@@ -547,6 +547,17 @@ function normalizeFillEntries(rawEntries) {
       continue;
     }
 
+    const fixedX = toOptionalNumber(entry?.x);
+    const fixedY = toOptionalNumber(entry?.y);
+    const hasFixedPoint = fixedX !== null && fixedY !== null;
+    const allowDynamicAnchor = Boolean(entry?.allowDynamicAnchor);
+
+    // Seguridad de impresion: evita textos en coordenadas ambiguas
+    // cuando llegue payload sin mapeo manual del formulario.
+    if (!hasFixedPoint && !allowDynamicAnchor) {
+      continue;
+    }
+
     normalized.push({
       id: String(entry?.id || "").trim() || `pdf-entry-${normalized.length + 1}`,
       value,
@@ -563,9 +574,10 @@ function normalizeFillEntries(rawEntries) {
       dy: Number.isFinite(Number(entry?.dy)) ? Number(entry.dy) : -1,
       size: Number.isFinite(Number(entry?.size)) ? Number(entry.size) : 7.4,
       lineHeight: Number.isFinite(Number(entry?.lineHeight)) ? Number(entry.lineHeight) : null,
-      x: toOptionalNumber(entry?.x),
-      y: toOptionalNumber(entry?.y),
-      lockPosition: Boolean(entry?.lockPosition),
+      x: fixedX,
+      y: fixedY,
+      lockPosition: hasFixedPoint ? true : Boolean(entry?.lockPosition),
+      allowDynamicAnchor,
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -857,6 +869,7 @@ function resolveEntryCoordinates(entry, items) {
     x: toOptionalNumber(entry?.x),
     y: toOptionalNumber(entry?.y),
     lockPosition: Boolean(entry?.lockPosition),
+    allowDynamicAnchor: Boolean(entry?.allowDynamicAnchor),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",
@@ -869,6 +882,10 @@ function resolveEntryCoordinates(entry, items) {
       lockPosition: rule.lockPosition || (rule.x !== null && rule.y !== null)
     }];
   }
+  if (!rule.allowDynamicAnchor) {
+    return [];
+  }
+
   if (!Array.isArray(rule.matches) || rule.matches.length === 0) {
     return [];
   }

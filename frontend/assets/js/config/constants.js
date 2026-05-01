@@ -50,6 +50,14 @@ const ODONTO_ZONES = [
   { id: "paladar", name: "Paladar" }
 ];
 
+const ODONTO_TOOTH_PARTS = [
+  { id: "top", label: "Oclusal / incisal" },
+  { id: "right", label: "Distal" },
+  { id: "bottom", label: "Lingual / palatina" },
+  { id: "left", label: "Mesial" },
+  { id: "center", label: "Vestibular" }
+];
+
 const TOOTH_PATHS = {
   "adult-upper-incisor-central": "M14 8 C14 4 17 2 24 2 C31 2 34 4 34 8 C34 14 33 19 32 23 L30 35 C29 43 27 48 24 50 C21 48 19 43 18 35 L16 23 C15 19 14 14 14 8 Z",
   "adult-upper-incisor-lateral": "M15 9 C15 5 18 3 24 3 C30 3 33 5 33 9 C33 14 32 19 31 24 L29 36 C28 44 26 48 24 49 C22 48 20 44 19 36 L17 24 C16 19 15 14 15 9 Z",

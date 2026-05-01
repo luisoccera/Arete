@@ -75,6 +75,22 @@ function setPlannerComposerVisible(visible) {
 }
 
 function handleToothNodeClick(event) {
+  const partNode = event.target.closest("[data-tooth-part]");
+  if (partNode) {
+    const toothNode = partNode.closest("[data-tooth-id]");
+    if (!toothNode) {
+      return;
+    }
+    const toothId = toothNode.getAttribute("data-tooth-id");
+    const partId = partNode.getAttribute("data-tooth-part");
+    const markKey = buildOdontoToothMarkKey(toothId, partId);
+    if (!markKey) {
+      return;
+    }
+    applyOdontoMark("teeth", markKey);
+    return;
+  }
+
   const toothBtn = event.target.closest("[data-tooth-id]");
   if (!toothBtn) {
     return;

@@ -1287,19 +1287,35 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
 
   const renderToothNode = (toothNumber) => {
     const toothId = String(toothNumber);
-    const statusIds = getMarkIds("teeth", toothId);
-    const statusColors = statusIds
+    const wholeStatusIds = getMarkIds("teeth", toothId);
+    const wholeStatusColors = wholeStatusIds
       .map((statusId) => getStatusById(statusId)?.color)
       .filter(Boolean);
+    const partStates = ODONTO_TOOTH_PARTS.map((part) => {
+      const markKey = buildOdontoToothMarkKey(toothId, part.id);
+      const statusIds = getMarkIds("teeth", markKey);
+      return {
+        ...part,
+        markKey,
+        statusIds
+      };
+    });
+    const partStatusIds = partStates.flatMap((part) => part.statusIds);
+    const statusIds = Array.from(new Set([...wholeStatusIds, ...partStatusIds]));
     const previewIds = statusIds.slice(0, 24);
     const overflowCount = Math.max(0, statusIds.length - previewIds.length);
     const toothSpec = getToothRenderSpec(toothNumber, mode);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
-    const fillConfig = buildToothFill(statusColors, gradientId);
+    const fillConfig = buildToothFill(wholeStatusColors, gradientId);
     const nodeTemplate = template === "grid" ? "grid" : (template === "classic" ? "classic" : "anatomic");
     const isGridTemplate = nodeTemplate === "grid";
-    const widthOverride = isGridTemplate ? (mode === "child" ? 36 : 38) : toothSpec.width;
-    const heightOverride = isGridTemplate ? (mode === "child" ? 45 : 49) : toothSpec.height;
+    const sizeScale = mode === "child" ? 1.26 : 1.22;
+    const widthOverride = isGridTemplate
+      ? (mode === "child" ? 43 : 46)
+      : Math.round(toothSpec.width * sizeScale);
+    const heightOverride = isGridTemplate
+      ? (mode === "child" ? 54 : 58)
+      : Math.round(toothSpec.height * sizeScale);
 
     const chips = previewIds
       .map((statusId) => {
@@ -1311,8 +1327,24 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
       })
       .join("");
 
+    const wholeStatusLabel = wholeStatusIds
+      .map((id) => getStatusById(id)?.name)
+      .filter(Boolean)
+      .join(", ");
+    const partStatusLabel = partStates
+      .map((part) => {
+        const names = part.statusIds
+          .map((statusId) => getStatusById(statusId)?.name)
+          .filter(Boolean);
+        if (names.length === 0) {
+          return "";
+        }
+        return `${part.label}: ${names.join(", ")}`;
+      })
+      .filter(Boolean)
+      .join(" | ");
     const titleText = statusIds.length > 0
-      ? statusIds.map((id) => getStatusById(id)?.name).filter(Boolean).join(", ")
+      ? [wholeStatusLabel ? `General: ${wholeStatusLabel}` : "", partStatusLabel].filter(Boolean).join(" | ")
       : "Sin marcas";
 
     const toothArt = isGridTemplate
@@ -1332,6 +1364,27 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
           </svg>
         `;
 
+    const partMarkup = partStates
+      .map((part) => {
+        const colorStyle = buildMultiColorBackground(
+          part.statusIds
+            .map((statusId) => getStatusById(statusId)?.color)
+            .filter(Boolean)
+        );
+        const partStatusLabelText = part.statusIds.length > 0
+          ? part.statusIds.map((statusId) => getStatusById(statusId)?.name).filter(Boolean).join(", ")
+          : "sin marca";
+        return `
+          <span
+            class="tooth-part tooth-part-${part.id} ${part.statusIds.length > 0 ? "has-marks" : ""}"
+            data-tooth-part="${part.id}"
+            style="--part-mark:${colorStyle}"
+            title="Pieza ${toothId} - ${escapeHtml(part.label)}: ${escapeHtml(partStatusLabelText)}"
+          ></span>
+        `;
+      })
+      .join("");
+
     return `
       <button
         type="button"
@@ -1342,6 +1395,9 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
       >
         <span class="tooth-art" aria-hidden="true">
           ${toothArt}
+        </span>
+        <span class="tooth-part-map" aria-hidden="true">
+          ${partMarkup}
         </span>
         <span class="tooth-id">${toothId}</span>
         <span class="tooth-color-grid">${chips}</span>
@@ -1388,10 +1444,11 @@ function applyOdontoMark(bucket, key) {
 
   const current = getMarkIds(bucket, key);
   const targetLabel = getOdontoTargetLabel(bucket, key);
+  const feedbackTarget = bucket === "teeth" ? targetLabel : "la zona";
 
   if (selectedStatusId === "none") {
     if (current.length === 0) {
-      setFeedback("La pieza ya estaba limpia.");
+      setFeedback(`No habia marcas en ${feedbackTarget}.`);
       return;
     }
     const previousStatuses = current
@@ -1406,7 +1463,7 @@ function applyOdontoMark(bucket, key) {
       statusIds: current
     });
     persistDraftPatientIfEditing();
-    setFeedback(`Se limpiaron todas las marcas de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
+    setFeedback(`Se limpiaron todas las marcas de ${feedbackTarget}.`);
     renderPatientHistory();
     renderOdontogram();
     return;
@@ -1429,7 +1486,7 @@ function applyOdontoMark(bucket, key) {
       description: `Se removio "${statusName}" de ${targetLabel}.`,
       statusIds: [selectedStatusId]
     });
-    setFeedback(`Estado ${statusName} removido de ${bucket === "teeth" ? "la pieza" : "la zona"}.`);
+    setFeedback(`Estado ${statusName} removido de ${feedbackTarget}.`);
   } else {
     next.push(selectedStatusId);
     draftPatient.odontogram[bucket][key] = next;
@@ -1439,7 +1496,7 @@ function applyOdontoMark(bucket, key) {
       description: `Se agrego "${statusName}" en ${targetLabel}.`,
       statusIds: [selectedStatusId]
     });
-    setFeedback(`Estado ${statusName} agregado. Esta pieza ya puede tener multiples colores al mismo tiempo.`);
+    setFeedback(`Estado ${statusName} agregado en ${feedbackTarget}.`);
   }
 
   persistDraftPatientIfEditing();

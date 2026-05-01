@@ -333,9 +333,48 @@ function getHistoryTypeLabel(type) {
   return "Historial";
 }
 
+function getOdontoToothPartById(partId) {
+  const safePartId = stringOrEmpty(partId).toLowerCase();
+  if (!safePartId) {
+    return null;
+  }
+  return ODONTO_TOOTH_PARTS.find((part) => part.id === safePartId) || null;
+}
+
+function splitOdontoToothKey(key) {
+  const raw = String(key || "").trim();
+  if (!raw) {
+    return { toothId: "", partId: "" };
+  }
+  const [toothRaw, partRaw = ""] = raw.split("|");
+  return {
+    toothId: stringOrEmpty(toothRaw),
+    partId: stringOrEmpty(partRaw).toLowerCase()
+  };
+}
+
+function buildOdontoToothMarkKey(toothId, partId) {
+  const safeToothId = stringOrEmpty(toothId);
+  const safePartId = stringOrEmpty(partId).toLowerCase();
+  if (!safeToothId) {
+    return "";
+  }
+  if (!safePartId) {
+    return safeToothId;
+  }
+  return `${safeToothId}|${safePartId}`;
+}
+
 function getOdontoTargetLabel(bucket, key) {
   if (bucket === "teeth") {
-    return `pieza ${key}`;
+    const parsed = splitOdontoToothKey(key);
+    const safeTooth = parsed.toothId || String(key || "").trim();
+    if (!parsed.partId) {
+      return `pieza ${safeTooth}`;
+    }
+    const part = getOdontoToothPartById(parsed.partId);
+    const partLabel = part ? part.label.toLowerCase() : parsed.partId;
+    return `pieza ${safeTooth} (${partLabel})`;
   }
   const zone = ODONTO_ZONES.find((entry) => entry.id === key);
   return zone ? `zona ${zone.name}` : `zona ${key}`;

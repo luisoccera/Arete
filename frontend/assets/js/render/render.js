@@ -1347,22 +1347,18 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
       ? [wholeStatusLabel ? `General: ${wholeStatusLabel}` : "", partStatusLabel].filter(Boolean).join(" | ")
       : "Sin marcas";
 
+    const isClassicTemplate = nodeTemplate === "classic";
     const toothArt = isGridTemplate
-      ? `
-          <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-grid">
-            ${fillConfig.defs}
-            <rect class="tooth-grid-fill" x="8" y="8" width="32" height="36" fill="${fillConfig.fill}"></rect>
-            <rect class="tooth-grid-outline" x="8" y="8" width="32" height="36"></rect>
-            <path class="tooth-grid-lines" d="M8 8 L24 26 L40 8 M8 44 L24 26 L40 44 M24 8 L24 44 M8 26 L40 26"></path>
-          </svg>
-        `
-      : `
-          <svg viewBox="0 0 48 52" class="tooth-svg">
-            ${fillConfig.defs}
-            <path class="tooth-fill-shape" d="${TOOTH_PATHS[toothSpec.path]}" fill="${fillConfig.fill}"></path>
-            <path class="tooth-outline-shape" d="${TOOTH_PATHS[toothSpec.path]}"></path>
-          </svg>
-        `;
+      ? buildGridToothArt(fillConfig)
+      : isClassicTemplate
+        ? buildClassicToothArt(toothSpec.path, fillConfig, `clip-${mode}-${arcPosition}-${toothId}`)
+        : `
+            <svg viewBox="0 0 48 52" class="tooth-svg">
+              ${fillConfig.defs}
+              <path class="tooth-fill-shape" d="${TOOTH_PATHS[toothSpec.path]}" fill="${fillConfig.fill}"></path>
+              <path class="tooth-outline-shape" d="${TOOTH_PATHS[toothSpec.path]}"></path>
+            </svg>
+          `;
 
     const partMarkup = partStates
       .map((part) => {
@@ -1396,7 +1392,7 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
         <span class="tooth-art" aria-hidden="true">
           ${toothArt}
         </span>
-        <span class="tooth-part-map" aria-hidden="true">
+        <span class="tooth-part-map part-template-${nodeTemplate}" aria-hidden="true">
           ${partMarkup}
         </span>
         <span class="tooth-id">${toothId}</span>
@@ -1414,6 +1410,44 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
     <div class="jaw-quadrant jaw-quadrant-left">
       ${leftQuadrant.map(renderToothNode).join("")}
     </div>
+  `;
+}
+
+function buildGridToothArt(fillConfig) {
+  return `
+    <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-grid">
+      ${fillConfig.defs}
+      <rect class="tooth-grid-fill" x="8" y="8" width="32" height="36" rx="2.4" fill="${fillConfig.fill}"></rect>
+      <rect class="tooth-grid-outline" x="8" y="8" width="32" height="36" rx="2.4"></rect>
+      <rect class="tooth-grid-center" x="18.5" y="20.5" width="11" height="11"></rect>
+      <path class="tooth-grid-lines" d="M24 8 L24 44 M8 26 L40 26 M8 8 L18.5 20.5 M40 8 L29.5 20.5 M8 44 L18.5 31.5 M40 44 L29.5 31.5"></path>
+    </svg>
+  `;
+}
+
+function unwrapToothDefs(defsMarkup) {
+  const raw = String(defsMarkup || "").trim();
+  if (!raw) {
+    return "";
+  }
+  return raw.replace(/^<defs>/i, "").replace(/<\/defs>$/i, "");
+}
+
+function buildClassicToothArt(pathId, fillConfig, clipId) {
+  const path = TOOTH_PATHS[pathId];
+  const mergedDefs = [unwrapToothDefs(fillConfig.defs), `<clipPath id="${clipId}"><path d="${path}"></path></clipPath>`]
+    .filter(Boolean)
+    .join("");
+  return `
+    <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-classic">
+      <defs>${mergedDefs}</defs>
+      <path class="tooth-fill-shape tooth-fill-classic" d="${path}" fill="${fillConfig.fill}"></path>
+      <g clip-path="url(#${clipId})" class="tooth-classic-grid">
+        <path class="tooth-classic-lines" d="M8 10 H40 M8 16 H40 M8 22 H40 M8 28 H40 M8 34 H40 M8 40 H40"></path>
+        <path class="tooth-classic-midline" d="M24 8 V44"></path>
+      </g>
+      <path class="tooth-outline-shape tooth-outline-classic" d="${path}"></path>
+    </svg>
   `;
 }
 

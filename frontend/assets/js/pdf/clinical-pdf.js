@@ -700,6 +700,7 @@ function normalizeClinicalFillEntries(rawEntries) {
       x: toOptionalClinicalNumber(entry?.x),
       y: toOptionalClinicalNumber(entry?.y),
       lockPosition: Boolean(entry?.lockPosition),
+      strictAnchor: Boolean(entry?.strictAnchor),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -852,27 +853,32 @@ function buildClinicalPdfFillEntries(patientInput, formatId, contextInput) {
     const matches = Array.isArray(pdfRule?.matches) && pdfRule.matches.length > 0
       ? pdfRule.matches
       : autoMatches;
+    if (!Array.isArray(matches) || matches.length === 0) {
+      continue;
+    }
     const fixedX = toOptionalClinicalNumber(pdfRule?.x);
     const fixedY = toOptionalClinicalNumber(pdfRule?.y);
     const hasFixedPoint = fixedX !== null && fixedY !== null;
+    const strictAnchor = !hasRule && !hasFixedPoint;
 
     entries.push({
       id: `field-${safeFormat}-${field.id}`,
       value,
       matches: hasRule ? matches : autoMatches,
       sectionMatches: [stringOrEmpty(field.section)].filter(Boolean),
-      exact: hasRule ? Boolean(pdfRule?.exact) : false,
+      exact: hasRule ? Boolean(pdfRule?.exact) : true,
       maxPerPage: Math.max(1, Number(pdfRule?.maxPerPage || 1)),
       maxWidth: Number(pdfRule?.maxWidth || defaultMaxWidth),
       maxLines: Math.max(1, Number(pdfRule?.maxLines || defaultLines)),
       pageOffset: Number.isFinite(Number(pdfRule?.pageOffset)) ? Number(pdfRule.pageOffset) : null,
-      dx: Number.isFinite(Number(pdfRule?.dx)) ? Number(pdfRule.dx) : 6,
-      dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : -1,
+      dx: Number.isFinite(Number(pdfRule?.dx)) ? Number(pdfRule.dx) : (strictAnchor ? 4 : 6),
+      dy: Number.isFinite(Number(pdfRule?.dy)) ? Number(pdfRule.dy) : (strictAnchor ? 0 : -1),
       size: Number.isFinite(Number(pdfRule?.size)) ? Number(pdfRule.size) : defaultSize,
       lineHeight: Number.isFinite(Number(pdfRule?.lineHeight)) ? Number(pdfRule.lineHeight) : null,
       x: hasFixedPoint ? fixedX : null,
       y: hasFixedPoint ? fixedY : null,
       lockPosition: hasFixedPoint ? true : false,
+      strictAnchor,
       align: ["left", "center", "right"].includes(String(pdfRule?.align || "").toLowerCase())
         ? String(pdfRule.align).toLowerCase()
         : "left",
@@ -1298,7 +1304,7 @@ function placeClinicalRuleWithoutOverlap(page, font, value, rule, occupiedRects,
   if (!Array.isArray(metrics.lines) || metrics.lines.length === 0) {
     return false;
   }
-  if (rule?.lockPosition) {
+  if (rule?.lockPosition || rule?.strictAnchor) {
     drawClinicalTextAt(
       page,
       font,
@@ -1397,6 +1403,7 @@ function resolveClinicalEntryCoordinates(entry, items) {
     x: toOptionalClinicalNumber(entry?.x),
     y: toOptionalClinicalNumber(entry?.y),
     lockPosition: Boolean(entry?.lockPosition),
+    strictAnchor: Boolean(entry?.strictAnchor),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",

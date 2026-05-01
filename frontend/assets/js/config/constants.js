@@ -657,19 +657,19 @@ const CLINICAL_FORM_SCHEMAS = {
 
 const ODONTOGRAM_TEMPLATES = {
   anatomic: {
-    label: "Anatomico por pieza",
+    label: "Anatomico por pieza (caras)",
     centerSuffix: "anatomico",
-    hint: "Plantilla anatomica por pieza con morfologia individual."
+    hint: "Modelo anatomico por pieza para registro detallado por caras dentales."
   },
   grid: {
-    label: "Indice de higiene (cuadros)",
+    label: "Indice de higiene por superficies",
     centerSuffix: "indice de higiene",
-    hint: "Plantilla en cuadros tipo indice de higiene para marcado rapido."
+    hint: "Registro por superficies en cuadros divididos para control de higiene."
   },
   classic: {
-    label: "Clinico lineal",
+    label: "Clinico lineal por cuadrantes",
     centerSuffix: "clinico lineal",
-    hint: "Plantilla lineal clasica con lineado clinico tradicional."
+    hint: "Plantilla clinica lineal con guiado por lineas para evolucion y trazabilidad."
   }
 };
 

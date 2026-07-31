@@ -706,27 +706,58 @@ function addClinicalNote() {
     return;
   }
 
+  const targetPatient = findPatientByPlannerName(el.clinicalNotePatient?.value);
+  if (!targetPatient) {
+    setFeedback("Selecciona un paciente registrado antes de guardar la nota.", "error");
+    el.clinicalNotePatient?.focus();
+    return;
+  }
+
   const noteDate = stringOrEmpty(el.clinicalNoteDate.value);
   let createdAt = new Date().toISOString();
   if (noteDate) {
     const now = new Date();
-    const custom = new Date(noteDate);
+    const [year, month, day] = noteDate.split("-").map(Number);
+    const custom = new Date(year, month - 1, day);
     if (!Number.isNaN(custom.valueOf())) {
       custom.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), 0);
       createdAt = custom.toISOString();
     }
   }
 
-  addHistoryEntry({
+  const noteEntry = {
+    id: generateId("hist"),
     type: "clinical-note",
     title: rawTitle || "Nota clinica",
     description: rawText || "Sin detalle adicional.",
-    createdAt
-  });
-  persistDraftPatientIfEditing();
+    createdAt,
+    statusIds: []
+  };
+
+  if (editingPatientId === targetPatient.id) {
+    if (!Array.isArray(draftPatient.historyEntries)) {
+      draftPatient.historyEntries = [];
+    }
+    draftPatient.historyEntries.unshift(noteEntry);
+    persistDraftPatientIfEditing();
+  } else {
+    const targetIndex = state.patients.findIndex((patient) => patient.id === targetPatient.id);
+    if (targetIndex < 0) {
+      setFeedback("No se encontro el expediente seleccionado.", "error");
+      return;
+    }
+    const updatedPatient = normalizePatient(deepClone(targetPatient));
+    updatedPatient.historyEntries.unshift(noteEntry);
+    updatedPatient.updatedAt = new Date().toISOString();
+    state.patients[targetIndex] = normalizePatient(updatedPatient);
+    persistState();
+  }
+
   renderPatientHistory();
+  renderClinicalNotesInCalendar();
   resetClinicalNoteInputs();
-  setFeedback("Nota clinica agregada al historial del paciente.");
+  el.clinicalNotePatient.value = getPatientFullName(targetPatient);
+  setFeedback(`Nota clinica guardada para ${getPatientFullName(targetPatient)}.`);
 }
 
 function removeHistoryEntry(entryId) {
@@ -744,6 +775,7 @@ function removeHistoryEntry(entryId) {
   draftPatient.historyEntries = entries.filter((item) => item.id !== entryId);
   persistDraftPatientIfEditing();
   renderPatientHistory();
+  renderClinicalNotesInCalendar();
   setFeedback("Registro de historial eliminado.");
 }
 
@@ -911,12 +943,8 @@ function exportData() {
 
   const text = JSON.stringify(payload, null, 2);
   const blob = new Blob([text], { type: "application/json" });
-  const link = document.createElement("a");
   const now = new Date().toISOString().slice(0, 10);
-  link.href = URL.createObjectURL(blob);
-  link.download = `respaldo-arete-${now}.json`;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  triggerBlobDownload(blob, `respaldo-arete-${now}.json`);
 
   setFeedback("Respaldo exportado en formato JSON.");
 }
@@ -1017,9 +1045,7 @@ function syncDraftFromForm() {
       el.patientAgeMonths.value = "";
     }
   }
-  draftPatient.birthPlace = stringOrEmpty(el.birthPlace?.value);
   draftPatient.phone = stringOrEmpty(el.phone.value);
-  draftPatient.officePhone = stringOrEmpty(el.officePhone?.value);
   draftPatient.occupation = stringOrEmpty(el.occupation.value);
   draftPatient.educationLevel = stringOrEmpty(el.educationLevel?.value);
   draftPatient.civilStatus = stringOrEmpty(el.civilStatus?.value);
@@ -1031,17 +1057,15 @@ function syncDraftFromForm() {
   draftPatient.delegation = stringOrEmpty(el.delegation?.value);
   draftPatient.stateName = stringOrEmpty(el.stateName?.value);
   draftPatient.cityName = stringOrEmpty(el.cityName?.value);
-  draftPatient.medications = stringOrEmpty(el.medications.value);
+  draftPatient.medicationName = stringOrEmpty(el.medicationName?.value);
+  draftPatient.medicationDose = stringOrEmpty(el.medicationDose?.value);
+  draftPatient.medicationPosology = stringOrEmpty(el.medicationPosology?.value);
+  draftPatient.medicationObservations = stringOrEmpty(el.medicationObservations?.value);
+  draftPatient.medications = formatMedicationSummary(draftPatient);
   draftPatient.dentistName = stringOrEmpty(el.dentistName.value);
-  draftPatient.familyDoctorName = stringOrEmpty(el.familyDoctorName?.value);
-  draftPatient.familyDoctorPhone = stringOrEmpty(el.familyDoctorPhone?.value);
   draftPatient.allergies = stringOrEmpty(el.allergies.value);
   syncDraftClinicalRecordFields();
   syncActiveClinicalFormatFieldsFromDom();
-  draftPatient.consultationDate = stringOrEmpty(el.consultationDate.value);
-  draftPatient.nextConsultationDate = stringOrEmpty(el.nextConsultationDate.value);
-  draftPatient.treatmentStart = stringOrEmpty(el.treatmentStart.value);
-  draftPatient.lastMedicalConsultDate = stringOrEmpty(el.lastMedicalConsultDate?.value);
   draftPatient.lastMedicalConsultReason = stringOrEmpty(el.lastMedicalConsultReason?.value);
   draftPatient.brushTimes = numberOrEmpty(el.brushTimes.value);
   draftPatient.flossHabit = stringOrEmpty(el.flossHabit.value);
@@ -1083,13 +1107,7 @@ function hydrateFormFromDraft() {
       }
     }
   }
-  if (el.birthPlace) {
-    el.birthPlace.value = draftPatient.birthPlace || "";
-  }
   el.phone.value = draftPatient.phone || "";
-  if (el.officePhone) {
-    el.officePhone.value = draftPatient.officePhone || "";
-  }
   el.occupation.value = draftPatient.occupation || "";
   if (el.educationLevel) {
     el.educationLevel.value = draftPatient.educationLevel || "";
@@ -1121,23 +1139,14 @@ function hydrateFormFromDraft() {
   if (el.cityName) {
     el.cityName.value = draftPatient.cityName || "";
   }
-  el.medications.value = draftPatient.medications || "";
+  el.medicationName.value = draftPatient.medicationName || "";
+  el.medicationDose.value = draftPatient.medicationDose || "";
+  el.medicationPosology.value = draftPatient.medicationPosology || "";
+  el.medicationObservations.value = draftPatient.medicationObservations || "";
   el.dentistName.value = draftPatient.dentistName || "";
-  if (el.familyDoctorName) {
-    el.familyDoctorName.value = draftPatient.familyDoctorName || "";
-  }
-  if (el.familyDoctorPhone) {
-    el.familyDoctorPhone.value = draftPatient.familyDoctorPhone || "";
-  }
   el.allergies.value = draftPatient.allergies || "";
   el.clinicalRecordType.value = normalizeClinicalRecordType(draftPatient.clinicalRecordType);
   el.clinicalRecordReference.value = draftPatient.clinicalRecordReference || "";
-  el.consultationDate.value = draftPatient.consultationDate || "";
-  el.nextConsultationDate.value = draftPatient.nextConsultationDate || "";
-  el.treatmentStart.value = draftPatient.treatmentStart || "";
-  if (el.lastMedicalConsultDate) {
-    el.lastMedicalConsultDate.value = draftPatient.lastMedicalConsultDate || "";
-  }
   if (el.lastMedicalConsultReason) {
     el.lastMedicalConsultReason.value = draftPatient.lastMedicalConsultReason || "";
   }
@@ -1187,20 +1196,64 @@ async function downloadClinicalDocument() {
   }
   renderClinicalCyclePanel();
 
-  setPdfActionState(true, "download");
-  setFeedback("Generando PDF oficial. Espera un momento...");
+  setPdfActionState(true, "current");
+  setFeedback("Generando el PDF del cuestionario actual. Espera un momento...");
   try {
     const { blob, fileName, recordType } = await requestOfficialClinicalPdf();
     const mode = triggerPdfDownload(blob, fileName || `${sanitizeFileName(draftPatient.name || "paciente")}-${recordType.id}.pdf`);
     persistDraftPatientIfEditing();
     if (mode === "opened") {
-      setFeedback(`PDF oficial "${recordType.label}" abierto en una nueva pestana para guardar/compartir.`);
+      setFeedback(`Cuestionario "${recordType.label}" abierto en una nueva pestaña para guardar o compartir.`);
     } else {
-      setFeedback(`PDF oficial "${recordType.label}" generado correctamente.`);
+      setFeedback(`PDF del cuestionario "${recordType.label}" descargado correctamente.`);
     }
   } catch (error) {
     console.error(error);
-    const message = error.message || "No se pudo generar el PDF oficial.";
+    const message = error.message || "No se pudo generar el PDF del cuestionario actual.";
+    setFeedback(message, "error");
+    window.alert(message);
+  } finally {
+    setPdfActionState(false);
+  }
+}
+
+async function downloadCompleteClinicalHistory() {
+  syncDraftFromForm();
+  ensureDraftOdontogram();
+
+  if (!draftPatient.name) {
+    setFeedback("Primero captura el nombre del paciente para generar el historial PDF.", "error");
+    setActivePatientSubview("profile");
+    el.patientName.focus();
+    return;
+  }
+
+  const cycleResult = ensureClinicalEpisodeForCurrentPatient({ forceRenew: false });
+  if (cycleResult.created && cycleResult.episode) {
+    addHistoryEntry({
+      type: "clinical-note",
+      title: "Renovación automática de historia clínica",
+      description: `Se abrió un nuevo ciclo de 6 meses (vigente hasta ${formatDate(cycleResult.episode.expiresAt)}).`
+    });
+    renderPatientHistory();
+  }
+  renderClinicalCyclePanel();
+
+  setPdfActionState(true, "history");
+  setFeedback("Generando el historial PDF completo de los 11 cuestionarios. Espera un momento...");
+  try {
+    const { blob, fileName } = await requestCompleteClinicalHistoryPdf();
+    const fallbackName = `${sanitizeFileName(getPatientFullName(draftPatient) || "paciente")}-historial-clinico-completo.pdf`;
+    const mode = triggerPdfDownload(blob, fileName || fallbackName);
+    persistDraftPatientIfEditing();
+    if (mode === "opened") {
+      setFeedback("Historial PDF completo abierto en una nueva pestaña para guardar o compartir.");
+    } else {
+      setFeedback("Historial PDF completo descargado correctamente.");
+    }
+  } catch (error) {
+    console.error(error);
+    const message = error.message || "No se pudo generar el historial PDF completo.";
     setFeedback(message, "error");
     window.alert(message);
   } finally {

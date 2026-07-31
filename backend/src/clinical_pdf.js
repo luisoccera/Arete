@@ -18,6 +18,20 @@ const FORMAT_START_PAGES = {
   "f11-odontopediatria": 53
 };
 
+const FORMAT_END_PAGES = {
+  "f1-estomatologica": 11,
+  "f2-preventiva": 15,
+  "f3-operatoria": 19,
+  "f4-protesis-fija": 22,
+  "f5-protesis-removible": 24,
+  "f6-prostodoncia": 26,
+  "f7-cirugia-bucal": 29,
+  "f8-periodoncia": 36,
+  "f9-endodoncia": 40,
+  "f10-ortodoncia": 52,
+  "f11-odontopediatria": 62
+};
+
 const FORMAT_ORDER = Object.keys(FORMAT_START_PAGES);
 
 const LABEL_RULES = [
@@ -105,8 +119,7 @@ const CLINICAL_IDENTIFICATION_KEYS = new Set([
 ]);
 
 const IDENTIFICATION_LAYOUT_FORMATS = new Set([
-  "f1-estomatologica",
-  "f11-odontopediatria"
+  "f1-estomatologica"
 ]);
 
 let pdfjsImportPromise = null;
@@ -358,7 +371,9 @@ function buildContext(patient, dictionaries, formatId) {
   const diseaseSummary = summarizeList(diseaseNames, 6);
   const odontoSummary = summarizeOdontogram(p, statusMap);
   const notes = summarizeNotes(p);
-  const birthPlace = String(p.birthPlace || p.cityName || "").trim();
+  // Estos campos se retiraron de la ficha: no reutilizar ciudad/domicilio como
+  // lugar de nacimiento porque terminaría escribiendo una respuesta distinta.
+  const birthPlace = "";
   const streetAddress = String(p.streetAddress || "").trim() || locationParts.street;
   const exteriorNumber = String(p.exteriorNumber || "").trim();
   const interiorNumber = String(p.interiorNumber || "").trim();
@@ -367,9 +382,12 @@ function buildContext(patient, dictionaries, formatId) {
   const delegation = String(p.delegation || "").trim() || locationParts.delegation;
   const stateName = String(p.stateName || "").trim() || locationParts.state;
   const cityName = String(p.cityName || "").trim() || locationParts.city;
-  const officePhone = String(p.officePhone || p.clinicPhone || "").trim();
-  const familyDoctorName = String(p.familyDoctorName || p.familyDoctor || "").trim();
-  const familyDoctorPhone = String(p.familyDoctorPhone || p.doctorPhone || "").trim();
+  const officePhone = "";
+  const dentistName = String(p.dentistName || "").trim();
+  // La línea impresa conserva el rótulo oficial, pero Arete captura al cirujano
+  // dentista responsable. El teléfono familiar se omite intencionalmente.
+  const familyDoctorName = dentistName;
+  const familyDoctorPhone = "";
   const educationLevel = String(p.educationLevel || p.schooling || "").trim();
   const civilStatus = String(p.civilStatus || "").trim();
   const lastMedicalDate = parseDateParts(p.lastMedicalConsultDate || "");
@@ -428,7 +446,7 @@ function buildContext(patient, dictionaries, formatId) {
     doctorPhone: familyDoctorPhone,
     familyDoctorName,
     familyDoctorPhone,
-    dentistName: String(p.dentistName || "").trim(),
+    dentistName,
     consultDateLabel: consultDate.label,
     consultDay: consultDate.day,
     consultMonth: consultDate.month,
@@ -471,7 +489,10 @@ function resolveFormatRange(formatId, totalPages) {
   const start = FORMAT_START_PAGES[id];
   const currentIdx = FORMAT_ORDER.indexOf(id);
   const nextId = FORMAT_ORDER[currentIdx + 1];
-  const end = nextId ? FORMAT_START_PAGES[nextId] - 1 : totalPages;
+  const explicitEnd = Number(FORMAT_END_PAGES[id]);
+  const end = Number.isFinite(explicitEnd)
+    ? Math.min(totalPages, explicitEnd)
+    : (nextId ? FORMAT_START_PAGES[nextId] - 1 : totalPages);
   return { formatId: id, start, end };
 }
 
@@ -578,6 +599,7 @@ function normalizeFillEntries(rawEntries) {
       y: fixedY,
       lockPosition: hasFixedPoint ? true : Boolean(entry?.lockPosition),
       allowDynamicAnchor,
+      allowTemplateOverlap: Boolean(entry?.allowTemplateOverlap),
       align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
         ? String(entry.align).toLowerCase()
         : "left",
@@ -789,7 +811,7 @@ function placeRuleWithoutOverlap(page, font, value, rule, occupiedRects, templat
   const attempts = isLocked
     ? [0, 0.18, -0.18, 0.36, -0.36, 0.54, -0.54]
     : [0, 1, 2, 3, 4, 5, 6, -1, -2, -3, -4];
-  const collisionRects = Array.isArray(templateRects) && templateRects.length > 0
+  const collisionRects = !rule?.allowTemplateOverlap && Array.isArray(templateRects) && templateRects.length > 0
     ? [...templateRects, ...occupiedRects]
     : [...occupiedRects];
   let chosenY = null;
@@ -859,6 +881,7 @@ function resolveEntryCoordinates(entry, items) {
     y: toOptionalNumber(entry?.y),
     lockPosition: Boolean(entry?.lockPosition),
     allowDynamicAnchor: Boolean(entry?.allowDynamicAnchor),
+    allowTemplateOverlap: Boolean(entry?.allowTemplateOverlap),
     align: ["left", "center", "right"].includes(String(entry?.align || "").toLowerCase())
       ? String(entry.align).toLowerCase()
       : "left",
@@ -1084,9 +1107,7 @@ function shouldSkipRuleOnIdentificationPage(rule) {
 function drawIdentificationBlock(page, font, context) {
   const ageValue = normalizeNumericText(context.ageYears || context.ageText, 3);
   const monthsValue = normalizeNumericText(context.ageMonths, 2);
-  const birthPlace = String(context.birthPlace || context.locationCity || context.locationShort || "").trim();
-  const consultLabel = String(context.consultDateLabel || "").trim();
-  const lastConsult = String(context.lastMedicalConsult || "").trim();
+  const birthPlace = String(context.birthPlace || "").trim();
   const consultDay = normalizeNumericText(context.consultDay, 2);
   const consultMonth = normalizeNumericText(context.consultMonth, 2);
   const consultYear = normalizeNumericText(context.consultYear, 4);
@@ -1098,34 +1119,28 @@ function drawIdentificationBlock(page, font, context) {
   const locationExterior = String(context.locationExterior || "").trim();
   const locationInterior = String(context.locationInterior || "").trim();
 
-  drawTextAt(page, font, context.fullName, { x: 126, y: 397.2, maxWidth: 280, size: 8.2, maxLines: 1, maxChars: 82 });
-  drawTextAt(page, font, context.lastNameFather, { x: 186, y: 386.1, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 28 });
-  drawTextAt(page, font, context.lastNameMother, { x: 287, y: 386.1, maxWidth: 86, size: 8.2, maxLines: 1, maxChars: 30 });
-  drawTextAt(page, font, context.firstNames, { x: 375, y: 386.1, maxWidth: 172, size: 8.2, maxLines: 1, maxChars: 42 });
+  drawTextAt(page, font, context.lastNameFather, { x: 108, y: 397.2, maxWidth: 94, size: 8.2, align: "center", maxLines: 1, maxChars: 28 });
+  drawTextAt(page, font, context.lastNameMother, { x: 210, y: 397.2, maxWidth: 94, size: 8.2, align: "center", maxLines: 1, maxChars: 30 });
+  drawTextAt(page, font, context.firstNames, { x: 312, y: 397.2, maxWidth: 92, size: 8.2, align: "center", maxLines: 1, maxChars: 34 });
 
   drawTextAt(page, font, ageValue, { x: 441, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 3 });
-  drawTextAt(page, font, monthsValue, { x: 521, y: 397.2, maxWidth: 22, size: 8.2, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, monthsValue, { x: 495.7, y: 397.2, maxWidth: 20.4, size: 8.2, align: "center", maxLines: 1, maxChars: 2 });
 
-  drawMark(page, font, context.isMale, 250.5, 364.2, 10);
-  drawMark(page, font, context.isFemale, 377.5, 364.2, 10);
+  drawMark(page, font, context.isMale, 237.2, 368.3, 10);
+  drawMark(page, font, context.isFemale, 361.5, 368.3, 10);
 
-  drawTextAt(page, font, birthPlace, { x: 197, y: 349.3, maxWidth: 104, size: 8, maxLines: 1, maxChars: 18 });
-  drawTextAt(page, font, context.birthDay, { x: 440, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.birthMonth, { x: 476, y: 338.2, maxWidth: 20, size: 8, align: "center", maxLines: 1, maxChars: 2 });
-  drawTextAt(page, font, context.birthYear, { x: 513, y: 338.2, maxWidth: 34, size: 8, align: "center", maxLines: 1, maxChars: 4 });
-  if (locationState && locationState !== birthPlace) {
-    drawTextAt(page, font, locationState, { x: 264, y: 338.2, maxWidth: 56, size: 8, maxLines: 1, maxChars: 14 });
-  }
-  if (locationCity && locationCity !== birthPlace) {
-    drawTextAt(page, font, locationCity, { x: 357, y: 338.2, maxWidth: 62, size: 8, maxLines: 1, maxChars: 18 });
-  }
+  drawTextAt(page, font, "", { x: 188, y: 349.3, maxWidth: 92, size: 8, align: "center", maxLines: 1, maxChars: 14 });
+  drawTextAt(page, font, birthPlace, { x: 284, y: 349.3, maxWidth: 108, size: 8, align: "center", maxLines: 1, maxChars: 18 });
+  drawTextAt(page, font, context.birthDay, { x: 418, y: 349.3, maxWidth: 38, size: 8, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, context.birthMonth, { x: 458, y: 349.3, maxWidth: 38, size: 8, align: "center", maxLines: 1, maxChars: 2 });
+  drawTextAt(page, font, context.birthYear, { x: 498, y: 349.3, maxWidth: 47, size: 8, align: "center", maxLines: 1, maxChars: 4 });
 
   drawTextAt(page, font, context.occupation, { x: 130, y: 317.2, maxWidth: 134, size: 8.2, maxLines: 1, maxChars: 32 });
   drawTextAt(page, font, context.occupationAlt, { x: 354, y: 317.2, maxWidth: 195, size: 8.2, maxLines: 1, maxChars: 42 });
   drawTextAt(page, font, context.civilStatus, { x: 131, y: 301.2, maxWidth: 120, size: 8.2, maxLines: 1, maxChars: 24 });
   drawTextAt(page, font, context.locationStreet, { x: 292, y: 301.2, maxWidth: 232, size: 8.2, maxLines: 1, maxChars: 52 });
 
-  drawTextAt(page, font, locationExterior, { x: 122, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 });
+  drawTextAt(page, font, locationExterior, { x: 128, y: 285.2, maxWidth: 92, size: 8.2, maxLines: 1, maxChars: 18 });
   drawTextAt(page, font, locationInterior, { x: 285, y: 285.2, maxWidth: 98, size: 8.2, maxLines: 1, maxChars: 18 });
   drawTextAt(page, font, context.locationColony, { x: 392, y: 285.2, maxWidth: 132, size: 8.2, maxLines: 1, maxChars: 28 });
   drawTextAt(page, font, locationState || context.locationState, { x: 122, y: 269.2, maxWidth: 112, size: 8.2, maxLines: 1, maxChars: 20 });
@@ -1136,8 +1151,6 @@ function drawIdentificationBlock(page, font, context) {
   drawTextAt(page, font, officePhone, { x: 305, y: 253.2, maxWidth: 82, size: 8.2, maxLines: 1, maxChars: 14 });
   drawTextAt(page, font, familyDoctorName, { x: 246, y: 237.2, maxWidth: 175, size: 8.2, maxLines: 1, maxChars: 36 });
   drawTextAt(page, font, familyDoctorPhone, { x: 470, y: 237.2, maxWidth: 78, size: 8.2, maxLines: 1, maxChars: 14 });
-  drawTextAt(page, font, lastConsult || consultLabel, { x: 304, y: 221.2, maxWidth: 228, size: 8.2, maxLines: 1, maxChars: 58 });
-
   drawTextAt(page, font, consultDay, { x: 474.6, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, consultMonth, { x: 500.8, y: 461.8, maxWidth: 17, size: 6.7, align: "center", maxLines: 1, maxChars: 2 });
   drawTextAt(page, font, consultYear, { x: 527.4, y: 461.8, maxWidth: 24, size: 6.7, align: "center", maxLines: 1, maxChars: 4 });
@@ -1243,6 +1256,82 @@ async function generateClinicalPdf(options) {
   };
 }
 
+async function generateClinicalHistoryPdf(options) {
+  const formatRequests = Array.isArray(options?.formats) ? options.formats : [];
+  const requestByFormat = new Map(
+    formatRequests
+      .filter((entry) => FORMAT_START_PAGES[String(entry?.formatId || "")])
+      .map((entry) => [String(entry.formatId), entry])
+  );
+  if (!requestByFormat.size) {
+    throw new Error("No se recibieron formatos clínicos válidos para el historial.");
+  }
+
+  const templatePath = path.resolve(options?.templatePath || "");
+  if (!templatePath || !fs.existsSync(templatePath)) {
+    throw new Error("Plantilla PDF oficial no encontrada en el servidor.");
+  }
+
+  const [textData, templateBytes] = await Promise.all([
+    getTemplateTextData(templatePath),
+    fs.promises.readFile(templatePath)
+  ]);
+  const sourcePdf = await PDFDocument.load(templateBytes, { ignoreEncryption: true });
+  const targetPdf = await PDFDocument.create();
+  const regularFont = await targetPdf.embedFont(StandardFonts.Helvetica);
+  const patient = options?.patient && typeof options.patient === "object" ? options.patient : {};
+  const dictionaries = options?.dictionaries && typeof options.dictionaries === "object" ? options.dictionaries : {};
+
+  for (const formatId of FORMAT_ORDER) {
+    const formatRequest = requestByFormat.get(formatId);
+    if (!formatRequest) {
+      continue;
+    }
+    const selected = resolveFormatRange(formatId, textData.totalPages);
+    const context = buildContext(patient, dictionaries, selected.formatId);
+    const clinicalFillEntries = normalizeFillEntries(formatRequest.clinicalFillEntries);
+    const sourcePageNumbers = [];
+    for (let pageNo = selected.start; pageNo <= selected.end; pageNo += 1) {
+      sourcePageNumbers.push(pageNo);
+    }
+
+    const copiedPages = await targetPdf.copyPages(
+      sourcePdf,
+      sourcePageNumbers.map((pageNo) => pageNo - 1)
+    );
+    const renderedEntryIds = new Set();
+    copiedPages.forEach((page, index) => {
+      targetPdf.addPage(page);
+      const sourcePageNo = sourcePageNumbers[index];
+      const isIdentificationPage = sourcePageNo === selected.start;
+      const pageOffset = sourcePageNo - selected.start;
+      if (isIdentificationPage && IDENTIFICATION_LAYOUT_FORMATS.has(selected.formatId)) {
+        drawIdentificationBlock(page, regularFont, context);
+      }
+      drawFillEntriesOnPage(
+        page,
+        regularFont,
+        textData.pages[sourcePageNo] || [],
+        clinicalFillEntries,
+        pageOffset,
+        renderedEntryIds
+      );
+    });
+  }
+
+  if (targetPdf.getPageCount() === 0) {
+    throw new Error("El historial clínico no produjo páginas PDF.");
+  }
+
+  const context = buildContext(patient, dictionaries, FORMAT_ORDER[0]);
+  return {
+    pdfBytes: await targetPdf.save(),
+    fileName: `${sanitizeFileName(context.fullName)}-historial-clinico-completo.pdf`,
+    formatIds: FORMAT_ORDER.filter((formatId) => requestByFormat.has(formatId))
+  };
+}
+
 module.exports = {
-  generateClinicalPdf
+  generateClinicalPdf,
+  generateClinicalHistoryPdf
 };

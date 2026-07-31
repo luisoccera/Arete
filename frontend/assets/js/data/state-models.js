@@ -42,6 +42,10 @@ function createEmptyPatient() {
     officePhone: "",
     occupation: "",
     medications: "",
+    medicationName: "",
+    medicationDose: "",
+    medicationPosology: "",
+    medicationObservations: "",
     dentistName: "",
     familyDoctorName: "",
     familyDoctorPhone: "",
@@ -65,6 +69,7 @@ function createEmptyPatient() {
     mediaEntries: [],
     odontogramMode: "adult",
     odontogramTemplate: "anatomic",
+    odontogramSurfaceModelVersion: 4,
     odontogram: {
       teeth: {},
       zones: {}
@@ -166,6 +171,7 @@ function normalizeCatalog(items, prefix, fallbackColor, fallbackItems) {
 
 function normalizePatient(rawPatient) {
   const empty = createEmptyPatient();
+  const odontogramSurfaceModelVersion = Number(rawPatient?.odontogramSurfaceModelVersion || 1);
   const patient = {
     ...empty,
     ...rawPatient
@@ -199,7 +205,21 @@ function normalizePatient(rawPatient) {
   patient.delegation = stringOrEmpty(patient.delegation || patient.addressDelegation);
   patient.stateName = stringOrEmpty(patient.stateName || patient.addressState);
   patient.cityName = stringOrEmpty(patient.cityName || patient.addressCity);
-  patient.medications = stringOrEmpty(patient.medications);
+  patient.medicationName = stringOrEmpty(patient.medicationName);
+  patient.medicationDose = stringOrEmpty(patient.medicationDose);
+  patient.medicationPosology = stringOrEmpty(patient.medicationPosology);
+  patient.medicationObservations = stringOrEmpty(patient.medicationObservations);
+  const legacyMedicationSummary = stringOrEmpty(patient.medications);
+  if (
+    legacyMedicationSummary
+    && !patient.medicationName
+    && !patient.medicationDose
+    && !patient.medicationPosology
+    && !patient.medicationObservations
+  ) {
+    patient.medicationObservations = legacyMedicationSummary;
+  }
+  patient.medications = formatMedicationSummary(patient);
   patient.dentistName = stringOrEmpty(patient.dentistName);
   patient.familyDoctorName = stringOrEmpty(patient.familyDoctorName || patient.familyDoctor);
   patient.familyDoctorPhone = stringOrEmpty(patient.familyDoctorPhone || patient.doctorPhone);
@@ -210,9 +230,9 @@ function normalizePatient(rawPatient) {
   patient.clinicalRecordReference = stringOrEmpty(
     patient.clinicalRecordReference || patient.recordReference || patient.folio
   );
-  // Reinicio solicitado: se elimina el registro anterior de llenado PDF por formato
-  // para iniciar un mapeo nuevo limpio.
-  patient.clinicalFormData = createEmptyClinicalFormData();
+  // Conserva cada cuestionario por separado y descarta únicamente llaves que ya
+  // no existan en su esquema. Normalizar nunca debe borrar respuestas guardadas.
+  patient.clinicalFormData = normalizeClinicalFormData(patient.clinicalFormData);
   // Desacoplado por formato:
   // no propagamos ni heredamos valores entre cuestionarios clinicos.
   patient.clinicalSharedValues = {};
@@ -266,15 +286,65 @@ function normalizePatient(rawPatient) {
     ? patient.odontogramTemplate
     : "anatomic";
 
+  const normalizedToothMarks = normalizeMarks(patient.odontogram?.teeth);
+  const migratedToothMarks = odontogramSurfaceModelVersion < 2
+    ? migrateLegacyOdontogramSurfaceMarks(normalizedToothMarks)
+    : normalizedToothMarks;
   patient.odontogram = {
-    teeth: normalizeMarks(patient.odontogram?.teeth),
+    teeth: odontogramSurfaceModelVersion < 3
+      ? removeInvalidAnteriorCenterMarks(migratedToothMarks)
+      : migratedToothMarks,
     zones: normalizeMarks(patient.odontogram?.zones)
   };
+  patient.odontogramSurfaceModelVersion = 4;
   patient.historyEntries = normalizeHistoryEntries(
     patient.historyEntries || patient.clinicalHistory || patient.odontogramHistory
   );
 
   return patient;
+}
+
+function migrateLegacyOdontogramSurfaceMarks(rawMarks) {
+  const migrated = {};
+
+  for (const [rawKey, statusIds] of Object.entries(normalizeMarks(rawMarks))) {
+    const parsed = splitOdontoToothKey(rawKey);
+    if (!parsed.toothId || !parsed.partId) {
+      migrated[rawKey] = statusIds;
+      continue;
+    }
+
+    let targetPartId = parsed.partId;
+    if (parsed.partId === "top") {
+      targetPartId = "center";
+    } else if (parsed.partId === "center") {
+      targetPartId = "top";
+    } else if (parsed.partId === "left" || parsed.partId === "right") {
+      const legacySurface = parsed.partId === "left" ? "Mesial" : "Distal";
+      const targetPart = getOdontoSurfaceParts(parsed.toothId)
+        .find((part) => part.label === legacySurface);
+      targetPartId = targetPart?.id || parsed.partId;
+    }
+
+    const targetKey = buildOdontoToothMarkKey(parsed.toothId, targetPartId);
+    const previous = normalizeMarkList(migrated[targetKey]);
+    migrated[targetKey] = normalizeMarkList([...previous, ...statusIds]);
+  }
+
+  return migrated;
+}
+
+function removeInvalidAnteriorCenterMarks(rawMarks) {
+  const cleaned = {};
+  for (const [rawKey, statusIds] of Object.entries(normalizeMarks(rawMarks))) {
+    const parsed = splitOdontoToothKey(rawKey);
+    const isInvalidCenter = parsed.partId === "center"
+      && !getOdontoSurfaceParts(parsed.toothId).some((part) => part.id === "center");
+    if (!isInvalidCenter) {
+      cleaned[rawKey] = statusIds;
+    }
+  }
+  return cleaned;
 }
 
 function normalizeAppointments(rawAppointments) {
@@ -657,16 +727,64 @@ function loadState() {
 
 function persistState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  if (storageMode === "backend") {
+  if (storageMode === "backend" || storageMode === "appwrite") {
     queueRemotePersist();
   }
 }
 
+async function initializeAppwriteStorage() {
+  if (authMode !== "appwrite" || !currentAuthUser?.id) {
+    return;
+  }
+  if (!isAppwriteConfigured({ database: true })) {
+    storageMode = "local";
+    setFeedback("La cuenta está conectada, pero falta configurar la tabla de expedientes en Appwrite.", "error");
+    return;
+  }
+  try {
+    const localSnapshot = normalizeState(state);
+    const remoteRaw = await getAppwriteState(currentAuthUser.id);
+    const remoteSnapshot = normalizeState(remoteRaw || {});
+    const shouldKeepLocalData = stateHasMeaningfulData(localSnapshot) && !stateHasMeaningfulData(remoteSnapshot);
+    state = shouldKeepLocalData ? localSnapshot : remoteSnapshot;
+    storageMode = "appwrite";
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    renderAll();
+    if (!editingPatientId) {
+      startNewPatient(false);
+    }
+    if (shouldKeepLocalData) {
+      queueRemotePersist();
+      setFeedback("Appwrite conectado. Conservamos tus datos locales y los estamos sincronizando con tu cuenta.");
+      return;
+    }
+    setFeedback("Appwrite conectado. Expedientes sincronizados correctamente.");
+  } catch (error) {
+    console.error("No se pudo iniciar la sincronización con Appwrite.", error);
+    storageMode = "local";
+    setFeedback("No se pudo leer Appwrite. Tus cambios seguirán guardándose localmente para evitar pérdidas.", "error");
+  }
+}
+
 function resolveApiBaseUrl() {
+  const configuredApi = stringOrEmpty(window.ARETE_CONFIG?.apiBaseUrl);
+  if (configuredApi) {
+    return configuredApi.replace(/\/$/, "");
+  }
+
+  const isNative = Boolean(window.Capacitor?.isNativePlatform?.());
   const queryApi = stringOrEmpty(new URLSearchParams(window.location.search).get("api"));
   if (queryApi) {
     localStorage.setItem("arete_api_base", queryApi);
     return queryApi.replace(/\/$/, "");
+  }
+
+  const isRegularWebOrigin = ["http:", "https:"].includes(window.location.protocol)
+    && !window.location.hostname.endsWith("github.io")
+    && !isNative;
+  if (isRegularWebOrigin) {
+    localStorage.removeItem("arete_api_base");
+    return window.location.origin;
   }
 
   const storedApi = stringOrEmpty(localStorage.getItem("arete_api_base"));
@@ -674,7 +792,7 @@ function resolveApiBaseUrl() {
     return storedApi.replace(/\/$/, "");
   }
 
-  if (window.location.protocol === "file:" || window.location.hostname.endsWith("github.io")) {
+  if (isNative || window.location.protocol === "file:" || window.location.hostname.endsWith("github.io")) {
     return "";
   }
 
@@ -712,7 +830,7 @@ function stateHasMeaningfulData(snapshot) {
 }
 
 async function initializeBackendStorage() {
-  if (!apiBaseUrl) {
+  if (!apiBaseUrl || authMode !== "cloud" || !authBackendEnabled) {
     return;
   }
   if (!authToken) {
@@ -769,30 +887,34 @@ function queueRemotePersist() {
 }
 
 async function flushRemotePersist() {
-  if (remotePersistInFlight || !remotePersistPending || storageMode !== "backend") {
+  if (remotePersistInFlight || !remotePersistPending || !["backend", "appwrite"].includes(storageMode)) {
     return;
   }
 
   remotePersistPending = false;
   remotePersistInFlight = true;
   try {
-    const response = await apiRequest(
-      "/api/state",
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: state })
-      },
-      9000
-    );
+    if (storageMode === "appwrite") {
+      await upsertAppwriteState(currentAuthUser.id, state);
+    } else {
+      const response = await apiRequest(
+        "/api/state",
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: state })
+        },
+        9000
+      );
 
-    if (!response.ok) {
-      throw new Error(`Backend respondio ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Backend respondio ${response.status}`);
+      }
     }
   } catch (error) {
     console.error("No se pudo guardar en backend.", error);
     storageMode = "local";
-    setFeedback("Fallo el backend. La app continuo en modo local para no perder cambios.", "error");
+    setFeedback("Falló la sincronización. La app continuó en modo local para no perder cambios.", "error");
   } finally {
     remotePersistInFlight = false;
   }

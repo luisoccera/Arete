@@ -2,28 +2,6 @@
 
 const STORAGE_KEY = "arete_data_v1";
 const AUTH_TOKEN_KEY = "arete_auth_token_v1";
-const AUTH_LOCAL_USERS_KEY = "arete_auth_local_users_v1";
-const AUTH_LOCAL_RESET_KEY = "arete_auth_local_reset_v1";
-const DEMO_TEST_ACCOUNTS = [
-  {
-    name: "Usuario Prueba Arete 1",
-    email: "demo@arete.app",
-    username: "demoarete",
-    password: "AreteDemo123!"
-  },
-  {
-    name: "Usuario Prueba Arete 2",
-    email: "demo2@arete.app",
-    username: "demoarete2",
-    password: "AreteDemo456!"
-  },
-  {
-    name: "Usuario Prueba Arete 3",
-    email: "demo3@arete.app",
-    username: "demoarete3",
-    password: "AreteDemo789!"
-  }
-];
 const DENTITION_LAYOUTS = {
   adult: {
     label: "Denticion adulta comun",
@@ -51,11 +29,12 @@ const ODONTO_ZONES = [
 ];
 
 const ODONTO_TOOTH_PARTS = [
-  { id: "top", label: "Oclusal / incisal" },
-  { id: "right", label: "Distal" },
-  { id: "bottom", label: "Lingual / palatina" },
-  { id: "left", label: "Mesial" },
-  { id: "center", label: "Vestibular" }
+  { id: "top", label: "Vestibular" },
+  { id: "right", label: "Proximal derecha" },
+  { id: "bottom", label: "Palatina / lingual" },
+  { id: "left", label: "Proximal izquierda" },
+  { id: "center", label: "Oclusal" },
+  { id: "root", label: "Raiz / raices" }
 ];
 
 const TOOTH_PATHS = {
@@ -185,11 +164,18 @@ const YES_NO_OPTIONS = [
   { value: "No", label: "No" }
 ];
 
+const OPERATORIA_TREATMENT_TEETH = [
+  18, 17, 16, 15, 14, 13, 12, 11,
+  28, 27, 26, 25, 24, 23, 22, 21,
+  48, 47, 46, 45, 44, 43, 42, 41,
+  38, 37, 36, 35, 34, 33, 32, 31
+];
+
 const CLINICAL_FORM_SCHEMAS = {
   "f1-estomatologica": {
     title: "Formato 1: Historia clinica estomatologica",
     fields: [
-      { id: "motivo_consulta", label: "Motivo de consulta", section: "Interrogatorio", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Sintoma o razon principal de la consulta." },
+      { id: "motivo_consulta", label: "Padecimiento actual - continuacion", section: "Interrogatorio", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Informacion adicional del padecimiento actual." },
       { id: "antecedentes_estomatologicos", label: "Antecedentes personales y familiares (resumen)", section: "Interrogatorio", type: "textarea", rows: 2, contextKey: "background", placeholder: "Resumen clinico del paciente." },
       { id: "ultima_consulta_medica_odontologica", label: "Fecha y motivo de la ultima consulta medica odontologica", section: "Interrogatorio", type: "text", placeholder: "Ejemplo: 19/04/2026 - revision general." },
 
@@ -219,8 +205,8 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "cartilla_vacunacion", label: "Cuenta con cartilla de vacunacion", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
       { id: "esquema_vacunacion_completo", label: "Tiene esquema completo de vacunacion", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
       { id: "esquema_vacunacion_falta", label: "Especifique cual vacuna falta", section: "Antecedentes personales no patologicos", type: "text", placeholder: "Ejemplo: VPH." },
-      { id: "adiccion_tabaco", label: "Adiccion: tabaco", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
-      { id: "adiccion_alcohol", label: "Adiccion: alcohol", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
+      { id: "adiccion_tabaco", label: "Consumo de tabaco", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
+      { id: "adiccion_alcohol", label: "Consumo de alcohol", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS, uiHidden: true },
       { id: "alergia_antibioticos", label: "Antecedentes alergicos: antibioticos", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
       { id: "alergia_analgesicos", label: "Antecedentes alergicos: analgesicos", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
       { id: "alergia_anestesicos", label: "Antecedentes alergicos: anestesicos", section: "Antecedentes personales no patologicos", type: "select", options: YES_NO_OPTIONS },
@@ -312,9 +298,12 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "indice_placa_actual_f1", label: "Indice de placa actual", section: "Periodonto", type: "text", placeholder: "Resultado actual." },
 
       { id: "diagnostico_estomatologico", label: "Diagnostico estomatologico", section: "Diagnostico y tratamiento", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Diagnostico clinico principal." },
-      { id: "plan_estomatologico", label: "Plan de tratamiento", section: "Diagnostico y tratamiento", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Fases del tratamiento indicado." },
-      { id: "pronostico_estomatologico", label: "Pronostico", section: "Diagnostico y tratamiento", type: "text", contextKey: "prognosis", placeholder: "Favorable, reservado, etc." },
-      { id: "observaciones_f1", label: "Observaciones", section: "Diagnostico y tratamiento", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Notas clinicas adicionales." }
+      { id: "plan_estomatologico", label: "Plan de tratamiento - Odontologia preventiva", section: "Plan por especialidad", type: "textarea", rows: 3, contextKey: "treatmentPlan", placeholder: "Tratamiento preventivo propuesto." },
+      { id: "pronostico_estomatologico", label: "Plan de tratamiento - Periodoncia", section: "Plan por especialidad", type: "textarea", rows: 3, placeholder: "Tratamiento periodontal propuesto." },
+      { id: "observaciones_f1", label: "Plan de tratamiento - Endodoncia", section: "Plan por especialidad", type: "textarea", rows: 3, placeholder: "Tratamiento endodontico propuesto." },
+      { id: "plan_operatoria_f1", label: "Plan de tratamiento - Operatoria", section: "Plan por especialidad", type: "textarea", rows: 3, placeholder: "Tratamiento de operatoria propuesto." },
+      { id: "plan_cirugia_f1", label: "Plan de tratamiento - Cirugia", section: "Plan por especialidad", type: "textarea", rows: 3, placeholder: "Tratamiento quirurgico propuesto." },
+      { id: "plan_protesis_f1", label: "Plan de tratamiento - Protesis", section: "Plan por especialidad", type: "textarea", rows: 3, placeholder: "Tratamiento protesico propuesto." }
     ]
   },
   "f2-preventiva": {
@@ -338,34 +327,28 @@ const CLINICAL_FORM_SCHEMAS = {
   "f3-operatoria": {
     title: "Formato 3: Operatoria dental",
     fields: [
-      { id: "pieza_operatoria", label: "Pieza(s) tratada(s)", section: "Odontograma y diagnostico", type: "text", contextKey: "odontoSummary", placeholder: "Ejemplo: 16, 26, 36." },
-      { id: "odontograma_diagnostico_op", label: "Odontograma diagnostico", section: "Odontograma y diagnostico", type: "textarea", rows: 2, placeholder: "Resumen del odontograma diagnostico." },
-      { id: "diagnostico_operatorio", label: "Diagnostico operatorio", section: "Odontograma y diagnostico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Tipo y extension de la lesion." },
-      { id: "odontograma_evolucion_op", label: "Odontograma de evolucion", section: "Odontograma y diagnostico", type: "textarea", rows: 2, placeholder: "Cambios por cita o pieza." },
-      { id: "material_restaurador", label: "Material restaurador", section: "Tratamientos realizados", type: "text", contextKey: "treatmentPlan", placeholder: "Resina, ionomero, etc." },
-      { id: "tecnica_operatoria", label: "Tecnica operatoria", section: "Tratamientos realizados", type: "textarea", rows: 2, contextKey: "background", placeholder: "Pasos clinicos realizados." },
-      { id: "tratamientos_realizados_op", label: "Tratamientos realizados", section: "Tratamientos realizados", type: "textarea", rows: 3, placeholder: "Detalle por cita." },
+      ...OPERATORIA_TREATMENT_TEETH.map((tooth) => ({
+        id: `tratamiento_operatoria_${tooth}`,
+        label: `Tratamiento realizado - pieza ${tooth}`,
+        section: "Tratamientos realizados por pieza",
+        type: "text",
+        placeholder: `Tratamiento realizado en la pieza ${tooth}.`
+      })),
       { id: "fecha_tratamiento_op", label: "Fecha", section: "Tratamientos realizados", type: "text", placeholder: "Fecha de tratamiento." },
-      { id: "control_operatorio", label: "Nombre y firma de conformidad", section: "Tratamientos realizados", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Conformidad del paciente." },
-      { id: "pronostico_operatorio", label: "Pronostico", section: "Tratamientos realizados", type: "text", contextKey: "prognosis", placeholder: "Pronostico del tratamiento restaurador." }
+      { id: "control_operatorio", label: "Nombre de conformidad sobre los tratamientos realizados", section: "Tratamientos realizados", type: "text", placeholder: "Nombre del paciente para conformidad." }
     ]
   },
   "f4-protesis-fija": {
     title: "Formato 4: Protesis fija",
     fields: [
-      { id: "motivo_protesis_fija", label: "Evaluacion clinica", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Necesidad funcional o estetica." },
       { id: "dientes_ausentes_f4", label: "Dientes ausentes", section: "Evaluacion inicial", type: "text", placeholder: "Piezas ausentes." },
-      { id: "restauraciones_presentes_f4", label: "Restauraciones presentes", section: "Evaluacion inicial", type: "text", placeholder: "Restauraciones actuales." },
       { id: "protesis_fija_previa_f4", label: "Protesis fija previa", section: "Evaluacion inicial", type: "text", placeholder: "Describir protesis previa." },
       { id: "protesis_removible_previa_f4", label: "Protesis removible previa", section: "Evaluacion inicial", type: "text", placeholder: "Describir protesis removible previa." },
-      { id: "region_desdentada_f4", label: "Region desdentada", section: "Evaluacion inicial", type: "text", placeholder: "Zona a rehabilitar." },
       { id: "relacion_corona_raiz_f4", label: "Relacion corona-raiz de pilares", section: "Evaluacion inicial", type: "text", placeholder: "Descripcion clinica." },
       { id: "soporte_oseo_f4", label: "Soporte oseo", section: "Evaluacion inicial", type: "text", placeholder: "Estado del soporte oseo." },
       { id: "estado_periodontal_pilares_f4", label: "Estado periodontal de pilares", section: "Evaluacion inicial", type: "text", placeholder: "Estado periodontal." },
       { id: "diagnostico_protesis_fija", label: "Interpretacion radiografica de la zona", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Interpretacion radiografica." },
 
-      { id: "plan_protesis_fija", label: "Plan de tratamiento protesico", section: "Procedimientos", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Secuencia de preparacion, impresion y cementacion." },
-      { id: "pruebas_protesis_fija", label: "Procedimiento", section: "Procedimientos", type: "textarea", rows: 2, contextKey: "background", placeholder: "Registro de procedimientos." },
       { id: "modelos_estudio_f4", label: "Modelos de estudio", section: "Procedimientos", type: "text", placeholder: "Registro de modelos." },
       { id: "presentacion_provisionales_f4", label: "Presentacion de provisionales", section: "Procedimientos", type: "text", placeholder: "Cita/procedimiento." },
       { id: "preparacion_pilares_f4", label: "Preparacion de dientes pilares", section: "Procedimientos", type: "text", placeholder: "Detalle de preparacion." },
@@ -375,7 +358,7 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "prueba_porcelana_f4", label: "Prueba de porcelana", section: "Procedimientos", type: "text", placeholder: "Resultados de prueba." },
       { id: "terminado_f4", label: "Terminado", section: "Procedimientos", type: "text", placeholder: "Fecha y resultado final." },
 
-      { id: "observaciones_protesis_fija", label: "Diseno de la restauracion protesica", section: "Diseno y cierre", type: "textarea", rows: 2, contextKey: "notes", placeholder: "AZUL, ROJO, AMARILLO y observaciones." },
+      { id: "observaciones_protesis_fija", label: "Diseno de la restauracion protesica", section: "Diseno y cierre", type: "textarea", rows: 2, placeholder: "Descripcion del diseno protesico." },
       { id: "pilares_protesis", label: "Dientes pilares", section: "Diseno y cierre", type: "text", contextKey: "odontoSummary", placeholder: "Piezas pilares." },
       { id: "ponticos_f4", label: "Ponticos", section: "Diseno y cierre", type: "text", placeholder: "Descripcion de ponticos." },
       { id: "restauraciones_individuales_f4", label: "Restauraciones individuales", section: "Diseno y cierre", type: "text", placeholder: "Detalle individual." }
@@ -384,12 +367,9 @@ const CLINICAL_FORM_SCHEMAS = {
   "f5-protesis-removible": {
     title: "Formato 5: Protesis removible",
     fields: [
-      { id: "evaluacion_clinica_f5", label: "Evaluacion clinica", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Descripcion de la evaluacion clinica." },
       { id: "dientes_ausentes_f5", label: "Dientes ausentes", section: "Evaluacion inicial", type: "text", placeholder: "Piezas ausentes." },
-      { id: "restauraciones_presentes_f5", label: "Restauraciones presentes", section: "Evaluacion inicial", type: "text", placeholder: "Restauraciones presentes." },
       { id: "protesis_fija_f5", label: "Protesis fija", section: "Evaluacion inicial", type: "text", placeholder: "Protesis fija existente." },
       { id: "protesis_removible_f5", label: "Protesis removible", section: "Evaluacion inicial", type: "text", placeholder: "Protesis removible existente." },
-      { id: "region_desdentada_f5", label: "Region desdentada", section: "Evaluacion inicial", type: "text", placeholder: "Zona desdentada." },
       { id: "relacion_corona_raiz_f5", label: "Relacion corona-raiz de pilares", section: "Evaluacion inicial", type: "text", placeholder: "Relacion corona-raiz." },
       { id: "soporte_oseo_f5", label: "Soporte oseo", section: "Evaluacion inicial", type: "text", placeholder: "Soporte oseo disponible." },
       { id: "estado_periodontal_area_f5", label: "Estado periodontal del area", section: "Evaluacion inicial", type: "text", placeholder: "Estado periodontal." },
@@ -398,11 +378,10 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "clasificacion_kennedy", label: "Clasificacion de Kennedy", section: "Diseno protesico", type: "text", contextKey: "diagnosis", placeholder: "Clase I, II, III o IV." },
       { id: "pilares_f5", label: "Dientes pilares", section: "Diseno protesico", type: "text", contextKey: "odontoSummary", placeholder: "Piezas pilares." },
       { id: "zona_desdentada", label: "Area desdentada", section: "Diseno protesico", type: "textarea", rows: 2, contextKey: "odontoSummary", placeholder: "Describe zonas a rehabilitar." },
-      { id: "diseno_protesis_removible", label: "Diseno de la restauracion protesica", section: "Diseno protesico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Conector mayor, retenedores y apoyos." },
+      { id: "diseno_protesis_removible", label: "Tipo de conector mayor", section: "Diseno protesico", type: "text", placeholder: "Conector mayor indicado." },
+      { id: "conector_menor_f5", label: "Tipo de conector menor", section: "Diseno protesico", type: "text", placeholder: "Conector menor indicado." },
       { id: "elementos_retencion", label: "Tipos de ganchos y ubicacion", section: "Diseno protesico", type: "textarea", rows: 2, contextKey: "background", placeholder: "Elementos de retencion y soporte." },
 
-      { id: "plan_protesis_removible", label: "Plan de tratamiento", section: "Procedimientos", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Plan de trabajo protetico." },
-      { id: "procedimiento_protesis_removible", label: "Procedimiento", section: "Procedimientos", type: "textarea", rows: 2, placeholder: "Procedimiento por cita." },
       { id: "presentacion_caso_f5", label: "Presentacion del caso", section: "Procedimientos", type: "text", placeholder: "Fecha/procedimiento." },
       { id: "preparaciones_f5", label: "Preparaciones", section: "Procedimientos", type: "text", placeholder: "Detalle de preparaciones." },
       { id: "impresion_f5", label: "Impresion", section: "Procedimientos", type: "text", placeholder: "Tipo de impresion." },
@@ -412,24 +391,19 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "indicaciones_protesis_removible", label: "Entrega de protesis e indicaciones", section: "Procedimientos", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Indicaciones al paciente." },
       { id: "revision_1_f5", label: "Primera revision", section: "Procedimientos", type: "text", placeholder: "Fecha y hallazgos." },
       { id: "revision_2_f5", label: "Segunda revision", section: "Procedimientos", type: "text", placeholder: "Fecha y hallazgos." },
-      { id: "revision_3_f5", label: "Tercera revision", section: "Procedimientos", type: "text", placeholder: "Fecha y hallazgos." },
-      { id: "pronostico_protesis_removible", label: "Pronostico", section: "Procedimientos", type: "text", contextKey: "prognosis", placeholder: "Pronostico funcional del caso." }
+      { id: "revision_3_f5", label: "Tercera revision", section: "Procedimientos", type: "text", placeholder: "Fecha y hallazgos." }
     ]
   },
   "f6-prostodoncia": {
     title: "Formato 6: Prostodoncia total/parcial",
     fields: [
-      { id: "evaluacion_clinica_f6", label: "Evaluacion clinica", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Resumen de evaluacion clinica." },
       { id: "interpretacion_radiografica_f6", label: "Interpretacion radiografica", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Interpretacion radiografica." },
       { id: "estado_reborde", label: "Estado del reborde alveolar", section: "Evaluacion inicial", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Reborde favorable, reabsorbido, etc." },
-      { id: "plan_prostodoncia", label: "Plan prostodontico", section: "Procedimiento principal", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Secuencia de citas y procedimientos." },
-      { id: "procedimiento_prostodoncia", label: "Procedimiento", section: "Procedimiento principal", type: "textarea", rows: 2, placeholder: "Procedimiento por cita." },
       { id: "modelos_estudio_f6", label: "Modelos de estudio", section: "Procedimiento principal", type: "text", placeholder: "Registro de modelos de estudio." },
       { id: "modelos_trabajo_f6", label: "Modelos de trabajo", section: "Procedimiento principal", type: "text", placeholder: "Registro de modelos de trabajo." },
       { id: "dimension_vertical", label: "Base de registro y prueba de rodillos", section: "Procedimiento principal", type: "textarea", rows: 2, contextKey: "background", placeholder: "Relacion maxilomandibular y rodillos." },
       { id: "pruebas_prostodoncia", label: "Prueba de dientes y oclusion", section: "Procedimiento principal", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Resultados de pruebas clinicas." },
-      { id: "adaptacion_prostodoncia", label: "Terminado / adaptacion del paciente", section: "Procedimiento principal", type: "text", contextKey: "consultReason", placeholder: "Confort, masticacion y fonacion." },
-      { id: "pronostico_prostodoncia", label: "Pronostico", section: "Procedimiento principal", type: "text", contextKey: "prognosis", placeholder: "Pronostico general de la rehabilitacion." },
+      { id: "adaptacion_prostodoncia", label: "Terminado", section: "Procedimiento principal", type: "text", placeholder: "Fecha y resultado del terminado." },
       { id: "ganchos_ubicacion_f6", label: "Tipos de ganchos y ubicacion", section: "Procedimientos complementarios", type: "textarea", rows: 2, placeholder: "Detalle de ganchos por zona." },
       { id: "presentacion_caso_f6", label: "Presentacion del caso", section: "Procedimientos complementarios", type: "text", placeholder: "Fecha/procedimiento." },
       { id: "preparaciones_f6", label: "Preparaciones", section: "Procedimientos complementarios", type: "text", placeholder: "Detalle de preparaciones." },
@@ -485,7 +459,11 @@ const CLINICAL_FORM_SCHEMAS = {
   "f8-periodoncia": {
     title: "Formato 8: Periodoncia",
     fields: [
-      { id: "antecedentes_hereditarios_f8", label: "Antecedentes hereditarios", section: "Ficha clinica periodontal", type: "textarea", rows: 2, placeholder: "Resumen de antecedentes hereditarios." },
+      { id: "antecedentes_hereditarios_f8", label: "Antecedente hereditario - Diabetes", section: "Antecedentes hereditarios", type: "text", placeholder: "Familiar y detalle del antecedente." },
+      { id: "antecedentes_cancer_f8", label: "Antecedente hereditario - Cancer", section: "Antecedentes hereditarios", type: "text", placeholder: "Familiar y detalle del antecedente." },
+      { id: "antecedentes_tension_f8", label: "Antecedente hereditario - Hipertension o hipotension", section: "Antecedentes hereditarios", type: "text", placeholder: "Familiar y detalle del antecedente." },
+      { id: "antecedentes_infarto_f8", label: "Antecedente hereditario - Infarto del miocardio", section: "Antecedentes hereditarios", type: "text", placeholder: "Familiar y detalle del antecedente." },
+      { id: "antecedentes_infectocontagiosas_f8", label: "Antecedente hereditario - Enfermedades infectocontagiosas", section: "Antecedentes hereditarios", type: "text", placeholder: "Familiar y detalle del antecedente." },
       { id: "antecedentes_no_patologicos_f8", label: "Antecedentes personales no patologicos", section: "Ficha clinica periodontal", type: "textarea", rows: 2, placeholder: "Habitos y antecedentes no patologicos." },
       { id: "grupo_sanguineo_f8", label: "Grupo sanguineo", section: "Ficha clinica periodontal", type: "text", placeholder: "Grupo sanguineo." },
       { id: "deporte_f8", label: "Deporte", section: "Ficha clinica periodontal", type: "text", placeholder: "Actividad fisica habitual." },
@@ -506,13 +484,14 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "exploracion_bucal_f8", label: "Exploracion bucal", section: "Antecedentes y exploracion", type: "textarea", rows: 2, placeholder: "Labios, carrillos, lengua, paladar, encias, ATM, dientes." },
 
       { id: "diagnostico_periodontal", label: "Diagnostico periodontal", section: "Diagnostico periodontal", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Gingivitis, periodontitis, estadio, grado." },
-      { id: "sangrado_periodontal", label: "Sangrado al sondaje / inflamacion", section: "Diagnostico periodontal", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Hallazgos clinicos iniciales." },
       { id: "plan_periodontal", label: "Plan periodontal", section: "Diagnostico periodontal", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Raspado, alisado, control de placa, etc." },
-      { id: "fase_mantenimiento", label: "Fase de mantenimiento", section: "Diagnostico periodontal", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Frecuencia y objetivos de mantenimiento." },
       { id: "pronostico_periodontal", label: "Pronostico", section: "Diagnostico periodontal", type: "text", contextKey: "prognosis", placeholder: "Pronostico periodontal por caso." },
       { id: "periodontograma_diagnostico_f8", label: "Periodontograma de diagnostico", section: "Periodontogramas", type: "textarea", rows: 2, placeholder: "Resumen del periodontograma diagnostico." },
       { id: "periodontograma_evolucion_f8", label: "Periodontograma de evolucion", section: "Periodontogramas", type: "textarea", rows: 2, placeholder: "Resumen del periodontograma de evolucion." },
-      { id: "auxiliares_diagnostico_f8", label: "Auxiliares de diagnostico", section: "Auxiliares y cierre", type: "textarea", rows: 2, placeholder: "Radiografias, modelos, fotografias, laboratorio." },
+      { id: "auxiliares_diagnostico_f8", label: "Auxiliar de diagnostico - Radiografias", section: "Auxiliares y cierre", type: "text", placeholder: "Estudios radiograficos solicitados o revisados." },
+      { id: "auxiliares_modelos_f8", label: "Auxiliar de diagnostico - Modelos de estudio", section: "Auxiliares y cierre", type: "text", placeholder: "Modelos de estudio." },
+      { id: "auxiliares_fotografias_f8", label: "Auxiliar de diagnostico - Fotografias", section: "Auxiliares y cierre", type: "text", placeholder: "Fotografias clinicas." },
+      { id: "auxiliares_laboratorio_f8", label: "Auxiliar de diagnostico - Estudios de laboratorio", section: "Auxiliares y cierre", type: "text", placeholder: "Estudios de laboratorio." },
       { id: "diagnostico_presuncion_sistemico_f8", label: "Diagnostico de presuncion sistemico", section: "Auxiliares y cierre", type: "text", placeholder: "Diagnostico sistemico presuntivo." }
     ]
   },
@@ -525,7 +504,7 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "fecha_termino_f9", label: "Fecha de termino", section: "Datos generales", type: "text", placeholder: "Fecha estimada o real de termino." },
       { id: "pieza_endodoncia", label: "Dientes que ha de tratarse", section: "Datos generales", type: "text", contextKey: "odontoSummary", placeholder: "Ejemplo: 11, 21, 36." },
       { id: "interrogatorio_f9", label: "Interrogatorio", section: "Antecedentes", type: "textarea", rows: 2, placeholder: "Resumen de interrogatorio." },
-      { id: "antecedentes_f9", label: "Antecedentes", section: "Antecedentes", type: "textarea", rows: 2, contextKey: "background", placeholder: "Antecedentes del caso." },
+      { id: "antecedentes_f9", label: "Antecedentes - Otros", section: "Antecedentes", type: "text", contextKey: "background", placeholder: "Otros antecedentes no listados." },
       { id: "dolor_f9", label: "Dolor", section: "Antecedentes", type: "text", placeholder: "Caracteristicas del dolor." },
       { id: "estimulo_f9", label: "Estimulo", section: "Antecedentes", type: "text", placeholder: "Frio, calor, masticacion, dulce, etc." },
       { id: "examen_intrabucal_f9", label: "Examen intrabucal", section: "Antecedentes", type: "textarea", rows: 2, placeholder: "Hallazgos intrabucales." },
@@ -538,7 +517,6 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "pronostico_periapical_f9", label: "Diagnostico periapical", section: "Diagnostico y plan", type: "textarea", rows: 2, placeholder: "Diagnostico periapical." },
       { id: "tecnica_endodoncia", label: "Tratamiento", section: "Diagnostico y plan", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tecnica de instrumentacion/obturacion." },
       { id: "control_endodoncia", label: "Odontograma de evolucion / control", section: "Diagnostico y plan", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Seguimiento clinico y radiografico." },
-      { id: "pronostico_endodoncia", label: "Pronostico", section: "Diagnostico y plan", type: "text", contextKey: "prognosis", placeholder: "Pronostico de la pieza tratada." },
 
       { id: "longitud_trabajo_f9", label: "Longitud de trabajo (aparente / real / relacion)", section: "Procedimiento", type: "textarea", rows: 2, placeholder: "Longitud de trabajo por conducto." },
       { id: "tecnica_instrumentacion_f9", label: "Tecnica de instrumentacion", section: "Procedimiento", type: "text", placeholder: "Tecnica utilizada." },
@@ -563,7 +541,7 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "telefono_tutor_ortodoncia", label: "Telefono particular y de trabajo", section: "Datos generales", type: "text", placeholder: "Telefonos de contacto." },
 
       { id: "antecedentes_patologicos_ortodoncia", label: "Antecedentes patologicos", section: "Antecedentes medicos", type: "textarea", rows: 2, contextKey: "background", placeholder: "Resumen de antecedentes patologicos." },
-      { id: "alergias_medicamentos_ortodoncia", label: "Alergias a medicamentos", section: "Antecedentes medicos", type: "textarea", rows: 2, placeholder: "Antibioticos, sulfas, anestesicos, etc." },
+      { id: "alergias_medicamentos_ortodoncia", label: "Alergia a antibioticos - cuales", section: "Antecedentes medicos", type: "text", placeholder: "Antibioticos que provocan alergia." },
       { id: "tratamiento_psicologico_psiquiatrico", label: "Tratamiento psicologico/psiquiatrico", section: "Antecedentes medicos", type: "text", placeholder: "Si/no y tiempo." },
       { id: "medicamentos_estres_ortodoncia", label: "Medicamentos contra el estres", section: "Antecedentes medicos", type: "text", placeholder: "Detalle de medicamentos." },
       { id: "enfermedades_padecidas_ortodoncia", label: "Enfermedades padecidas", section: "Antecedentes medicos", type: "textarea", rows: 3, placeholder: "Hipertension, asma, diabetes, renales, etc." },
@@ -575,17 +553,24 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "embarazo_parto_ortodoncia", label: "Numero de gesta / embarazo / parto", section: "Antecedentes no patologicos", type: "textarea", rows: 2, placeholder: "Datos perinatales." },
       { id: "alimentacion_ortodoncia", label: "Alimentacion y comentarios", section: "Antecedentes no patologicos", type: "textarea", rows: 2, placeholder: "Pecho, biberon, balanceada/deficiencias." },
       { id: "desarrollo_psicomotor_ortodoncia", label: "Desarrollo psicomotor", section: "Antecedentes no patologicos", type: "textarea", rows: 2, placeholder: "SNC, hiperactivo, desarrollo tardio, etc." },
-      { id: "desarrollo_lenguaje_ortodoncia", label: "Balbuceo / primeras palabras / lenguaje estructurado", section: "Antecedentes no patologicos", type: "text", placeholder: "Cronologia de desarrollo del lenguaje." },
+      { id: "desarrollo_lenguaje_ortodoncia", label: "Balbuceo", section: "Desarrollo del lenguaje", type: "text", placeholder: "Edad o comentario sobre balbuceo." },
+      { id: "primeras_palabras_ortodoncia", label: "Primeras palabras", section: "Desarrollo del lenguaje", type: "text", placeholder: "Edad de las primeras palabras." },
+      { id: "lenguaje_estructurado_ortodoncia", label: "Lenguaje estructurado", section: "Desarrollo del lenguaje", type: "text", placeholder: "Edad o comentario." },
       { id: "erupcion_control_esfinteres_ortodoncia", label: "Erupcion dentaria y control de esfinteres", section: "Antecedentes no patologicos", type: "text", placeholder: "Evolucion y edad de erupcion/controles." },
-      { id: "genitourinario_enuresis_ortodoncia", label: "Genitourinario / enuresis / menarca", section: "Antecedentes no patologicos", type: "text", placeholder: "Datos relevantes." },
+      { id: "genitourinario_enuresis_ortodoncia", label: "Enuresis", section: "Antecedentes no patologicos", type: "select", options: [
+        { value: "", label: "Seleccionar" },
+        { value: "Primaria", label: "Primaria" },
+        { value: "Secundaria", label: "Secundaria" }
+      ] },
+      { id: "menarca_ortodoncia", label: "Menarca", section: "Antecedentes no patologicos", type: "text", placeholder: "Edad o fecha." },
 
-      { id: "diagnostico_oclusal", label: "Examen de la cavidad bucal / oclusion", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "background", placeholder: "Higiene, periodonto y oclusion." },
-      { id: "analisis_facial", label: "Analisis facial y esqueletal", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Clase esqueletal, perfil y simetria." },
+      { id: "diagnostico_oclusal", label: "Diagnostico final - Interpretacion", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Interpretacion diagnostica final." },
+      { id: "analisis_facial", label: "Asimetrias craneales - Especifique", section: "Analisis ortodontico", type: "textarea", rows: 2, placeholder: "Detalle de las asimetrias craneales." },
       { id: "plan_ortodontico", label: "Plan ortodontico", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Tipo de aparatologia y fases." },
-      { id: "seguimiento_ortodoncia", label: "Nota de evolucion", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Ajustes y respuesta del paciente." },
+      { id: "seguimiento_ortodoncia", label: "Procedimiento realizado en cita", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Procedimiento realizado en la cita." },
       { id: "pronostico_ortodoncia", label: "Pronostico", section: "Analisis ortodontico", type: "text", contextKey: "prognosis", placeholder: "Pronostico del tratamiento ortodontico." },
       { id: "objetivo_ortodoncia", label: "Objetivos del tratamiento", section: "Analisis ortodontico", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Objetivos funcionales y esteticos." },
-      { id: "auxiliares_diagnostico_ortodoncia", label: "Auxiliares de diagnostico", section: "Analisis ortodontico", type: "textarea", rows: 2, placeholder: "Modelos, fotografias, radiografias, cefalometria, etc." },
+      { id: "auxiliares_diagnostico_ortodoncia", label: "Otros habitos - Especifique", section: "Antecedentes no patologicos", type: "textarea", rows: 2, placeholder: "Otros habitos no listados." },
       { id: "odontograma_ortodontico", label: "Odontograma ortodontico", section: "Analisis ortodontico", type: "textarea", rows: 2, placeholder: "Resumen de hallazgos en odontograma." },
       { id: "citas_complementarias_ortodoncia", label: "Citas complementarias y correcciones", section: "Analisis ortodontico", type: "textarea", rows: 2, placeholder: "Detalle de citas complementarias." },
       { id: "observaciones_ortodoncia", label: "Observaciones", section: "Analisis ortodontico", type: "textarea", rows: 2, placeholder: "Observaciones finales del formato." }
@@ -594,8 +579,6 @@ const CLINICAL_FORM_SCHEMAS = {
   "f11-odontopediatria": {
     title: "Formato 11: Odontopediatria",
     fields: [
-      { id: "responsable_nino", label: "Tutor o responsable", section: "Interrogatorio pediatrico", type: "text", contextKey: "background", placeholder: "Nombre del tutor responsable." },
-      { id: "conducta_paciente_pediatrico", label: "Conducta del paciente pediatrico", section: "Interrogatorio pediatrico", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Cooperador, ansioso, etc." },
       { id: "ultima_consulta_pediatrica", label: "Fecha y motivo de la ultima consulta medica u odontologica", section: "Interrogatorio pediatrico", type: "text", placeholder: "Fecha y motivo de ultima consulta." },
       { id: "derechohabiencia_pediatria", label: "Derechohabiente / no derechohabiente", section: "Interrogatorio pediatrico", type: "text", placeholder: "Especificar condicion." },
       { id: "medico_pediatra_familiar", label: "Nombre del medico pediatra familiar", section: "Interrogatorio pediatrico", type: "text", placeholder: "Nombre del medico pediatra." },
@@ -607,7 +590,7 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "hereditarios_tios_f11", label: "Padecimientos familiares - Tios", section: "Antecedentes hereditarios y familiares", type: "text", placeholder: "Anotar antecedentes en linea directa." },
       { id: "hereditarios_abuelos_f11", label: "Padecimientos familiares - Abuelos", section: "Antecedentes hereditarios y familiares", type: "text", placeholder: "Anotar antecedentes en linea directa." },
 
-      { id: "patologicos_pediatria", label: "Antecedentes personales patologicos", section: "Antecedentes personales", type: "textarea", rows: 2, contextKey: "background", placeholder: "Resumen de antecedentes patologicos pediatricos." },
+      { id: "patologicos_pediatria", label: "Antecedentes personales patologicos - Otras enfermedades", section: "Antecedentes personales", type: "text", contextKey: "background", placeholder: "Otras enfermedades no listadas." },
       { id: "tratamiento_medico_previo_f11", label: "Ha estado en tratamiento medico", section: "Antecedentes personales", type: "text", placeholder: "Si/no y en que etapa." },
       { id: "motivo_tratamiento_medico_f11", label: "Cual fue el motivo del tratamiento medico", section: "Antecedentes personales", type: "text", placeholder: "Motivo del tratamiento previo." },
       { id: "medicamento_actual_f11", label: "Toma algun medicamento actualmente (motivo)", section: "Antecedentes personales", type: "text", contextKey: "medications", placeholder: "Medicamento y motivo." },
@@ -625,7 +608,7 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "esquema_vacunacion_falta_f11", label: "Especifique cual vacuna falta", section: "Antecedentes no patologicos", type: "text", placeholder: "Vacuna faltante." },
 
       { id: "padecimiento_actual_f11", label: "Padecimiento actual", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, contextKey: "consultReason", placeholder: "Detalle del padecimiento actual." },
-      { id: "antecedentes_alergicos_f11", label: "Antecedentes alergicos", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, contextKey: "allergies", placeholder: "Alergias y especificacion." },
+      { id: "antecedentes_alergicos_f11", label: "Antecedentes alergicos - Especifique", section: "Interrogatorio por aparatos y sistemas", type: "text", contextKey: "allergies", placeholder: "Especifique las alergias." },
       { id: "aparato_digestivo_f11", label: "Aparato digestivo", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, placeholder: "Hallazgos digestivos." },
       { id: "aparato_respiratorio_f11", label: "Aparato respiratorio", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, placeholder: "Hallazgos respiratorios." },
       { id: "aparato_cardiovascular_f11", label: "Aparato cardiovascular", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, placeholder: "Hallazgos cardiovasculares." },
@@ -637,17 +620,26 @@ const CLINICAL_FORM_SCHEMAS = {
       { id: "aparato_tegumentario_f11", label: "Aparato tegumentario", section: "Interrogatorio por aparatos y sistemas", type: "textarea", rows: 2, placeholder: "Hallazgos tegumentarios." },
 
       { id: "exploracion_fisica_f11", label: "Exploracion fisica", section: "Exploracion fisica", type: "textarea", rows: 2, placeholder: "Habitus exterior y hallazgos generales." },
-      { id: "signos_vitales_f11", label: "Signos vitales", section: "Exploracion fisica", type: "text", placeholder: "Peso, talla, complexion, temperatura, etc." },
-      { id: "exploracion_cabeza_cuello_f11", label: "Exploracion de cabeza y cuello", section: "Exploracion fisica", type: "textarea", rows: 2, placeholder: "Cabeza, craneo, cara, perfil, piel, musculos, cuello." },
-      { id: "exploracion_estomatognatico_f11", label: "Exploracion del aparato estomatognatico", section: "Exploracion fisica", type: "textarea", rows: 3, placeholder: "ATM, tejidos blandos, lengua, paladar, encias, dientes." },
+      { id: "peso_f11", label: "Peso", section: "Exploracion fisica", type: "text", placeholder: "Peso del paciente." },
+      { id: "talla_f11", label: "Talla", section: "Exploracion fisica", type: "text", placeholder: "Talla del paciente." },
+      { id: "complexion_f11", label: "Complexion", section: "Exploracion fisica", type: "text", placeholder: "Complexion." },
+      { id: "frecuencia_cardiaca_f11", label: "Frecuencia cardiaca", section: "Signos vitales", type: "text", placeholder: "FC." },
+      { id: "tension_arterial_f11", label: "Tension arterial", section: "Signos vitales", type: "text", placeholder: "TA." },
+      { id: "frecuencia_respiratoria_f11", label: "Frecuencia respiratoria", section: "Signos vitales", type: "text", placeholder: "FR." },
+      { id: "temperatura_f11", label: "Temperatura", section: "Signos vitales", type: "text", placeholder: "Temperatura." },
 
       { id: "analisis_oclusion_f11", label: "Analisis de la oclusion", section: "Oclusion y odontograma", type: "textarea", rows: 2, placeholder: "Plano terminal, clase de oclusion, sobremordidas, mordida cruzada." },
       { id: "indice_higiene_f11", label: "Indice de higiene bucal", section: "Oclusion y odontograma", type: "text", placeholder: "Resultado de indice de higiene." },
       { id: "indice_placa_actual_f11", label: "Indice de placa actual", section: "Oclusion y odontograma", type: "text", placeholder: "Resultado de indice de placa." },
       { id: "diagnostico_odontopediatria", label: "Odontograma diagnostico", section: "Oclusion y odontograma", type: "textarea", rows: 2, contextKey: "diagnosis", placeholder: "Hallazgos clinicos de denticion temporal/mixta." },
-      { id: "plan_odontopediatria", label: "Plan preventivo / terapeutico", section: "Oclusion y odontograma", type: "textarea", rows: 2, contextKey: "treatmentPlan", placeholder: "Selladores, fluor, restauraciones, etc." },
-      { id: "indicaciones_tutor", label: "Indicaciones al tutor", section: "Oclusion y odontograma", type: "textarea", rows: 2, contextKey: "notes", placeholder: "Cuidados en casa y control dietetico." },
-      { id: "pronostico_odontopediatria", label: "Pronostico", section: "Oclusion y odontograma", type: "text", contextKey: "prognosis", placeholder: "Pronostico del caso pediatrico." },
+      { id: "plan_odonto_preventiva_f11", label: "Plan - Odontologia preventiva", section: "Plan de tratamiento", type: "textarea", rows: 3, contextKey: "treatmentPlan", placeholder: "Tratamiento preventivo." },
+      { id: "plan_operatoria_f11", label: "Plan - Operatoria", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamiento de operatoria." },
+      { id: "plan_cirugia_f11", label: "Plan - Cirugia", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamiento quirurgico." },
+      { id: "plan_ortodoncia_preventiva_f11", label: "Plan - Ortodoncia preventiva", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamiento preventivo de ortodoncia." },
+      { id: "plan_ortodoncia_interceptiva_f11", label: "Plan - Ortodoncia interceptiva", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamiento interceptivo." },
+      { id: "plan_ortodoncia_correctiva_f11", label: "Plan - Ortodoncia correctiva", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamiento correctivo." },
+      { id: "plan_tratamientos_pulpares_f11", label: "Plan - Tratamientos pulpares", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Tratamientos pulpares." },
+      { id: "indicaciones_tutor", label: "Restauraciones con coronas de acero, cromo u otras", section: "Plan de tratamiento", type: "textarea", rows: 3, placeholder: "Piezas y tipo de restauracion." },
       { id: "odontograma_evolucion_f11", label: "Odontograma de evolucion", section: "Oclusion y odontograma", type: "textarea", rows: 2, placeholder: "Cambios del odontograma en controles." },
       { id: "interpretacion_radiografica_f11", label: "Interpretacion radiografica", section: "Estudios y cierre", type: "textarea", rows: 2, placeholder: "Interpretacion de radiografias." },
       { id: "estudios_laboratorio_f11", label: "Estudios de laboratorio y gabinete", section: "Estudios y cierre", type: "textarea", rows: 2, placeholder: "Resultados de laboratorio y gabinete." }
@@ -657,19 +649,19 @@ const CLINICAL_FORM_SCHEMAS = {
 
 const ODONTOGRAM_TEMPLATES = {
   anatomic: {
-    label: "Anatomico por pieza (caras)",
-    centerSuffix: "anatomico",
-    hint: "Modelo anatomico por pieza para registro detallado por caras dentales."
+    label: "Periodontograma dental con raices",
+    centerSuffix: "periodontal",
+    hint: "Corona y raiz se marcan por separado; la superficie oclusal aparece solo en premolares y molares."
   },
   grid: {
-    label: "Indice de higiene por superficies",
-    centerSuffix: "indice de higiene",
-    hint: "Registro por superficies en cuadros divididos para control de higiene."
+    label: "Periodontograma por superficies",
+    centerSuffix: "periodontograma",
+    hint: "Incisivos y caninos tienen cuatro superficies; la quinta zona oclusal aparece solo en premolares y molares."
   },
   classic: {
-    label: "Clinico lineal por cuadrantes",
-    centerSuffix: "clinico lineal",
-    hint: "Plantilla clinica lineal con guiado por lineas para evolucion y trazabilidad."
+    label: "Odontograma clinico por superficies",
+    centerSuffix: "clinico",
+    hint: "Mapeo dentro de la corona: cuatro zonas en anteriores y cinco, incluida oclusal, en posteriores."
   }
 };
 
@@ -685,6 +677,20 @@ const CLINICAL_FORMAT_START_PAGES = {
   "f9-endodoncia": 37,
   "f10-ortodoncia": 41,
   "f11-odontopediatria": 53
+};
+
+const CLINICAL_FORMAT_END_PAGES = {
+  "f1-estomatologica": 11,
+  "f2-preventiva": 15,
+  "f3-operatoria": 19,
+  "f4-protesis-fija": 22,
+  "f5-protesis-removible": 24,
+  "f6-prostodoncia": 26,
+  "f7-cirugia-bucal": 29,
+  "f8-periodoncia": 36,
+  "f9-endodoncia": 40,
+  "f10-ortodoncia": 52,
+  "f11-odontopediatria": 62
 };
 
 const CLINICAL_REUSABLE_CONTEXT_KEYS = new Set([
@@ -785,8 +791,7 @@ const CLINICAL_IDENTIFICATION_KEYS = new Set([
 ]);
 
 const CLINICAL_IDENTIFICATION_LAYOUT_FORMATS = new Set([
-  "f1-estomatologica",
-  "f11-odontopediatria"
+  "f1-estomatologica"
 ]);
 
 const CLINICAL_HEADER_FILL_RULES = [
@@ -888,11 +893,173 @@ const CLINICAL_HEADER_FILL_RULES = [
   }
 ];
 
+const clinicalPdfLine = (pageOffset, x, y, maxWidth, maxChars = 72, extra = {}) => ({
+  pageOffset,
+  x,
+  y,
+  maxWidth,
+  maxLines: 1,
+  maxChars,
+  ...extra
+});
+
+const clinicalPdfArea = (
+  pageOffset,
+  x,
+  y,
+  maxWidth,
+  maxLines,
+  maxChars = 180,
+  lineHeight = 16,
+  extra = {}
+) => ({
+  pageOffset,
+  x,
+  y,
+  maxWidth,
+  maxLines,
+  maxChars,
+  lineHeight,
+  ...extra
+});
+
+const clinicalPdfYesNo = (pageOffset, y, yesX, noX, extra = {}) => ({
+  type: "mark-select",
+  pageOffset,
+  size: 10,
+  markMap: {
+    si: { x: yesX, y },
+    no: { x: noX, y }
+  },
+  ...extra
+});
+
+const clinicalPdfHeader = (valueKey, x, y, maxWidth, maxChars = 72, extra = {}) => ({
+  valueKey,
+  pageOffset: 0,
+  x,
+  y,
+  maxWidth,
+  maxLines: 1,
+  maxChars,
+  size: 7.5,
+  ...extra
+});
+
+const CLINICAL_FORMAT_HEADER_PDF_RULES = {
+  "f2-preventiva": [
+    clinicalPdfHeader("lastNameFather", 158, 503.1, 91, 28),
+    clinicalPdfHeader("lastNameMother", 286, 503.1, 91, 30),
+    clinicalPdfHeader("firstNames", 414, 503.1, 132, 40),
+    clinicalPdfHeader("dentistName", 126, 475.1, 420, 70)
+  ],
+  "f3-operatoria": [
+    clinicalPdfHeader("recordReference", 466, 433.9, 80, 22),
+    clinicalPdfHeader("recordReference", 466, 417.9, 80, 22),
+    clinicalPdfHeader("dentistName", 135, 401.9, 411, 70),
+    clinicalPdfHeader("lastNameFather", 158, 381.9, 91, 28),
+    clinicalPdfHeader("lastNameMother", 286, 381.9, 91, 30),
+    clinicalPdfHeader("firstNames", 414, 381.9, 132, 40)
+  ],
+  "f4-protesis-fija": [
+    clinicalPdfHeader("recordReference", 466, 470.1, 80, 22),
+    clinicalPdfHeader("lastNameFather", 158, 454.1, 91, 28),
+    clinicalPdfHeader("lastNameMother", 286, 454.1, 91, 30),
+    clinicalPdfHeader("firstNames", 414, 454.1, 132, 40),
+    clinicalPdfHeader("dentistName", 135, 426.1, 411, 70)
+  ],
+  "f5-protesis-removible": [
+    clinicalPdfHeader("recordReference", 466, 470.8, 80, 22),
+    clinicalPdfHeader("lastNameFather", 157, 454.8, 91, 28),
+    clinicalPdfHeader("lastNameMother", 285, 454.8, 91, 30),
+    clinicalPdfHeader("firstNames", 413, 454.8, 132, 40),
+    clinicalPdfHeader("dentistName", 134, 426.8, 411, 70)
+  ],
+  "f6-prostodoncia": [
+    clinicalPdfHeader("recordReference", 466, 470.1, 80, 22),
+    clinicalPdfHeader("lastNameFather", 157, 454.1, 91, 28),
+    clinicalPdfHeader("lastNameMother", 285, 454.1, 91, 30),
+    clinicalPdfHeader("firstNames", 413, 454.1, 132, 40),
+    clinicalPdfHeader("dentistName", 134, 426.1, 411, 70)
+  ],
+  "f7-cirugia-bucal": [
+    clinicalPdfHeader("recordReference", 465, 487.1, 81, 22),
+    clinicalPdfHeader("recordReference", 465, 471.1, 81, 22),
+    clinicalPdfHeader("lastNameFather", 157, 455.1, 91, 28),
+    clinicalPdfHeader("lastNameMother", 285, 455.1, 91, 30),
+    clinicalPdfHeader("firstNames", 413, 455.1, 132, 40),
+    clinicalPdfHeader("dentistName", 175, 427.1, 371, 70)
+  ],
+  "f8-periodoncia": [
+    clinicalPdfHeader("consultDay", 278, 463.1, 18, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultMonth", 304, 463.1, 18, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultYear", 329, 463.1, 30, 4, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("recordReference", 469, 463.1, 77, 22),
+    clinicalPdfHeader("fullName", 105, 393.1, 441, 82),
+    clinicalPdfHeader("ageText", 94, 377.1, 65, 3),
+    clinicalPdfHeader("sexLabel", 191, 377.1, 75, 18),
+    clinicalPdfHeader("civilStatus", 322, 377.1, 77, 24),
+    clinicalPdfHeader("occupation", 451, 377.1, 95, 28),
+    clinicalPdfHeader("birthPlaceDate", 155, 361.1, 190, 44),
+    clinicalPdfHeader("occupationAlt", 415, 361.1, 131, 34),
+    clinicalPdfHeader("location", 174, 345.1, 372, 72),
+    clinicalPdfHeader("locationColony", 104, 329.1, 182, 36),
+    clinicalPdfHeader("phone", 105, 313.1, 210, 22),
+    clinicalPdfHeader("officePhone", 390, 313.1, 156, 22)
+  ],
+  "f9-endodoncia": [
+    clinicalPdfHeader("fullName", 162, 486.5, 380, 82),
+    clinicalPdfHeader("phone", 96, 454.5, 145, 22),
+    clinicalPdfHeader("sexLabel", 278, 454.5, 132, 18),
+    clinicalPdfHeader("ageText", 448, 454.5, 75, 3)
+  ],
+  "f10-ortodoncia": [
+    clinicalPdfHeader("consultDay", 242, 492.1, 17, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultMonth", 269, 492.1, 17, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultYear", 296, 492.1, 28, 4, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("recordReference", 482, 492.1, 64, 20),
+    clinicalPdfHeader("fullName", 156, 442.1, 209, 60),
+    clinicalPdfHeader("sexLabel", 398, 442.1, 62, 18),
+    clinicalPdfHeader("ageText", 492, 442.1, 54, 3),
+    clinicalPdfHeader("location", 112, 426.1, 434, 80),
+    clinicalPdfHeader("phone", 88, 410.1, 111, 22),
+    clinicalPdfHeader("birthPlaceDate", 156, 378.1, 390, 58),
+    clinicalPdfHeader("occupation", 404, 362.1, 142, 34)
+  ],
+  "f11-odontopediatria": [
+    clinicalPdfHeader("consultDay", 282, 454.7, 18, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultMonth", 307, 454.7, 18, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("consultYear", 332, 454.7, 30, 4, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("recordReference", 486, 454.6, 60, 20),
+    clinicalPdfHeader("lastNameFather", 136, 404.6, 125, 28),
+    clinicalPdfHeader("lastNameMother", 279, 404.6, 126, 30),
+    clinicalPdfHeader("firstNames", 423, 404.6, 123, 38),
+    clinicalPdfHeader("ageYears", 135, 372.6, 35, 3),
+    clinicalPdfHeader("ageMonths", 216, 372.6, 35, 2),
+    { markWhen: "isMale", pageOffset: 0, x: 404.4, y: 372.6, size: 10 },
+    { markWhen: "isFemale", pageOffset: 0, x: 496.6, y: 372.6, size: 10 },
+    clinicalPdfHeader("locationState", 185, 356.6, 103, 14, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("locationCity", 289, 356.6, 140, 18, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("birthDay", 430, 356.6, 38, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("birthMonth", 469, 356.6, 36, 2, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("birthYear", 506, 356.6, 40, 4, { align: "center", size: 6.8 }),
+    clinicalPdfHeader("occupationAlt", 122, 308.6, 424, 54),
+    clinicalPdfHeader("locationStreet", 138, 292.6, 408, 70),
+    clinicalPdfHeader("locationExterior", 130, 276.6, 80, 18),
+    clinicalPdfHeader("locationInterior", 276, 276.6, 75, 18),
+    clinicalPdfHeader("locationColony", 393, 276.6, 153, 30),
+    clinicalPdfHeader("locationState", 104, 260.6, 97, 18),
+    clinicalPdfHeader("locationMunicipality", 236, 260.6, 118, 22),
+    clinicalPdfHeader("locationDelegation", 411, 260.6, 135, 22),
+    clinicalPdfHeader("phone", 111, 244.6, 74, 16)
+  ]
+};
+
 const CLINICAL_FIELD_PDF_RULES = {
   "f1-estomatologica": {
-    motivo_consulta: { maxWidth: 360, maxLines: 3, pageOffset: 1, x: 148, y: 234.2, dx: 0 },
+    motivo_consulta: { maxWidth: 480, maxLines: 1, pageOffset: 1, x: 62, y: 219.3, dx: 0 },
     antecedentes_estomatologicos: { maxWidth: 280, maxLines: 3, pageOffset: 1, x: 265, y: 658.2, dx: 0 },
-    ultima_consulta_medica_odontologica: { maxWidth: 236, maxLines: 1, pageOffset: 0, x: 307, y: 222.4, maxChars: 64 },
+    ultima_consulta_medica_odontologica: { maxWidth: 236, maxLines: 1, pageOffset: 0, x: 307, y: 222.4, maxChars: 64, fallbackValueKey: "lastMedicalConsult" },
 
     hereditarios_madre: { maxWidth: 436, maxLines: 1, pageOffset: 0, x: 106, y: 142.4, maxChars: 96 },
     hereditarios_padre: { maxWidth: 438, maxLines: 1, pageOffset: 0, x: 104, y: 126.4, maxChars: 96 },
@@ -1023,7 +1190,7 @@ const CLINICAL_FIELD_PDF_RULES = {
 
     hospitalizacion_fecha: { maxWidth: 186, maxLines: 1, pageOffset: 1, x: 346, y: 267.3, maxChars: 44 },
     hospitalizacion_motivo: { maxWidth: 442, maxLines: 1, pageOffset: 1, x: 95, y: 251.3, maxChars: 100 },
-    padecimiento_actual_detalle: { maxWidth: 440, maxLines: 1, pageOffset: 1, x: 146, y: 235.3, maxChars: 100 },
+    padecimiento_actual_detalle: { maxWidth: 388, maxLines: 1, pageOffset: 1, x: 154, y: 235.3, maxChars: 100 },
 
     aparato_digestivo: { maxWidth: 392, maxLines: 6, lineHeight: 16, pageOffset: 1, x: 137, y: 147.3, maxChars: 420 },
     aparato_respiratorio: { maxWidth: 372, maxLines: 6, lineHeight: 16, pageOffset: 2, x: 158, y: 660.1, maxChars: 360 },
@@ -1095,7 +1262,7 @@ const CLINICAL_FIELD_PDF_RULES = {
 
     tejidos_ganglios: { maxWidth: 420, maxLines: 1, pageOffset: 4, x: 112, y: 387.3, maxChars: 96 },
     tejidos_glandulas_salivales: { maxWidth: 378, maxLines: 1, pageOffset: 4, x: 154, y: 371.3, maxChars: 90 },
-    tejidos_labio_externo: { maxWidth: 405, maxLines: 1, pageOffset: 4, x: 128, y: 355.3, maxChars: 96 },
+    tejidos_labio_externo: { maxWidth: 402, maxLines: 1, pageOffset: 4, x: 131, y: 355.3, maxChars: 96 },
     tejidos_borde_bermellon: { maxWidth: 392, maxLines: 1, pageOffset: 4, x: 141, y: 339.3, maxChars: 92 },
     tejidos_labio_interno: { maxWidth: 407, maxLines: 1, pageOffset: 4, x: 127, y: 323.3, maxChars: 96 },
     tejidos_comisuras: { maxWidth: 416, maxLines: 1, pageOffset: 4, x: 118, y: 307.3, maxChars: 96 },
@@ -1103,17 +1270,17 @@ const CLINICAL_FIELD_PDF_RULES = {
     tejidos_fondo_saco: { maxWidth: 400, maxLines: 1, pageOffset: 4, x: 133, y: 275.3, maxChars: 95 },
     tejidos_frenillos: { maxWidth: 424, maxLines: 1, pageOffset: 4, x: 109, y: 259.3, maxChars: 98 },
     tejidos_lengua_tercio_medio: { maxWidth: 376, maxLines: 1, pageOffset: 4, x: 156, y: 243.3, maxChars: 88 },
-    tejidos_paladar_duro: { maxWidth: 407, maxLines: 1, pageOffset: 4, x: 125, y: 227.3, maxChars: 95 },
-    tejidos_paladar_blando: { maxWidth: 398, maxLines: 1, pageOffset: 4, x: 134, y: 211.3, maxChars: 94 },
+    tejidos_paladar_duro: { maxWidth: 404, maxLines: 1, pageOffset: 4, x: 128, y: 227.3, maxChars: 95 },
+    tejidos_paladar_blando: { maxWidth: 395, maxLines: 1, pageOffset: 4, x: 137, y: 211.3, maxChars: 94 },
     tejidos_istmo_bucofaringe: { maxWidth: 382, maxLines: 1, pageOffset: 4, x: 149, y: 195.3, maxChars: 90 },
-    tejidos_lengua_dorso: { maxWidth: 405, maxLines: 1, pageOffset: 4, x: 128, y: 179.3, maxChars: 96 },
+    tejidos_lengua_dorso: { maxWidth: 402, maxLines: 1, pageOffset: 4, x: 131, y: 179.3, maxChars: 96 },
     tejidos_lengua_bordes: { maxWidth: 400, maxLines: 1, pageOffset: 4, x: 133, y: 163.3, maxChars: 94 },
     tejidos_lengua_ventral: { maxWidth: 400, maxLines: 1, pageOffset: 4, x: 133, y: 147.3, maxChars: 94 },
     tejidos_piso_boca: { maxWidth: 398, maxLines: 1, pageOffset: 4, x: 135, y: 131.3, maxChars: 94 },
     tejidos_dientes: { maxWidth: 428, maxLines: 1, pageOffset: 4, x: 105, y: 115.3, maxChars: 98 },
     tejidos_mucosa_borde_alveolar: { maxWidth: 352, maxLines: 1, pageOffset: 4, x: 181, y: 99.3, maxChars: 80 },
-    tejidos_encia: { maxWidth: 438, maxLines: 1, pageOffset: 4, x: 95, y: 83.3, maxChars: 100 },
-    tejidos_descripcion: { maxWidth: 404, maxLines: 2, lineHeight: 12, pageOffset: 4, x: 131, y: 57.3, maxChars: 190 },
+    tejidos_encia: { maxWidth: 435, maxLines: 1, pageOffset: 4, x: 98, y: 83.3, maxChars: 100 },
+    tejidos_descripcion: { maxWidth: 330, maxLines: 2, lineHeight: 10, pageOffset: 4, x: 200, y: 411.3, maxChars: 150 },
 
     periodonto_gingivitis: { maxWidth: 188, maxLines: 1, pageOffset: 5, x: 102, y: 632.1, maxChars: 44 },
     periodonto_periodontitis: { maxWidth: 182, maxLines: 1, pageOffset: 5, x: 352, y: 632.1, maxChars: 42 },
@@ -1123,90 +1290,314 @@ const CLINICAL_FIELD_PDF_RULES = {
     indice_higiene_bucal_f1: { maxWidth: 96, maxLines: 1, pageOffset: 5, x: 179, y: 384.1, maxChars: 20 },
     indice_placa_actual_f1: { maxWidth: 60, maxLines: 1, pageOffset: 5, x: 317, y: 157.1, maxChars: 12 },
 
-    diagnostico_estomatologico: { maxWidth: 380, maxLines: 2, pageOffset: 8, x: 126, y: 659.6, dx: 0 },
-    plan_estomatologico: { maxWidth: 330, maxLines: 3, pageOffset: 8, x: 176, y: 571.6, dx: 0 },
-    pronostico_estomatologico: { maxWidth: 330, maxLines: 2, pageOffset: 8, x: 176, y: 523.6, dx: 0 },
-    observaciones_f1: { maxWidth: 330, maxLines: 3, pageOffset: 8, x: 176, y: 475.6, dx: 0 }
+    diagnostico_estomatologico: { maxWidth: 380, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 126, y: 659.4, dx: 0 },
+    plan_estomatologico: { maxWidth: 365, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 176, y: 543.4, dx: 0 },
+    pronostico_estomatologico: { maxWidth: 407, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 134, y: 464.4, dx: 0 },
+    observaciones_f1: { maxWidth: 410, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 132, y: 385.4, dx: 0 },
+    plan_operatoria_f1: { maxWidth: 410, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 132, y: 306.4, dx: 0 },
+    plan_cirugia_f1: { maxWidth: 426, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 115, y: 227.4, dx: 0 },
+    plan_protesis_f1: { maxWidth: 426, maxLines: 4, lineHeight: 16, pageOffset: 8, x: 115, y: 148.4, dx: 0 }
   },
   "f2-preventiva": {
-    riesgo_caries: { matches: ["indice de placa actual"], maxWidth: 120, maxLines: 1, pageOffset: 0, x: 330.9, y: 44.6, maxChars: 18 },
-    indice_placa: { matches: ["pastilla", "reveladora"], maxWidth: 110, maxLines: 1, pageOffset: 0, x: 290.1, y: 448.3, maxChars: 18 },
-    tecnica_cepillado: { matches: ["tecnica de", "cepillado"], maxWidth: 150, maxLines: 2, pageOffset: 0, x: 137.9, y: 448.3, maxChars: 38 },
-    fluorizacion: { matches: ["aplicacion de fluor"], maxWidth: 140, maxLines: 2, pageOffset: 0, x: 152.1, y: 326.7, maxChars: 36 },
-    recomendaciones_preventivas: { matches: ["profilaxia u", "odontoxesis"], maxWidth: 140, maxLines: 2, pageOffset: 0, x: 139.0, y: 374.2, maxChars: 36 },
-    seguimiento_preventivo: { matches: ["termino"], maxWidth: 70, maxLines: 1, pageOffset: 0, x: 525.6, y: 437.3, maxChars: 10 }
+    tecnica_cepillado: clinicalPdfArea(0, 76, 420.5, 72, 3, 54, 15.8),
+    tipo_cepillo_dental: clinicalPdfLine(0, 155, 421.0, 72, 24),
+    indice_placa: clinicalPdfLine(0, 234, 421.0, 72, 24),
+    fecha_inicio_preventivo: clinicalPdfLine(0, 313, 421.0, 72, 18),
+    seguimiento_preventivo: clinicalPdfLine(0, 471, 421.0, 72, 18),
+    recomendaciones_preventivas: clinicalPdfArea(0, 76, 348.5, 72, 2, 38, 15.8),
+    fluorizacion: clinicalPdfArea(0, 76, 306.3, 72, 2, 48, 15.8),
+    riesgo_caries: clinicalPdfLine(0, 330, 45.6, 116, 18),
+    odonto_control_1: clinicalPdfLine(0, 421, 243.6, 125, 30),
+    odonto_control_2: clinicalPdfLine(1, 408, 639.6, 125, 30),
+    odonto_control_3: clinicalPdfLine(1, 408, 371.6, 125, 30),
+    odonto_control_4: clinicalPdfLine(2, 418, 639.6, 125, 30),
+    conformidad_preventiva: clinicalPdfLine(2, 231, 221.0, 156, 44, { align: "center" })
   },
   "f3-operatoria": {
-    pieza_operatoria: { matches: ["odontograma"], maxWidth: 120, maxLines: 1, pageOffset: 0, x: 149.0, y: 338.9, maxChars: 20 },
-    diagnostico_operatorio: { matches: ["odontograma de evolucion"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 210.8, y: 361.2, maxChars: 58 },
-    material_restaurador: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 1, pageOffset: 2, x: 194.7, y: 660.2, maxChars: 44 },
-    tecnica_operatoria: { matches: ["tratamientos realizados"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 194.7, y: 614.2, maxChars: 56 },
-    control_operatorio: { matches: ["nombre y firma de conformidad"], maxWidth: 160, maxLines: 2, pageOffset: 2, x: 422.1, y: 245.2, maxChars: 34 },
-    pronostico_operatorio: { matches: ["fecha"], maxWidth: 120, maxLines: 1, pageOffset: 2, x: 101.7, y: 352.2, maxChars: 18 }
+    ...Object.fromEntries(OPERATORIA_TREATMENT_TEETH.map((tooth, index) => {
+      const group = Math.floor(index / 8);
+      const row = index % 8;
+      const isUpper = group < 2;
+      const isLeft = group % 2 === 0;
+      const y = (isUpper ? 635.2 : 497.2) - (row * 16);
+      return [
+        `tratamiento_operatoria_${tooth}`,
+        clinicalPdfLine(2, isLeft ? 90 : 360, y, isLeft ? 245 : 182, isLeft ? 52 : 40, {
+          sourceLabel: String(tooth)
+        })
+      ];
+    })),
+    fecha_tratamiento_op: clinicalPdfLine(2, 103, 353.2, 228, 24),
+    control_operatorio: clinicalPdfLine(2, 201, 261.2, 215, 54, { align: "center" })
   },
   "f4-protesis-fija": {
-    motivo_protesis_fija: { matches: ["evaluacion clinica"], maxWidth: 220, maxLines: 3, pageOffset: 0, x: 172.0, y: 399.1, maxChars: 62 },
-    pilares_protesis: { matches: ["dientes pilares"], maxWidth: 180, maxLines: 2, pageOffset: 1, x: 127.4, y: 444.1, maxChars: 32 },
-    diagnostico_protesis_fija: { matches: ["interpretacion radiografica"], maxWidth: 220, maxLines: 3, pageOffset: 0, x: 372.6, y: 157.1, maxChars: 62 },
-    plan_protesis_fija: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 1, x: 163.7, y: 660.1, maxChars: 62 },
-    pruebas_protesis_fija: { matches: ["procedimiento"], maxWidth: 210, maxLines: 3, pageOffset: 1, x: 156.6, y: 634.1, maxChars: 58 },
-    observaciones_protesis_fija: { matches: ["diseno de la restauracion protesica"], maxWidth: 210, maxLines: 2, pageOffset: 1, x: 239.7, y: 470.1, maxChars: 50 }
+    dientes_ausentes_f4: clinicalPdfLine(0, 145, 374.1, 397, 88),
+    protesis_fija_previa_f4: clinicalPdfLine(0, 123, 306.1, 419, 92),
+    protesis_removible_previa_f4: clinicalPdfLine(0, 151, 274.1, 391, 88),
+    relacion_corona_raiz_f4: clinicalPdfLine(0, 199, 206.1, 343, 76),
+    soporte_oseo_f4: clinicalPdfLine(0, 128, 190.1, 414, 92),
+    estado_periodontal_pilares_f4: clinicalPdfLine(0, 192, 174.1, 350, 78),
+    diagnostico_protesis_fija: clinicalPdfArea(0, 72, 142.1, 470, 5, 330, 16),
+    modelos_estudio_f4: clinicalPdfLine(1, 208, 609.1, 112, 24),
+    presentacion_provisionales_f4: clinicalPdfLine(1, 208, 593.1, 112, 24),
+    preparacion_pilares_f4: clinicalPdfLine(1, 208, 577.1, 112, 24),
+    colocacion_provisionales_f4: clinicalPdfLine(1, 208, 561.1, 112, 24),
+    impresiones_f4: clinicalPdfLine(1, 208, 545.1, 112, 24),
+    prueba_metales_f4: clinicalPdfLine(1, 208, 529.1, 112, 24),
+    prueba_porcelana_f4: clinicalPdfLine(1, 208, 513.1, 112, 24),
+    terminado_f4: clinicalPdfLine(1, 208, 497.1, 112, 24),
+    observaciones_protesis_fija: clinicalPdfLine(1, 239, 471.1, 303, 66),
+    pilares_protesis: clinicalPdfLine(1, 126, 445.1, 416, 92),
+    ponticos_f4: clinicalPdfLine(1, 101, 429.1, 441, 96),
+    restauraciones_individuales_f4: clinicalPdfLine(1, 177, 413.1, 365, 82)
   },
   "f5-protesis-removible": {
-    clasificacion_kennedy: { matches: ["clasificacion de kennedy"], maxWidth: 170, maxLines: 1, pageOffset: 0, x: 174.3, y: 57.8, maxChars: 30 },
-    zona_desdentada: { matches: ["area desdentada", "region desdentada"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 136.0, y: 660.0, maxChars: 56 },
-    diseno_protesis_removible: { matches: ["diseno de la restauracion protesica"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 248.0, y: 83.8, maxChars: 56 },
-    elementos_retencion: { matches: ["tipos de ganchos", "retencion"], maxWidth: 220, maxLines: 3, pageOffset: 1, x: 269.2, y: 612.0, maxChars: 62 },
-    indicaciones_protesis_removible: { matches: ["entrega de protesis e indicaciones"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 205.5, y: 390.0, maxChars: 56 },
-    pronostico_protesis_removible: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 164.7, y: 538.0, maxChars: 42 }
+    dientes_ausentes_f5: clinicalPdfLine(0, 145, 374.8, 397, 88),
+    protesis_fija_f5: clinicalPdfLine(0, 123, 306.8, 419, 92),
+    protesis_removible_f5: clinicalPdfLine(0, 151, 274.8, 391, 88),
+    relacion_corona_raiz_f5: clinicalPdfLine(0, 199, 206.8, 343, 76),
+    soporte_oseo_f5: clinicalPdfLine(0, 128, 190.8, 414, 92),
+    estado_periodontal_area_f5: clinicalPdfLine(0, 273, 174.8, 269, 60),
+    interpretacion_radiografica_f5: clinicalPdfArea(0, 72, 142.8, 470, 4, 260, 16),
+    clasificacion_kennedy: clinicalPdfLine(0, 173, 58.8, 369, 82),
+    pilares_f5: clinicalPdfLine(0, 134, 42.8, 408, 90),
+    zona_desdentada: clinicalPdfLine(1, 135, 661.0, 407, 90),
+    diseno_protesis_removible: clinicalPdfLine(1, 164, 645.0, 378, 82),
+    conector_menor_f5: clinicalPdfLine(1, 164, 629.0, 378, 82),
+    elementos_retencion: clinicalPdfArea(1, 269, 613.0, 273, 4, 220, 16),
+    presentacion_caso_f5: clinicalPdfLine(1, 220, 487.0, 106, 24),
+    preparaciones_f5: clinicalPdfLine(1, 220, 471.0, 106, 24),
+    impresion_f5: clinicalPdfLine(1, 220, 455.0, 106, 24),
+    prueba_metales_f5: clinicalPdfLine(1, 220, 439.0, 106, 24),
+    prueba_rodillos_f5: clinicalPdfLine(1, 220, 423.0, 106, 24),
+    prueba_oclusion_f5: clinicalPdfLine(1, 220, 407.0, 106, 24),
+    indicaciones_protesis_removible: clinicalPdfLine(1, 220, 391.0, 106, 24),
+    revision_1_f5: clinicalPdfLine(1, 220, 375.0, 106, 24),
+    revision_2_f5: clinicalPdfLine(1, 220, 359.0, 106, 24),
+    revision_3_f5: clinicalPdfLine(1, 220, 343.0, 106, 24)
   },
   "f6-prostodoncia": {
-    estado_reborde: { matches: ["estado del reborde alveolar"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 185.8, y: 293.1, maxChars: 52 },
-    dimension_vertical: { matches: ["base de registro y prueba de rodillos"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 223.3, y: 135.1, maxChars: 52 },
-    plan_prostodoncia: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 0, x: 172.1, y: 219.1, maxChars: 62 },
-    pruebas_prostodoncia: { matches: ["prueba de dientes y oclusion"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 190.1, y: 119.1, maxChars: 50 },
-    adaptacion_prostodoncia: { matches: ["modelos de trabajo"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 152.6, y: 151.1, maxChars: 50 },
-    pronostico_prostodoncia: { matches: ["terminado"], maxWidth: 200, maxLines: 2, pageOffset: 0, x: 118.2, y: 103.1, maxChars: 40 }
+    interpretacion_radiografica_f6: clinicalPdfArea(0, 184, 374.1, 358, 3, 220, 16),
+    estado_reborde: clinicalPdfArea(0, 185, 294.1, 357, 3, 220, 16),
+    modelos_estudio_f6: clinicalPdfLine(0, 232, 168.1, 106, 24),
+    modelos_trabajo_f6: clinicalPdfLine(0, 232, 152.1, 106, 24),
+    dimension_vertical: clinicalPdfLine(0, 232, 136.1, 106, 24),
+    pruebas_prostodoncia: clinicalPdfLine(0, 232, 120.1, 106, 24),
+    adaptacion_prostodoncia: clinicalPdfLine(0, 232, 104.1, 106, 24),
+    ganchos_ubicacion_f6: clinicalPdfArea(1, 263, 660.9, 279, 3, 180, 16),
+    presentacion_caso_f6: clinicalPdfLine(1, 220, 534.9, 106, 24),
+    preparaciones_f6: clinicalPdfLine(1, 220, 518.9, 106, 24),
+    impresion_f6: clinicalPdfLine(1, 220, 502.9, 106, 24),
+    prueba_metales_f6: clinicalPdfLine(1, 220, 486.9, 106, 24),
+    prueba_rodillos_f6: clinicalPdfLine(1, 220, 470.9, 106, 24),
+    prueba_oclusion_f6: clinicalPdfLine(1, 220, 454.9, 106, 24),
+    entrega_protesis_f6: clinicalPdfLine(1, 220, 438.9, 106, 24),
+    revision_1_f6: clinicalPdfLine(1, 220, 422.9, 106, 24),
+    revision_2_f6: clinicalPdfLine(1, 220, 406.9, 106, 24),
+    revision_3_f6: clinicalPdfLine(1, 220, 390.9, 106, 24)
   },
   "f7-cirugia-bucal": {
-    motivo_cirugia: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 3, pageOffset: 0, x: 156.3, y: 362.1, maxChars: 58 },
-    diagnostico_cirugia: { matches: ["diagnostico"], maxWidth: 220, maxLines: 3, pageOffset: 1, x: 114.5, y: 563.9, maxChars: 58 },
-    procedimiento_cirugia: { matches: ["plan de tratamiento"], maxWidth: 220, maxLines: 3, pageOffset: 1, x: 146.7, y: 515.9, maxChars: 58 },
-    medicacion_cirugia: { matches: ["alergias a medicamentos o anestesicos"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 233.4, y: 394.1, maxChars: 52 },
-    cuidados_posoperatorios: { matches: ["indicaciones posquirurgicas"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 180.0, y: 259.9, maxChars: 52 },
-    pronostico_cirugia: { matches: ["pronostico"], maxWidth: 210, maxLines: 2, pageOffset: 1, x: 110.4, y: 531.9, maxChars: 42 }
+    enfermedades_sistemicas_f7: clinicalPdfLine(0, 176, 411.1, 366, 82),
+    medicacion_cirugia: clinicalPdfLine(0, 232, 395.1, 310, 68),
+    motivo_cirugia: clinicalPdfLine(0, 156, 363.1, 386, 86),
+    tiempo_evolucion_f7: clinicalPdfLine(0, 156, 347.1, 104, 22),
+    sintomatologia_f7: clinicalPdfLine(0, 330, 347.1, 212, 46),
+    dolor_ubicacion_f7: clinicalPdfLine(0, 165, 331.1, 164, 36),
+    tipo_dolor_f7: clinicalPdfLine(0, 128, 315.1, 414, 90),
+    dolor_masticar_f7: clinicalPdfYesNo(0, 281.3, 209, 281, { size: 8 }),
+    aumento_volumen_f7: clinicalPdfYesNo(0, 265.3, 209, 281, { size: 8 }),
+    secrecion_purulenta_f7: clinicalPdfYesNo(0, 249.3, 209, 281, { size: 8 }),
+    radiografia_periapical_f7: clinicalPdfLine(0, 237, 235.1, 9, 2, { align: "center", size: 4.5 }),
+    radiografia_oclusal_f7: clinicalPdfLine(0, 357, 235.1, 9, 2, { align: "center", size: 4.5 }),
+    radiografia_ortopanto_f7: clinicalPdfLine(0, 518, 235.1, 9, 2, { align: "center", size: 4.5 }),
+    interpretacion_radiografica_f7: clinicalPdfArea(0, 183, 219.1, 359, 3, 210, 16),
+    exploracion_region_afectada_f7: clinicalPdfArea(0, 72, 139.1, 470, 5, 330, 16),
+    diagnostico_cirugia: clinicalPdfLine(1, 113, 564.9, 429, 94),
+    pronostico_cirugia: clinicalPdfLine(1, 109, 532.9, 433, 94),
+    procedimiento_cirugia: clinicalPdfLine(1, 145, 516.9, 397, 88),
+    diagnostico_posquirurgico_f7: clinicalPdfLine(1, 171, 500.9, 371, 82),
+    estado_posquirurgico_f7: clinicalPdfArea(1, 72, 436.9, 470, 3, 210, 16),
+    incidentes_complicaciones_f7: clinicalPdfArea(1, 72, 340.9, 470, 3, 210, 16),
+    cuidados_posoperatorios: clinicalPdfArea(1, 72, 244.9, 470, 3, 210, 16),
+    evaluacion_cirugia_f7: clinicalPdfLine(1, 350, 164.9, 192, 42),
+    bloqueo_anestesico_f7: clinicalPdfLine(1, 230, 148.9, 230, 52),
+    antisepsia_f7: clinicalPdfLine(1, 230, 132.9, 230, 52),
+    incision_f7: clinicalPdfLine(1, 230, 116.9, 230, 52),
+    colgajo_f7: clinicalPdfLine(1, 230, 100.9, 230, 52),
+    tratamiento_zona_intervenida_f7: clinicalPdfLine(1, 230, 84.9, 230, 52),
+    sutura_f7: clinicalPdfLine(1, 230, 68.9, 230, 52),
+    indicaciones_posoperatorias_f7: clinicalPdfLine(1, 230, 52.9, 230, 52),
+    observaciones_f7: clinicalPdfArea(2, 136, 660.9, 406, 6, 360, 16),
+    hora_inicio_f7: clinicalPdfLine(2, 144, 469.0, 121, 18, { align: "center" }),
+    hora_termino_f7: clinicalPdfLine(2, 374, 469.0, 131, 18, { align: "center" })
   },
   "f8-periodoncia": {
-    diagnostico_periodontal: { matches: ["periodontograma de diagnostico"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 251.4, y: 658.6, maxChars: 52 },
-    profundidad_bolsas: { matches: ["antecedentes personales patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 265.5, y: 658.6, maxChars: 52 },
-    sangrado_periodontal: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 147.6, y: 540.6, maxChars: 52 },
-    plan_periodontal: { matches: ["exploracion bucal"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 162.3, y: 178.6, maxChars: 52 },
-    fase_mantenimiento: { matches: ["antecedentes personales no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 290.0, y: 166.1, maxChars: 52 },
-    pronostico_periodontal: { matches: ["medicamentos que utiliza actualmente"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 220.6, y: 300.6, maxChars: 42 }
+    antecedentes_hereditarios_f8: clinicalPdfLine(0, 109, 259.1, 433, 94),
+    antecedentes_cancer_f8: clinicalPdfLine(0, 102, 243.1, 440, 96),
+    antecedentes_tension_f8: clinicalPdfLine(0, 180, 227.1, 362, 80),
+    antecedentes_infarto_f8: clinicalPdfLine(0, 173, 211.1, 369, 82),
+    antecedentes_infectocontagiosas_f8: clinicalPdfLine(0, 175, 195.1, 367, 82),
+    antecedentes_no_patologicos_f8: clinicalPdfLine(0, 290, 167.1, 252, 56),
+    grupo_sanguineo_f8: clinicalPdfLine(0, 143, 141.1, 399, 88),
+    deporte_f8: clinicalPdfLine(0, 106, 125.1, 436, 96),
+    tabaquismo_f8: clinicalPdfLine(0, 123, 109.1, 186, 42),
+    alcoholismo_f8: clinicalPdfLine(0, 370, 109.1, 172, 38),
+    otros_habitos_f8: clinicalPdfLine(0, 128, 93.1, 414, 92),
+    cepillados_dia_f8: clinicalPdfLine(0, 260, 77.1, 104, 20),
+    tipo_cepillo_f8: clinicalPdfLine(0, 431, 77.1, 111, 24),
+    uso_pasta_f8: clinicalPdfLine(0, 153, 61.1, 168, 36),
+    hilo_dental_f8: clinicalPdfLine(0, 378, 61.1, 164, 36),
+    enjuague_bucal_f8: clinicalPdfLine(0, 135, 45.1, 407, 90),
+    profundidad_bolsas: clinicalPdfLine(1, 211, 637.6, 331, 74),
+    padecimiento_actual_f8: clinicalPdfLine(1, 145, 541.6, 397, 88),
+    interrogatorio_aparatos_f8: clinicalPdfLine(1, 116, 477.6, 426, 94),
+    medicamentos_actuales_f8: clinicalPdfLine(1, 220, 301.6, 322, 72),
+    inspeccion_general_f8: clinicalPdfLine(1, 96, 253.6, 446, 98),
+    exploracion_bucal_f8: clinicalPdfLine(1, 96, 157.6, 446, 98),
+    diagnostico_periodontal: clinicalPdfLine(4, 128, 535.8, 414, 92),
+    plan_periodontal: clinicalPdfLine(4, 160, 503.8, 382, 84),
+    pronostico_periodontal: clinicalPdfLine(4, 124, 519.8, 418, 92),
+    periodontograma_diagnostico_f8: clinicalPdfLine(2, 251, 659.6, 291, 64),
+    periodontograma_evolucion_f8: clinicalPdfLine(3, 231, 659.6, 311, 68),
+    auxiliares_diagnostico_f8: clinicalPdfLine(4, 132, 631.8, 410, 90),
+    auxiliares_modelos_f8: clinicalPdfLine(4, 160, 615.8, 382, 84),
+    auxiliares_fotografias_f8: clinicalPdfLine(4, 125, 599.8, 417, 92),
+    auxiliares_laboratorio_f8: clinicalPdfLine(4, 176, 583.8, 366, 82),
+    diagnostico_presuncion_sistemico_f8: clinicalPdfLine(4, 226, 567.8, 316, 70)
   },
   "f9-endodoncia": {
-    pieza_endodoncia: { matches: ["dientes que ha de tratarse"], maxWidth: 180, maxLines: 1, pageOffset: 0, x: 187.8, y: 405.5, maxChars: 30 },
-    diagnostico_pulpar: { matches: ["diagnostico pulpar"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 156.4, y: 655.7, maxChars: 52 },
-    pruebas_endodoncia: { matches: ["pruebas de sensibilidad pulpar"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 231.3, y: 658.6, maxChars: 52 },
-    tecnica_endodoncia: { matches: ["tratamiento"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 368.5, y: 655.7, maxChars: 52 },
-    control_endodoncia: { matches: ["interpretacion radiografica"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 211.2, y: 236.8, maxChars: 52 },
-    pronostico_endodoncia: { matches: ["diagnostico periapical"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 170.1, y: 511.7, maxChars: 42 }
+    direccion_f9: clinicalPdfLine(0, 118, 470.5, 424, 80, { fallbackValueKey: "location" }),
+    referido_por_f9: clinicalPdfLine(0, 130, 438.5, 412, 80),
+    fecha_inicio_f9: clinicalPdfLine(0, 140, 422.5, 245, 24),
+    fecha_termino_f9: clinicalPdfLine(0, 375, 422.5, 167, 24),
+    pieza_endodoncia: clinicalPdfLine(0, 187, 406.5, 355, 54),
+    interrogatorio_f9: clinicalPdfLine(0, 150, 372.9, 392, 90),
+    antecedentes_f9: clinicalPdfLine(0, 126, 180.2, 164, 36),
+    dolor_f9: clinicalPdfLine(0, 324, 348.2, 112, 24),
+    estimulo_f9: clinicalPdfLine(0, 490, 348.2, 112, 24),
+    examen_intrabucal_f9: clinicalPdfLine(0, 230, 141.4, 160, 36),
+    examen_extrabucal_f9: clinicalPdfLine(0, 469, 141.4, 119, 28),
+    pruebas_endodoncia: clinicalPdfLine(1, 231, 659.6, 311, 68),
+    pruebas_periodontales_f9: clinicalPdfLine(1, 187, 448.7, 355, 78),
+    interpretacion_radiografica_f9: clinicalPdfLine(1, 210, 237.8, 332, 74),
+    diagnostico_pulpar: clinicalPdfLine(2, 156, 656.7, 144, 32),
+    pronostico_periapical_f9: clinicalPdfLine(2, 170, 512.7, 130, 30),
+    tecnica_endodoncia: clinicalPdfLine(2, 368, 656.7, 174, 38),
+    control_endodoncia: clinicalPdfLine(3, 210, 344.7, 332, 74),
+    longitud_trabajo_f9: clinicalPdfLine(3, 195, 627.9, 150, 34),
+    tecnica_instrumentacion_f9: clinicalPdfLine(3, 181, 463.1, 361, 80),
+    tecnica_obturacion_f9: clinicalPdfLine(3, 159, 447.1, 383, 84),
+    indicaciones_f9: clinicalPdfLine(3, 122, 431.1, 420, 92)
   },
   "f10-ortodoncia": {
-    analisis_facial: { matches: ["motivo de la consulta"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 160.2, y: 319.1, maxChars: 52 },
-    diagnostico_oclusal: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 156.1, y: 287.1, maxChars: 52 },
-    objetivo_ortodoncia: { matches: ["ultimo examen dental"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 162.2, y: 223.1, maxChars: 52 },
-    plan_ortodontico: { matches: ["antecedentes patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 204.6, y: 585.9, maxChars: 52 },
-    seguimiento_ortodoncia: { matches: ["antecedentes no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 232.1, y: 658.6, maxChars: 52 },
-    pronostico_ortodoncia: { matches: ["examen de la cavidad bucal"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 225.1, y: 344.6, maxChars: 42 }
+    motivo_ortodoncia: clinicalPdfArea(0, 160, 320.1, 382, 2, 150, 16),
+    padecimiento_actual_ortodoncia: clinicalPdfLine(0, 155, 288.1, 387, 86),
+    tratamiento_medico_actual_ortodoncia: clinicalPdfLine(0, 340, 272.1, 202, 44),
+    ultimo_examen_medico_ortodoncia: clinicalPdfLine(0, 164, 256.1, 161, 36),
+    ultimo_examen_dental_ortodoncia: clinicalPdfLine(0, 161, 224.1, 160, 36),
+    problema_tratamientos_dentales_ortodoncia: clinicalPdfLine(0, 301, 208.1, 241, 54),
+    tratamientos_ortodonticos_previos: clinicalPdfLine(0, 342, 176.1, 200, 44),
+    referido_por_ortodoncia: clinicalPdfLine(0, 128, 144.1, 414, 92),
+    nombre_padre_ortodoncia: clinicalPdfLine(0, 111, 64.1, 283, 62),
+    nombre_madre_ortodoncia: clinicalPdfLine(0, 113, 48.1, 281, 62),
+    tutor_ortodoncia: clinicalPdfLine(1, 89, 660.9, 296, 66),
+    telefono_tutor_ortodoncia: clinicalPdfLine(1, 120, 612.9, 170, 36),
+    antecedentes_patologicos_ortodoncia: clinicalPdfLine(1, 205, 586.9, 337, 74),
+    alergias_medicamentos_ortodoncia: clinicalPdfLine(1, 252, 538.9, 118, 26),
+    tratamiento_psicologico_psiquiatrico: clinicalPdfLine(1, 360, 466.9, 182, 40),
+    medicamentos_estres_ortodoncia: clinicalPdfLine(1, 62, 98.9, 480, 100),
+    enfermedades_padecidas_ortodoncia: clinicalPdfLine(1, 220, 418.9, 322, 72),
+    trastornos_respiratorios_ortodoncia: clinicalPdfLine(1, 168, 242.9, 374, 82),
+    cirugia_o_enfermedad_seria_ortodoncia: clinicalPdfLine(1, 308, 146.9, 234, 52),
+    medicamentos_actuales_ortodoncia: clinicalPdfLine(1, 280, 114.9, 262, 58),
+    antecedentes_no_patologicos_ortodoncia: clinicalPdfLine(2, 230, 659.6, 312, 68),
+    embarazo_parto_ortodoncia: clinicalPdfLine(2, 150, 635.6, 112, 24),
+    alimentacion_ortodoncia: clinicalPdfLine(2, 235, 547.6, 307, 68),
+    desarrollo_psicomotor_ortodoncia: clinicalPdfLine(2, 240, 467.6, 302, 68),
+    desarrollo_lenguaje_ortodoncia: clinicalPdfLine(2, 130, 403.6, 76, 18),
+    primeras_palabras_ortodoncia: clinicalPdfLine(2, 270, 403.6, 80, 18),
+    lenguaje_estructurado_ortodoncia: clinicalPdfLine(2, 455, 403.6, 87, 20),
+    erupcion_control_esfinteres_ortodoncia: clinicalPdfLine(2, 164, 387.6, 378, 84),
+    genitourinario_enuresis_ortodoncia: {
+      type: "mark-select",
+      pageOffset: 2,
+      size: 8,
+      markMap: {
+        primaria: { x: 230.4, y: 373.4 },
+        secundaria: { x: 304.2, y: 373.4 }
+      }
+    },
+    menarca_ortodoncia: clinicalPdfLine(2, 385, 371.6, 157, 32),
+    diagnostico_oclusal: clinicalPdfArea(9, 195, 195.0, 347, 4, 260, 16),
+    analisis_facial: clinicalPdfArea(6, 72, 628.9, 470, 4, 300, 16),
+    plan_ortodontico: clinicalPdfArea(10, 72, 597.0, 470, 8, 520, 16),
+    seguimiento_ortodoncia: clinicalPdfArea(10, 350, 317.0, 192, 6, 180, 16),
+    pronostico_ortodoncia: clinicalPdfArea(9, 200, 243.0, 342, 3, 180, 16),
+    objetivo_ortodoncia: clinicalPdfArea(9, 180, 67.0, 362, 2, 120, 16),
+    auxiliares_diagnostico_ortodoncia: clinicalPdfArea(4, 130, 612.9, 412, 2, 180, 16),
+    odontograma_ortodontico: clinicalPdfLine(5, 205, 659.6, 337, 74),
+    citas_complementarias_ortodoncia: clinicalPdfArea(11, 60, 597.0, 482, 5, 340, 16),
+    observaciones_ortodoncia: clinicalPdfArea(11, 60, 501.0, 482, 5, 340, 16)
   },
   "f11-odontopediatria": {
-    responsable_nino: { matches: ["antecedentes hereditarios y familiares"], maxWidth: 220, maxLines: 2, pageOffset: 0, x: 281.5, y: 163.6, maxChars: 46 },
-    conducta_paciente_pediatrico: { matches: ["antecedentes personales no patologicos"], maxWidth: 220, maxLines: 2, pageOffset: 1, x: 282.2, y: 208.6, maxChars: 52 },
-    diagnostico_odontopediatria: { matches: ["padecimiento actual"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 186.0, y: 658.6, maxChars: 52 },
-    plan_odontopediatria: { matches: ["interrogatorio por aparatos y sistemas"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 280.5, y: 508.6, maxChars: 52 },
-    indicaciones_tutor: { matches: ["antecedentes alergicos"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 170.9, y: 586.6, maxChars: 52 },
-    pronostico_odontopediatria: { matches: ["sistema endocrino"], maxWidth: 220, maxLines: 2, pageOffset: 2, x: 151.4, y: 116.6, maxChars: 42 }
+    ultima_consulta_pediatrica: clinicalPdfLine(0, 311, 212.6, 231, 52),
+    derechohabiencia_pediatria: clinicalPdfLine(0, 160, 324.6, 145, 32),
+    medico_pediatra_familiar: clinicalPdfLine(0, 342, 244.6, 200, 44),
+    telefono_medico_pediatra: clinicalPdfLine(0, 191, 228.6, 351, 78),
+    hereditarios_madre_f11: clinicalPdfLine(0, 105, 108.6, 437, 96),
+    hereditarios_padre_f11: clinicalPdfLine(0, 103, 92.6, 439, 96),
+    hereditarios_hermanos_f11: clinicalPdfLine(0, 118, 76.6, 424, 94),
+    hereditarios_tios_f11: clinicalPdfLine(0, 94, 60.6, 448, 98),
+    hereditarios_abuelos_f11: clinicalPdfLine(0, 109, 44.6, 433, 96),
+    patologicos_pediatria: clinicalPdfLine(1, 90, 315.6, 452, 98),
+    tratamiento_medico_previo_f11: clinicalPdfYesNo(1, 297.6, 343, 422),
+    motivo_tratamiento_medico_f11: clinicalPdfLine(1, 137, 283.6, 405, 90),
+    medicamento_actual_f11: clinicalPdfLine(1, 284, 267.6, 258, 58),
+    trastornos_mentales_f11: clinicalPdfLine(1, 292, 235.6, 250, 56),
+    habitos_higienicos_diarios_f11: clinicalPdfLine(1, 188, 185.6, 81, 18),
+    frecuencia_higiene_boca_f11: clinicalPdfLine(1, 283, 169.6, 259, 58),
+    auxiliares_higiene_f11: clinicalPdfYesNo(1, 151.6, 211, 257),
+    auxiliares_higiene_cuales_f11: clinicalPdfLine(1, 352, 153.6, 190, 42),
+    consume_golosinas_f11: clinicalPdfYesNo(1, 135.6, 338, 447),
+    grupo_sanguineo_f11: clinicalPdfLine(1, 133, 121.6, 58, 8),
+    factor_rh_f11: clinicalPdfLine(1, 242, 121.6, 50, 8),
+    cartilla_vacunacion_f11: clinicalPdfYesNo(1, 119.6, 463, 512),
+    esquema_vacunacion_completo_f11: clinicalPdfYesNo(1, 103.6, 251, 313),
+    esquema_vacunacion_falta_f11: clinicalPdfLine(1, 151, 89.6, 391, 86),
+    padecimiento_actual_f11: clinicalPdfArea(2, 72, 643.6, 470, 3, 210, 16),
+    antecedentes_alergicos_f11: clinicalPdfLine(2, 250, 535.6, 292, 64),
+    aparato_digestivo_f11: clinicalPdfArea(2, 72, 469.6, 470, 4, 300, 16),
+    aparato_respiratorio_f11: clinicalPdfArea(2, 72, 373.6, 470, 4, 300, 16),
+    aparato_cardiovascular_f11: clinicalPdfArea(2, 72, 277.6, 470, 4, 300, 16),
+    aparato_genitourinario_f11: clinicalPdfArea(2, 72, 181.6, 470, 3, 220, 16),
+    sistema_endocrino_f11: clinicalPdfArea(2, 72, 101.6, 470, 3, 220, 16),
+    sistema_hemopoyetico_f11: clinicalPdfArea(3, 72, 645.0, 470, 3, 220, 16),
+    sistema_nervioso_f11: clinicalPdfArea(3, 72, 565.0, 470, 4, 280, 16),
+    sistema_musculoesqueletico_f11: clinicalPdfArea(3, 72, 469.0, 470, 4, 280, 16),
+    aparato_tegumentario_f11: clinicalPdfArea(3, 72, 373.0, 470, 4, 280, 16),
+    exploracion_fisica_f11: clinicalPdfArea(3, 130, 256.0, 412, 2, 150, 16),
+    peso_f11: clinicalPdfLine(3, 90, 191.6, 100, 18),
+    talla_f11: clinicalPdfLine(3, 255, 191.6, 100, 18),
+    complexion_f11: clinicalPdfLine(3, 440, 191.6, 102, 22),
+    frecuencia_cardiaca_f11: clinicalPdfLine(3, 156, 175.6, 68, 14, { sourceLabel: "Signos vitales" }),
+    tension_arterial_f11: clinicalPdfLine(3, 244, 175.6, 70, 14, { sourceLabel: "Signos vitales" }),
+    frecuencia_respiratoria_f11: clinicalPdfLine(3, 333, 175.6, 70, 14, { sourceLabel: "Signos vitales" }),
+    temperatura_f11: clinicalPdfLine(3, 465, 175.6, 77, 16),
+    analisis_oclusion_f11: clinicalPdfLine(5, 123, 636.4, 185, 42),
+    indice_higiene_f11: clinicalPdfLine(5, 180, 514.4, 140, 30),
+    indice_placa_actual_f11: clinicalPdfLine(5, 317, 313.7, 56, 12),
+    diagnostico_odontopediatria: clinicalPdfArea(6, 134, 97.9, 408, 3, 260, 16),
+    plan_odonto_preventiva_f11: clinicalPdfArea(7, 180, 613.0, 362, 4, 260, 16),
+    plan_operatoria_f11: clinicalPdfArea(7, 130, 533.0, 412, 4, 280, 16),
+    plan_cirugia_f11: clinicalPdfArea(7, 120, 469.0, 422, 3, 220, 16),
+    plan_ortodoncia_preventiva_f11: clinicalPdfArea(7, 190, 405.0, 352, 3, 210, 16),
+    plan_ortodoncia_interceptiva_f11: clinicalPdfArea(7, 190, 341.0, 352, 3, 210, 16),
+    plan_ortodoncia_correctiva_f11: clinicalPdfArea(7, 180, 277.0, 362, 3, 210, 16),
+    plan_tratamientos_pulpares_f11: clinicalPdfArea(7, 190, 213.0, 352, 4, 260, 16),
+    indicaciones_tutor: clinicalPdfArea(7, 315, 149.0, 227, 5, 240, 16),
+    odontograma_evolucion_f11: clinicalPdfLine(8, 221, 659.6, 321, 70),
+    interpretacion_radiografica_f11: clinicalPdfArea(9, 175, 479.0, 367, 6, 380, 16),
+    estudios_laboratorio_f11: clinicalPdfArea(9, 202, 367.0, 340, 4, 260, 16)
   }
 };
 

@@ -5,47 +5,33 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { URL } = require("url");
-const { generateClinicalPdf } = require("./clinical_pdf");
+const { generateClinicalPdf, generateClinicalHistoryPdf } = require("./clinical_pdf");
 
 const PORT = Number(process.env.PORT || 3001);
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const FRONTEND_DIR = path.join(PROJECT_ROOT, "frontend");
-const DATA_DIR = path.join(PROJECT_ROOT, "backend", "data");
+const DEPLOYMENT_MODE = String(process.env.ARETE_DEPLOYMENT_MODE || "local").trim().toLowerCase() === "cloud"
+  ? "cloud"
+  : "local";
+const EXPOSE_RECOVERY_CODE = String(process.env.ARETE_EXPOSE_RECOVERY_CODE || "").trim().toLowerCase() === "true";
+const DATA_DIR = path.resolve(
+  String(process.env.ARETE_DATA_DIR || "").trim() || path.join(PROJECT_ROOT, "backend", "data")
+);
 const LEGACY_DATA_FILE = path.join(DATA_DIR, "state.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SESSIONS_FILE = path.join(DATA_DIR, "sessions.json");
 const USER_STATES_DIR = path.join(DATA_DIR, "states");
-const CLINICAL_TEMPLATE_FILE = path.join(DATA_DIR, "uv-historias.pdf");
+const CLINICAL_TEMPLATE_FILE = path.join(PROJECT_ROOT, "backend", "data", "uv-historias.pdf");
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
 const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000;
 const RESET_CODE_TTL_MS = 15 * 60 * 1000;
-const DEMO_ACCOUNTS = [
-  {
-    name: "Usuario Prueba Arete 1",
-    email: "demo@arete.app",
-    username: "demoarete",
-    password: "AreteDemo123!"
-  },
-  {
-    name: "Usuario Prueba Arete 2",
-    email: "demo2@arete.app",
-    username: "demoarete2",
-    password: "AreteDemo456!"
-  },
-  {
-    name: "Usuario Prueba Arete 3",
-    email: "demo3@arete.app",
-    username: "demoarete3",
-    password: "AreteDemo789!"
-  }
-];
-
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".js": "application/javascript; charset=utf-8",
   ".mjs": "application/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".webmanifest": "application/manifest+json; charset=utf-8",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -84,11 +70,15 @@ function ensureJsonFile(filePath, fallbackValue) {
   }
 }
 
+function parseJsonText(value) {
+  return JSON.parse(String(value || "").replace(/^\uFEFF/, ""));
+}
+
 function readJsonFile(filePath, fallbackValue) {
   ensureJsonFile(filePath, fallbackValue);
   try {
     const raw = fs.readFileSync(filePath, "utf8");
-    return JSON.parse(raw);
+    return parseJsonText(raw);
   } catch {
     return fallbackValue;
   }
@@ -133,7 +123,7 @@ function readLegacyStateData() {
   ensureLegacyDataFile();
   try {
     const raw = fs.readFileSync(LEGACY_DATA_FILE, "utf8");
-    const parsed = JSON.parse(raw);
+    const parsed = parseJsonText(raw);
     const data = parsed && typeof parsed === "object"
       ? (parsed.data && typeof parsed.data === "object" ? parsed.data : parsed)
       : null;
@@ -285,44 +275,6 @@ function writeUsersStore(store) {
   });
 }
 
-function ensureDemoUsers() {
-  const usersStore = getUsersStore();
-  const users = Array.isArray(usersStore.users) ? usersStore.users : [];
-  let changed = false;
-
-  for (const account of DEMO_ACCOUNTS) {
-    const demoEmail = normalizeEmail(account.email);
-    const demoUsername = normalizeUsername(account.username);
-    const existing = users.find((entry) => {
-      const email = normalizeEmail(entry?.email);
-      const username = normalizeUsername(entry?.username);
-      return email === demoEmail || username === demoUsername;
-    });
-    if (existing) {
-      continue;
-    }
-
-    const pwd = hashPassword(account.password);
-    users.push({
-      id: createId("usr"),
-      name: account.name,
-      email: demoEmail,
-      username: demoUsername,
-      passwordSalt: pwd.salt,
-      passwordDigest: pwd.digest,
-      recoveryCode: "",
-      recoveryExpiresAt: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-    changed = true;
-  }
-
-  if (changed) {
-    writeUsersStore(usersStore);
-  }
-}
-
 function getSessionsStore() {
   const parsed = readJsonFile(SESSIONS_FILE, {
     version: 1,
@@ -414,7 +366,7 @@ function requireAuth(req, res) {
 }
 
 function createRecoveryCode() {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 function issueSession(userId) {
@@ -461,7 +413,7 @@ function parseJsonBody(req) {
           resolve({});
           return;
         }
-        resolve(JSON.parse(text));
+        resolve(parseJsonText(text));
       } catch (error) {
         reject(error);
       }
@@ -521,7 +473,24 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === "/api/health" && req.method === "GET") {
-    sendJson(res, 200, { ok: true, storage: "file", timestamp: new Date().toISOString() });
+    sendJson(res, 200, {
+      ok: true,
+      deploymentMode: DEPLOYMENT_MODE,
+      authentication: DEPLOYMENT_MODE === "cloud" ? "required" : "not-required",
+      storage: DEPLOYMENT_MODE === "cloud" ? "server-volume" : "browser-local",
+      timestamp: new Date().toISOString()
+    });
+    return;
+  }
+
+  if (
+    DEPLOYMENT_MODE !== "cloud"
+    && (pathname.startsWith("/api/auth/") || pathname === "/api/state")
+  ) {
+    sendJson(res, 409, {
+      error: "Las cuentas y la sincronización están desactivadas en modo local.",
+      deploymentMode: DEPLOYMENT_MODE
+    });
     return;
   }
 
@@ -675,12 +644,17 @@ async function handleApi(req, res, pathname) {
       user.updatedAt = new Date().toISOString();
       writeUsersStore(usersStore);
 
-      sendJson(res, 200, {
+      const responsePayload = {
         ok: true,
-        recoveryCode: code,
         expiresAt: user.recoveryExpiresAt,
-        message: "Código de recuperación generado."
-      });
+        message: EXPOSE_RECOVERY_CODE
+          ? "Código de recuperación generado para pruebas locales."
+          : "Si la cuenta existe, se enviarán instrucciones por el medio configurado."
+      };
+      if (EXPOSE_RECOVERY_CODE) {
+        responsePayload.recoveryCode = code;
+      }
+      sendJson(res, 200, responsePayload);
     } catch (error) {
       sendJson(res, 400, { error: "JSON inválido", detail: error.message });
     }
@@ -806,6 +780,36 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  if (pathname === "/api/clinical-pdf-history" && req.method === "POST") {
+    const auth = requireAuth(req, res);
+    if (!auth) {
+      return;
+    }
+
+    try {
+      const payload = await parseJsonBody(req);
+      const result = await generateClinicalHistoryPdf({
+        templatePath: CLINICAL_TEMPLATE_FILE,
+        patient: payload?.patient,
+        dictionaries: payload?.dictionaries,
+        formats: payload?.formats
+      });
+
+      res.writeHead(200, {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${result.fileName}"`,
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,PUT,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      });
+      res.end(Buffer.from(result.pdfBytes));
+    } catch (error) {
+      sendJson(res, 400, { error: "No se pudo generar el historial PDF completo", detail: error.message });
+    }
+    return;
+  }
+
   sendJson(res, 404, { error: "Ruta API no encontrada" });
 }
 
@@ -825,8 +829,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-ensureDemoUsers();
-
 server.listen(PORT, () => {
-  console.log(`Arete backend+frontend activo en http://localhost:${PORT}`);
+  const storageLabel = DEPLOYMENT_MODE === "cloud"
+    ? "cuentas y expedientes en el volumen configurado del servidor"
+    : "expedientes locales en el navegador del dispositivo";
+  console.log(`Arete activo en http://localhost:${PORT} (${DEPLOYMENT_MODE}: ${storageLabel})`);
 });

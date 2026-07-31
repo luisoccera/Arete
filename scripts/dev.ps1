@@ -2,5 +2,4 @@ param(
   [int]$Port = 3001
 )
 
-$env:PORT = $Port
-npm start
+& (Join-Path $PSScriptRoot "start.ps1") -Port $Port -NoBrowser

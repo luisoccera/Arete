@@ -1,8 +1,16 @@
-# Tests
+# Verificación
 
-Estructura recomendada:
+Ejecuta toda la batería local con:
 
-- `tests/frontend/` pruebas de interfaz.
-- `tests/backend/` pruebas de API y persistencia.
+```powershell
+npm run verify
+```
 
-Este repositorio aun no incluye runner automatizado; queda preparado para integrar `vitest`, `jest` o `playwright`.
+Incluye:
+
+- Sintaxis de todos los archivos JavaScript.
+- Integridad de JSON, recursos y contratos HTML/JavaScript.
+- Igualdad de las plantillas y mapas PDF del frontend y backend.
+- Cobertura de coordenadas de los 11 formatos clínicos.
+- Comprobación de texto, encabezados y número de páginas generado.
+- Prueba de arranque, página principal, salud del API y protección de sesión.

@@ -28,6 +28,33 @@
       setActivePatientSubview(targetSubview);
     });
   }
+  const openPatientFromSwitcher = () => {
+    const found = findPatientByPlannerName(el.patientSwitcherInput?.value);
+    if (!found) {
+      setFeedback("Selecciona un paciente de los resultados de búsqueda.", "error");
+      el.patientSwitcherInput?.focus();
+      return;
+    }
+    openPatient(found.id, activePatientSubview);
+  };
+  if (el.openSelectedPatientBtn) {
+    el.openSelectedPatientBtn.addEventListener("click", openPatientFromSwitcher);
+  }
+  if (el.patientSwitcherInput) {
+    el.patientSwitcherInput.addEventListener("change", () => {
+      const found = findPatientByPlannerName(el.patientSwitcherInput.value);
+      if (found) {
+        openPatient(found.id, activePatientSubview);
+      }
+    });
+    el.patientSwitcherInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      openPatientFromSwitcher();
+    });
+  }
   el.savePatientBtn.addEventListener("click", savePatient);
   if (el.openPatientHistoryBtn) {
     el.openPatientHistoryBtn.addEventListener("click", () => {
@@ -49,8 +76,20 @@
   el.addAppointmentBtn.addEventListener("click", addAppointmentToPatient);
   el.patientImageInput.addEventListener("change", handlePatientImageUpload);
   el.exportClinicalDocBtn.addEventListener("click", downloadClinicalDocument);
+  el.exportAllClinicalDocsBtn.addEventListener("click", downloadCompleteClinicalHistory);
   el.printClinicalDocBtn.addEventListener("click", printClinicalDocument);
   el.addClinicalNoteBtn.addEventListener("click", addClinicalNote);
+  if (el.clinicalNotePatient) {
+    const refreshClinicalNotes = () => {
+      const found = findPatientByPlannerName(el.clinicalNotePatient.value);
+      if (found) {
+        el.clinicalNotePatient.value = getPatientFullName(found);
+      }
+      renderClinicalNotesInCalendar();
+    };
+    el.clinicalNotePatient.addEventListener("change", refreshClinicalNotes);
+    el.clinicalNotePatient.addEventListener("blur", refreshClinicalNotes);
+  }
   if (el.openClinicalHistoryBtn) {
     el.openClinicalHistoryBtn.addEventListener("click", () => {
       openClinicalHistoryForCurrentPatient(false);
@@ -397,14 +436,6 @@
     removePatientMediaEntry(removeBtn.getAttribute("data-remove-media-id"));
   });
 
-  el.zoneList.addEventListener("click", (event) => {
-    const zoneBtn = event.target.closest("[data-zone-id]");
-    if (!zoneBtn) {
-      return;
-    }
-    applyOdontoMark("zones", zoneBtn.getAttribute("data-zone-id"));
-  });
-
   el.jawBackdrop.addEventListener("click", (event) => {
     handleToothNodeClick(event);
   });
@@ -521,7 +552,7 @@ function setAppLocked(locked) {
     el.authShell.classList.toggle("is-hidden", !isLocked);
   }
   if (isLocked) {
-    setFeedback("Inicia sesión para acceder al sistema.");
+    setFeedback("Inicia sesión para acceder a los datos sincronizados.");
   }
 }
 
@@ -541,17 +572,65 @@ function setAuthenticatedUser(user, token) {
     || "Usuario";
 
   if (el.authUserBadge) {
-    el.authUserBadge.hidden = !currentAuthUser;
+    el.authUserBadge.hidden = !currentAuthUser || authMode === "local";
   }
   if (el.authUserLabel) {
     el.authUserLabel.textContent = displayName;
   }
+  if (el.logoutBtn) {
+    el.logoutBtn.hidden = authMode === "local" || !currentAuthUser;
+  }
+}
+
+function getAuthRequestErrorMessage(error, fallbackMessage) {
+  const rawMessage = stringOrEmpty(error?.message);
+  if (
+    error?.name === "AbortError"
+    || /failed to fetch|networkerror|network request failed/i.test(rawMessage)
+  ) {
+    if (authMode === "appwrite") {
+      return "No pudimos comunicarnos con el servicio seguro de Arete. Revisa la conexión y la plataforma Web configurada en Appwrite.";
+    }
+    return "No se pudo conectar con el servidor de cuentas. Abre “Iniciar Arete - Estable con registro.cmd” y vuelve a intentarlo.";
+  }
+  return rawMessage || fallbackMessage;
 }
 
 async function initializeAuth() {
-  authBackendEnabled = await isBackendAuthReachable();
+  if (isAppwriteConfigured()) {
+    authMode = "appwrite";
+    authBackendEnabled = false;
+    updateStorageModePresentation("cloud");
+    const appwriteCallbackHandled = await hydrateAppwriteCallbackFromUrl();
+    try {
+      const user = await getCurrentAppwriteAccount();
+      setAuthenticatedUser(user, "");
+      setAppLocked(false);
+      await initializeAppwriteStorage();
+      setAuthMessage("");
+      setFeedback(`Sesión activa: ${stringOrEmpty(user?.name) || stringOrEmpty(user?.username)}.`);
+      return;
+    } catch (error) {
+      if (Number(error?.status || 0) !== 401) {
+        console.error("No se pudo restaurar la sesión de Appwrite.", error);
+      }
+    }
+    setAuthenticatedUser(null, "");
+    setAppLocked(true);
+    if (!appwriteCallbackHandled) {
+      setAuthMessage("Acceso seguro de Arete. Inicia sesión o crea tu cuenta para sincronizar tus expedientes.", "ok");
+    }
+    return;
+  }
 
-  if (authBackendEnabled) {
+  backendRuntime = await detectBackendRuntime();
+  authMode = backendRuntime.reachable && backendRuntime.deploymentMode === "cloud"
+    ? "cloud"
+    : "local";
+  authBackendEnabled = authMode === "cloud";
+
+  if (authMode === "cloud") {
+    updateStorageModePresentation("cloud");
     const restored = await tryRestoreBackendSession();
     if (restored) {
       setAppLocked(false);
@@ -560,32 +639,84 @@ async function initializeAuth() {
       setFeedback(`Sesión activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
       return;
     }
-  } else {
-    ensureLocalDemoAccounts();
-    const restoredLocal = tryRestoreLocalSession();
-    if (restoredLocal) {
-      setAppLocked(false);
-      await initializeBackendStorage();
-      setAuthMessage("");
-      setFeedback(`Sesión local activa: ${stringOrEmpty(currentAuthUser?.name) || stringOrEmpty(currentAuthUser?.username)}.`);
-      return;
-    }
-    setAuthMessage("Modo local activo (sin backend). Usuarios demo: demoarete, demoarete2 y demoarete3.", "ok");
+    setAuthenticatedUser(null, "");
+    setAppLocked(true);
+    setAuthMessage("Acceso seguro de Arete. Inicia sesión o crea una cuenta para sincronizar tus expedientes.", "ok");
+    return;
   }
 
-  setAuthenticatedUser(null, "");
-  setAppLocked(true);
+  activateLocalWorkspace();
 }
 
-async function isBackendAuthReachable() {
-  if (!apiBaseUrl) {
+async function hydrateAppwriteCallbackFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  appwriteRecoveryUserId = stringOrEmpty(params.get("userId"));
+  appwriteRecoverySecret = stringOrEmpty(params.get("secret"));
+  if (!appwriteRecoveryUserId || !appwriteRecoverySecret) {
     return false;
+  }
+  if (params.get("mode") === "verify") {
+    try {
+      await completeAppwriteVerification(appwriteRecoveryUserId, appwriteRecoverySecret);
+      window.history.replaceState({}, document.title, window.location.pathname);
+      appwriteRecoveryUserId = "";
+      appwriteRecoverySecret = "";
+      setAuthMessage("Correo confirmado correctamente. Tu cuenta Arete ya está verificada.", "ok");
+    } catch (error) {
+      setAuthMessage(getAuthRequestErrorMessage(error, "No pudimos verificar este enlace."), "error");
+    }
+    return true;
+  }
+  setAuthView("recover");
+  if (el.recoverCode) {
+    el.recoverCode.value = appwriteRecoverySecret;
+  }
+  setAuthMessage("Enlace verificado. Escribe y confirma tu nueva contraseña.", "ok");
+  return true;
+}
+
+async function detectBackendRuntime() {
+  if (!apiBaseUrl) {
+    return { reachable: false, deploymentMode: "local", storage: "browser-local" };
   }
   try {
     const response = await apiRequest("/api/health", { method: "GET" }, 3200);
-    return response.ok;
+    if (!response.ok) {
+      return { reachable: false, deploymentMode: "local", storage: "browser-local" };
+    }
+    const payload = await response.json().catch(() => ({}));
+    return {
+      reachable: true,
+      deploymentMode: payload?.deploymentMode === "cloud" ? "cloud" : "local",
+      storage: stringOrEmpty(payload?.storage) || "browser-local"
+    };
   } catch {
-    return false;
+    return { reachable: false, deploymentMode: "local", storage: "browser-local" };
+  }
+}
+
+function activateLocalWorkspace() {
+  authMode = "local";
+  authBackendEnabled = false;
+  storageMode = "local";
+  setAuthenticatedUser(null, "");
+  setAppLocked(false);
+  setAuthMessage("");
+  updateStorageModePresentation("local");
+  setFeedback("Modo local activo. Los expedientes se guardan solo en este dispositivo; exporta respaldos con frecuencia.");
+}
+
+function updateStorageModePresentation(mode) {
+  const isCloud = mode === "cloud";
+  if (el.storageModeTitle) {
+    el.storageModeTitle.textContent = isCloud
+      ? "Datos sincronizados con tu cuenta"
+      : "Datos guardados en este dispositivo";
+  }
+  if (el.storageModeDescription) {
+    el.storageModeDescription.textContent = isCloud
+      ? "Los expedientes se almacenan en el servidor configurado y están disponibles al iniciar sesión."
+      : "No necesitas cuenta. Este navegador conserva los expedientes localmente; usa Exportar respaldo para protegerlos.";
   }
 }
 
@@ -618,21 +749,36 @@ async function tryRestoreBackendSession() {
   }
 }
 
-function tryRestoreLocalSession() {
-  const token = stringOrEmpty(localStorage.getItem(AUTH_TOKEN_KEY));
-  if (!token) {
-    return false;
-  }
-  const users = readLocalAuthUsers();
-  const found = users.find((entry) => entry.id === token);
-  if (!found) {
-    return false;
-  }
-  setAuthenticatedUser(sanitizeLocalUser(found), token);
-  return true;
-}
-
 async function loginWithAuthForm() {
+  if (authMode === "appwrite") {
+    const email = stringOrEmpty(el.loginIdentifier?.value).toLowerCase();
+    const password = stringOrEmpty(el.loginPassword?.value);
+    if (!email || !password) {
+      setAuthMessage("Escribe tu correo y contraseña.", "error");
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setAuthMessage("Para iniciar sesión con Appwrite usa el correo asociado a tu cuenta.", "error");
+      return;
+    }
+    setAuthMessage("Verificando tus datos de acceso...");
+    try {
+      const user = await createAppwriteSession(email, password);
+      setAuthenticatedUser(user, "");
+      setAppLocked(false);
+      await initializeAppwriteStorage();
+      el.loginForm?.reset();
+      setAuthMessage("");
+      setFeedback(`Bienvenido, ${stringOrEmpty(user?.name) || stringOrEmpty(user?.username)}.`);
+    } catch (error) {
+      setAuthMessage(getAuthRequestErrorMessage(error, "No pudimos iniciar sesión. Revisa tu correo y contraseña."), "error");
+    }
+    return;
+  }
+  if (!authBackendEnabled || authMode !== "cloud") {
+    activateLocalWorkspace();
+    return;
+  }
   const identifier = stringOrEmpty(el.loginIdentifier?.value);
   const password = stringOrEmpty(el.loginPassword?.value);
   if (!identifier || !password) {
@@ -642,25 +788,20 @@ async function loginWithAuthForm() {
 
   setAuthMessage("Validando acceso...");
   try {
-    if (authBackendEnabled) {
-      const response = await apiRequest(
-        "/api/auth/login",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier, password })
-        },
-        10000
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.detail || "No se pudo iniciar sesión.");
-      }
-      setAuthenticatedUser(payload.user, payload.token);
-    } else {
-      const localResult = localLogin(identifier, password);
-      setAuthenticatedUser(localResult.user, localResult.token);
+    const response = await apiRequest(
+      "/api/auth/login",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, password })
+      },
+      10000
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.detail || "No se pudo iniciar sesión.");
     }
+    setAuthenticatedUser(payload.user, payload.token);
 
     setAppLocked(false);
     await initializeBackendStorage();
@@ -670,11 +811,15 @@ async function loginWithAuthForm() {
       el.loginForm.reset();
     }
   } catch (error) {
-    setAuthMessage(error?.message || "Acceso inválido.", "error");
+    setAuthMessage(getAuthRequestErrorMessage(error, "Acceso inválido."), "error");
   }
 }
 
 async function registerWithAuthForm() {
+  if (authMode !== "appwrite" && (!authBackendEnabled || authMode !== "cloud")) {
+    activateLocalWorkspace();
+    return;
+  }
   const name = stringOrEmpty(el.registerName?.value);
   const email = stringOrEmpty(el.registerEmail?.value).toLowerCase();
   const username = stringOrEmpty(el.registerUsername?.value).toLowerCase();
@@ -696,25 +841,30 @@ async function registerWithAuthForm() {
 
   setAuthMessage("Creando cuenta...");
   try {
-    if (authBackendEnabled) {
-      const response = await apiRequest(
-        "/api/auth/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, username, password })
-        },
-        10000
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.detail || "No se pudo crear la cuenta.");
-      }
-      setAuthenticatedUser(payload.user, payload.token);
-    } else {
-      const localResult = localRegister({ name, email, username, password });
-      setAuthenticatedUser(localResult.user, localResult.token);
+    if (authMode === "appwrite") {
+      const user = await createAppwriteAccount({ name, email, username, password });
+      setAuthenticatedUser(user, "");
+      setAppLocked(false);
+      await initializeAppwriteStorage();
+      el.registerForm?.reset();
+      setAuthMessage("");
+      setFeedback("Tu cuenta Arete fue creada. Revisa tu correo para confirmar la dirección y conservar el acceso.");
+      return;
     }
+    const response = await apiRequest(
+      "/api/auth/register",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, username, password })
+      },
+      10000
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.detail || "No se pudo crear la cuenta.");
+    }
+    setAuthenticatedUser(payload.user, payload.token);
 
     setAppLocked(false);
     await initializeBackendStorage();
@@ -724,56 +874,64 @@ async function registerWithAuthForm() {
     setAuthMessage("");
     setFeedback(`Cuenta creada para ${stringOrEmpty(currentAuthUser?.name)}.`);
   } catch (error) {
-    setAuthMessage(error?.message || "No se pudo registrar la cuenta.", "error");
+    setAuthMessage(getAuthRequestErrorMessage(error, "No se pudo registrar la cuenta."), "error");
   }
 }
 
 async function requestPasswordRecovery() {
+  if (authMode !== "appwrite" && (!authBackendEnabled || authMode !== "cloud")) {
+    activateLocalWorkspace();
+    return;
+  }
   const identifier = stringOrEmpty(el.recoverIdentifier?.value);
   if (!identifier) {
-    setAuthMessage("Escribe correo o usuario para recuperar contraseña.", "error");
+    setAuthMessage("Escribe el correo asociado a tu cuenta.", "error");
     return;
   }
 
-  setAuthMessage("Generando código de recuperación...");
+  setAuthMessage("Preparando tu correo de recuperación...");
   try {
-    if (authBackendEnabled) {
-      const response = await apiRequest(
-        "/api/auth/forgot",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier })
-        },
-        10000
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.detail || "No se pudo generar el código.");
-      }
-      const helperCode = stringOrEmpty(payload?.recoveryCode);
-      if (helperCode) {
-        setAuthMessage(`Código generado: ${helperCode}. Úsalo abajo para restablecer contraseña.`, "ok");
-      } else {
-        setAuthMessage("Código de recuperación enviado. Revisa tu método configurado.", "ok");
-      }
+    if (authMode === "appwrite") {
+      await createAppwriteRecovery(identifier.toLowerCase());
+      setAuthMessage("Te enviamos un enlace seguro de Arete. Revisa también la carpeta de correo no deseado.", "ok");
+      return;
+    }
+    const response = await apiRequest(
+      "/api/auth/forgot",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier })
+      },
+      10000
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.detail || "No se pudo generar el código.");
+    }
+    const helperCode = stringOrEmpty(payload?.recoveryCode);
+    if (helperCode) {
+      setAuthMessage(`Código generado: ${helperCode}. Úsalo abajo para restablecer contraseña.`, "ok");
     } else {
-      const localCode = localRequestRecoveryCode(identifier);
-      setAuthMessage(`Código local de recuperación: ${localCode}.`, "ok");
+      setAuthMessage("Código de recuperación enviado. Revisa tu método configurado.", "ok");
     }
   } catch (error) {
-    setAuthMessage(error?.message || "No se pudo generar el código de recuperación.", "error");
+    setAuthMessage(getAuthRequestErrorMessage(error, "No se pudo generar el código de recuperación."), "error");
   }
 }
 
 async function resetPasswordFromRecoveryCode() {
+  if (authMode !== "appwrite" && (!authBackendEnabled || authMode !== "cloud")) {
+    activateLocalWorkspace();
+    return;
+  }
   const identifier = stringOrEmpty(el.recoverIdentifier?.value);
-  const code = stringOrEmpty(el.recoverCode?.value);
+  const code = stringOrEmpty(el.recoverCode?.value) || appwriteRecoverySecret;
   const newPassword = stringOrEmpty(el.recoverNewPassword?.value);
   const confirmPassword = stringOrEmpty(el.recoverNewPasswordConfirm?.value);
 
-  if (!identifier || !code || !newPassword) {
-    setAuthMessage("Completa correo/usuario, código y nueva contraseña.", "error");
+  if ((authMode !== "appwrite" && !identifier) || !code || !newPassword) {
+    setAuthMessage("Abre el enlace recibido y completa la nueva contraseña.", "error");
     return;
   }
   if (newPassword.length < 8) {
@@ -787,25 +945,34 @@ async function resetPasswordFromRecoveryCode() {
 
   setAuthMessage("Actualizando contraseña...");
   try {
-    if (authBackendEnabled) {
-      const response = await apiRequest(
-        "/api/auth/reset",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier, code, newPassword })
-        },
-        10000
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || payload?.detail || "No se pudo restablecer la contraseña.");
+    if (authMode === "appwrite") {
+      if (!appwriteRecoveryUserId) {
+        setAuthMessage("Abre el enlace completo que enviamos a tu correo para continuar.", "error");
+        return;
       }
-      setAuthenticatedUser(payload.user, payload.token);
-    } else {
-      const localResult = localResetPassword({ identifier, code, newPassword });
-      setAuthenticatedUser(localResult.user, localResult.token);
+      await completeAppwriteRecovery(appwriteRecoveryUserId, code, newPassword);
+      el.recoverResetForm?.reset();
+      appwriteRecoveryUserId = "";
+      appwriteRecoverySecret = "";
+      window.history.replaceState({}, document.title, window.location.pathname);
+      setAuthView("login");
+      setAuthMessage("Tu contraseña fue actualizada. Ya puedes iniciar sesión con tu correo.", "ok");
+      return;
     }
+    const response = await apiRequest(
+      "/api/auth/reset",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier, code, newPassword })
+      },
+      10000
+    );
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || payload?.detail || "No se pudo restablecer la contraseña.");
+    }
+    setAuthenticatedUser(payload.user, payload.token);
 
     setAppLocked(false);
     await initializeBackendStorage();
@@ -815,12 +982,19 @@ async function resetPasswordFromRecoveryCode() {
     setAuthMessage("Contraseña restablecida correctamente.", "ok");
     setFeedback("Contraseña actualizada. Sesión iniciada.");
   } catch (error) {
-    setAuthMessage(error?.message || "No se pudo restablecer la contraseña.", "error");
+    setAuthMessage(getAuthRequestErrorMessage(error, "No se pudo restablecer la contraseña."), "error");
   }
 }
 
 async function logoutCurrentUser() {
+  if (authMode === "local") {
+    activateLocalWorkspace();
+    return;
+  }
   try {
+    if (authMode === "appwrite") {
+      await deleteCurrentAppwriteSession();
+    }
     if (authBackendEnabled && authToken) {
       await apiRequest(
         "/api/auth/logout",
@@ -840,182 +1014,5 @@ async function logoutCurrentUser() {
   setAuthView("login");
   setAuthMessage("Sesión cerrada. Vuelve a iniciar sesión para continuar.", "ok");
   setFeedback("Sesión cerrada.");
-}
-
-function readLocalAuthUsers() {
-  try {
-    const raw = localStorage.getItem(AUTH_LOCAL_USERS_KEY);
-    const parsed = JSON.parse(raw || "[]");
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((entry) => entry && typeof entry === "object");
-  } catch {
-    return [];
-  }
-}
-
-function ensureLocalDemoAccounts() {
-  const users = readLocalAuthUsers();
-  let changed = false;
-
-  for (const account of DEMO_TEST_ACCOUNTS) {
-    const demoEmail = String(account.email || "").toLowerCase();
-    const demoUsername = String(account.username || "").toLowerCase();
-    const alreadyExists = users.some((entry) => {
-      const email = stringOrEmpty(entry?.email).toLowerCase();
-      const username = stringOrEmpty(entry?.username).toLowerCase();
-      return email === demoEmail || username === demoUsername;
-    });
-    if (alreadyExists) {
-      continue;
-    }
-
-    users.push({
-      id: generateId("usr"),
-      name: String(account.name || "").trim(),
-      email: demoEmail,
-      username: demoUsername,
-      password: String(account.password || ""),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
-    changed = true;
-  }
-
-  if (changed) {
-    writeLocalAuthUsers(users);
-  }
-}
-
-function writeLocalAuthUsers(users) {
-  localStorage.setItem(AUTH_LOCAL_USERS_KEY, JSON.stringify(Array.isArray(users) ? users : []));
-}
-
-function sanitizeLocalUser(user) {
-  return {
-    id: stringOrEmpty(user?.id),
-    name: stringOrEmpty(user?.name),
-    email: stringOrEmpty(user?.email).toLowerCase(),
-    username: stringOrEmpty(user?.username).toLowerCase()
-  };
-}
-
-function localRegister({ name, email, username, password }) {
-  const users = readLocalAuthUsers();
-  const hasEmail = users.some((entry) => stringOrEmpty(entry.email).toLowerCase() === email);
-  if (hasEmail) {
-    throw new Error("Ese correo ya está registrado.");
-  }
-  const hasUsername = users.some((entry) => stringOrEmpty(entry.username).toLowerCase() === username);
-  if (hasUsername) {
-    throw new Error("Ese nombre de usuario ya existe.");
-  }
-
-  const user = {
-    id: generateId("usr"),
-    name,
-    email,
-    username,
-    password,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  users.push(user);
-  writeLocalAuthUsers(users);
-  return {
-    user: sanitizeLocalUser(user),
-    token: user.id
-  };
-}
-
-function localLogin(identifier, password) {
-  const users = readLocalAuthUsers();
-  const needle = identifier.toLowerCase();
-  const found = users.find((entry) => {
-    const email = stringOrEmpty(entry.email).toLowerCase();
-    const username = stringOrEmpty(entry.username).toLowerCase();
-    return email === needle || username === needle;
-  });
-  if (!found || stringOrEmpty(found.password) !== password) {
-    throw new Error("Credenciales inválidas.");
-  }
-  return {
-    user: sanitizeLocalUser(found),
-    token: found.id
-  };
-}
-
-function readLocalRecoveryStore() {
-  try {
-    const raw = localStorage.getItem(AUTH_LOCAL_RESET_KEY);
-    const parsed = JSON.parse(raw || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeLocalRecoveryStore(store) {
-  localStorage.setItem(AUTH_LOCAL_RESET_KEY, JSON.stringify(store && typeof store === "object" ? store : {}));
-}
-
-function localRequestRecoveryCode(identifier) {
-  const users = readLocalAuthUsers();
-  const needle = identifier.toLowerCase();
-  const found = users.find((entry) => {
-    const email = stringOrEmpty(entry.email).toLowerCase();
-    const username = stringOrEmpty(entry.username).toLowerCase();
-    return email === needle || username === needle;
-  });
-  if (!found) {
-    throw new Error("No existe una cuenta con ese correo/usuario.");
-  }
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const store = readLocalRecoveryStore();
-  store[found.id] = {
-    code,
-    expiresAt: Date.now() + 15 * 60 * 1000
-  };
-  writeLocalRecoveryStore(store);
-  return code;
-}
-
-function localResetPassword({ identifier, code, newPassword }) {
-  const users = readLocalAuthUsers();
-  const needle = identifier.toLowerCase();
-  const foundIndex = users.findIndex((entry) => {
-    const email = stringOrEmpty(entry.email).toLowerCase();
-    const username = stringOrEmpty(entry.username).toLowerCase();
-    return email === needle || username === needle;
-  });
-  if (foundIndex < 0) {
-    throw new Error("No existe una cuenta con ese correo/usuario.");
-  }
-
-  const found = users[foundIndex];
-  const store = readLocalRecoveryStore();
-  const recovery = store[found.id];
-  if (!recovery || String(recovery.code) !== String(code)) {
-    throw new Error("Código de recuperación incorrecto.");
-  }
-  if (Number(recovery.expiresAt || 0) < Date.now()) {
-    throw new Error("El código de recuperación expiró.");
-  }
-
-  users[foundIndex] = {
-    ...found,
-    password: newPassword,
-    updatedAt: new Date().toISOString()
-  };
-  writeLocalAuthUsers(users);
-  delete store[found.id];
-  writeLocalRecoveryStore(store);
-
-  return {
-    user: sanitizeLocalUser(users[foundIndex]),
-    token: users[foundIndex].id
-  };
 }
 

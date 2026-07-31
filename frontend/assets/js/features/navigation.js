@@ -17,7 +17,7 @@
 }
 
 function setActivePatientSubview(view) {
-  const validViews = new Set(["profile", "odontogram", "pathologies", "media", "history"]);
+  const validViews = new Set(["profile", "odontogram", "pathologies", "media", "history", "updates"]);
   const nextView = validViews.has(view) ? view : "profile";
   activePatientSubview = nextView;
 

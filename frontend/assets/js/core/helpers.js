@@ -341,6 +341,61 @@ function getOdontoToothPartById(partId) {
   return ODONTO_TOOTH_PARTS.find((part) => part.id === safePartId) || null;
 }
 
+function formatMedicationSummary(patientInput) {
+  const patient = patientInput || {};
+  const name = stringOrEmpty(patient.medicationName);
+  const dose = stringOrEmpty(patient.medicationDose);
+  const posology = stringOrEmpty(patient.medicationPosology);
+  const observations = stringOrEmpty(patient.medicationObservations);
+  const medicationAndDose = [name, dose].filter(Boolean).join(" - ");
+  const parts = [
+    medicationAndDose,
+    posology ? `Posologia: ${posology}` : "",
+    observations ? `Observaciones: ${observations}` : ""
+  ].filter(Boolean);
+  return parts.join(" | ") || stringOrEmpty(patient.medications);
+}
+
+function getToothMorphologyKind(toothNumber) {
+  const info = getToothPositionInfo(toothNumber);
+  if (info.unit <= 2) {
+    return "incisor";
+  }
+  if (info.unit === 3) {
+    return "canine";
+  }
+  if (info.unit <= 5) {
+    return "premolar";
+  }
+  return "molar";
+}
+
+function getOdontoSurfaceParts(toothNumber) {
+  const info = getToothPositionInfo(toothNumber);
+  const morphology = getToothMorphologyKind(toothNumber);
+  const hasOcclusalSurface = morphology === "premolar" || morphology === "molar";
+  const leftSurface = info.isLeft ? "Mesial" : "Distal";
+  const rightSurface = info.isLeft ? "Distal" : "Mesial";
+
+  const parts = [
+    { id: "top", label: "Vestibular" },
+    { id: "right", label: rightSurface },
+    { id: "bottom", label: info.isUpper ? "Palatina / palatal" : "Lingual" },
+    { id: "left", label: leftSurface }
+  ];
+  if (hasOcclusalSurface) {
+    parts.push({ id: "center", label: "Oclusal" });
+  }
+  return parts;
+}
+
+function getPeriodontalToothParts(toothNumber) {
+  return [
+    ...getOdontoSurfaceParts(toothNumber),
+    { id: "root", label: "Raiz / raices" }
+  ];
+}
+
 function splitOdontoToothKey(key) {
   const raw = String(key || "").trim();
   if (!raw) {
@@ -372,7 +427,8 @@ function getOdontoTargetLabel(bucket, key) {
     if (!parsed.partId) {
       return `pieza ${safeTooth}`;
     }
-    const part = getOdontoToothPartById(parsed.partId);
+    const part = getOdontoSurfaceParts(parsed.toothId).find((entry) => entry.id === parsed.partId)
+      || getOdontoToothPartById(parsed.partId);
     const partLabel = part ? part.label.toLowerCase() : parsed.partId;
     return `pieza ${safeTooth} (${partLabel})`;
   }
@@ -403,19 +459,19 @@ function isValidDentitionMode(mode) {
 function getOdontogramTemplatesMap() {
   const fallback = {
     anatomic: {
-      label: "Anatomico por pieza (caras)",
-      centerSuffix: "anatomico",
-      hint: "Modelo anatomico por pieza para registro detallado por caras dentales."
+      label: "Periodontograma dental con raices",
+      centerSuffix: "periodontal",
+      hint: "Corona y raiz se marcan por separado; la superficie oclusal aparece solo en premolares y molares."
     },
     grid: {
-      label: "Indice de higiene por superficies",
-      centerSuffix: "indice de higiene",
-      hint: "Registro por superficies en cuadros divididos para control de higiene."
+      label: "Periodontograma por superficies",
+      centerSuffix: "periodontograma",
+      hint: "Incisivos y caninos tienen cuatro superficies; la quinta zona oclusal aparece solo en premolares y molares."
     },
     classic: {
-      label: "Clinico lineal por cuadrantes",
-      centerSuffix: "clinico lineal",
-      hint: "Plantilla clinica lineal con guiado por lineas para evolucion y trazabilidad."
+      label: "Odontograma clinico por superficies",
+      centerSuffix: "clinico",
+      hint: "Mapeo dentro de la corona: cuatro zonas en anteriores y cinco, incluida oclusal, en posteriores."
     }
   };
 

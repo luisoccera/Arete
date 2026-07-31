@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#165d63">
   <title>Arete | Gestor Dental</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/icons/arete-icon.svg">
+  <link rel="apple-touch-icon" href="./assets/icons/arete-icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/main.css">
+  <link rel="stylesheet" href="./assets/css/main.css?v=patient-search-v1">
 </head>
 <body>
   <div class="bg-shape bg-shape-a"></div>
@@ -18,7 +21,7 @@
       <header class="auth-header">
         <p class="auth-kicker">Arete | Acceso seguro</p>
         <h1>Inicia sesión o crea tu cuenta</h1>
-        <p class="auth-text">Registra tu consultorio con correo, usuario y contraseña. También puedes recuperar tu contraseña.</p>
+        <p class="auth-text">Tu cuenta protege los expedientes y permite sincronizarlos de forma privada entre tus dispositivos.</p>
       </header>
 
       <nav class="auth-tabs" aria-label="Opciones de acceso">
@@ -38,6 +41,7 @@
             <input type="password" id="loginPassword" autocomplete="current-password" required>
           </label>
           <button type="submit" class="btn btn-primary auth-submit">Entrar</button>
+          <button type="button" class="auth-link" data-auth-tab="recover">¿Olvidaste tu contraseña? Restablecer contraseña</button>
         </form>
       </section>
 
@@ -53,8 +57,9 @@
               <input type="email" id="registerEmail" autocomplete="email" required>
             </label>
             <label class="field">
-              <span>Usuario</span>
+              <span>Nombre de usuario</span>
               <input type="text" id="registerUsername" autocomplete="username" required>
+              <small class="field-help">Se mostrará dentro de Arete; el correo se usará para recuperar tu acceso.</small>
             </label>
           </div>
           <div class="form-grid auth-grid">
@@ -74,17 +79,17 @@
       <section class="auth-view" data-auth-view="recover" hidden>
         <form id="recoverRequestForm" class="auth-form" novalidate>
           <label class="field">
-            <span>Correo o usuario</span>
-            <input type="text" id="recoverIdentifier" autocomplete="username" required>
+            <span>Correo asociado a la cuenta</span>
+            <input type="email" id="recoverIdentifier" autocomplete="email" required>
           </label>
-          <button type="submit" class="btn btn-secondary auth-submit">Solicitar código de recuperación</button>
+          <button type="submit" class="btn btn-secondary auth-submit">Enviar enlace de recuperación</button>
         </form>
 
         <form id="recoverResetForm" class="auth-form auth-form-separator" novalidate>
           <div class="form-grid auth-grid">
             <label class="field">
-              <span>Código de recuperación</span>
-              <input type="text" id="recoverCode" placeholder="Ejemplo: 123456" required>
+              <span>Código o clave del enlace</span>
+              <input type="text" id="recoverCode" placeholder="Se completa al abrir el correo" required>
             </label>
             <label class="field">
               <span>Nueva contraseña</span>
@@ -115,7 +120,7 @@
       <div class="hero-actions">
         <div id="authUserBadge" class="auth-user-badge" hidden>
           <span id="authUserLabel">Usuario</span>
-          <button type="button" id="logoutBtn" class="btn btn-ghost">Cerrar sesión</button>
+          <button type="button" id="logoutBtn" class="btn btn-ghost" hidden>Cerrar sesión</button>
         </div>
         <button type="button" id="newPatientBtn" class="btn btn-secondary">Nuevo paciente</button>
         <button type="button" id="exportBtn" class="btn btn-primary">Exportar respaldo</button>
@@ -123,6 +128,13 @@
         <input type="file" id="importFile" accept=".json,application/json">
       </div>
     </header>
+
+    <section class="storage-mode-notice" aria-live="polite">
+      <div>
+        <strong id="storageModeTitle">Datos guardados en este dispositivo</strong>
+        <span id="storageModeDescription">No necesitas cuenta. Este navegador conserva los expedientes localmente; usa Exportar respaldo para protegerlos.</span>
+      </div>
+    </section>
 
     <nav class="view-tabs" aria-label="Navegacion principal">
       <button type="button" class="view-tab is-active" data-view-tab="home">Inicio</button>
@@ -135,12 +147,29 @@
       <section class="view-section is-active" data-view-section="home"></section>
 
       <section class="view-section" data-view-section="patient">
-        <nav class="patient-subtabs" aria-label="Registro del paciente">
+        <section class="patient-switcher" aria-label="Cambiar de paciente">
+          <label class="field patient-switcher-field" for="patientSwitcherInput">
+            <span>Buscar y cambiar de paciente</span>
+            <input
+              type="search"
+              id="patientSwitcherInput"
+              list="patientSwitcherOptions"
+              placeholder="Escribe nombre o apellidos"
+              autocomplete="off"
+            >
+            <datalist id="patientSwitcherOptions"></datalist>
+          </label>
+          <button type="button" id="openSelectedPatientBtn" class="btn btn-secondary" disabled>Abrir paciente</button>
+        </section>
+
+        <nav class="patient-subtabs" aria-label="Secciones de la ficha del paciente">
+          <span class="subtabs-label">Secciones del paciente</span>
           <button type="button" class="patient-subtab is-active" data-patient-tab="profile">Ficha del paciente</button>
           <button type="button" class="patient-subtab" data-patient-tab="odontogram">Odontograma</button>
           <button type="button" class="patient-subtab" data-patient-tab="pathologies">Patologias</button>
           <button type="button" class="patient-subtab" data-patient-tab="media">Imagenes</button>
           <button type="button" class="patient-subtab" data-patient-tab="history">Historial clinico</button>
+          <button type="button" class="patient-subtab" data-patient-tab="updates">Actualizaciones</button>
         </nav>
 
         <section class="patient-subview is-active" data-patient-subview="profile">
@@ -205,11 +234,6 @@
                 </label>
 
                 <label class="field">
-                  <span>Lugar de nacimiento</span>
-                  <input type="text" id="birthPlace" placeholder="Ciudad de nacimiento">
-                </label>
-
-                <label class="field">
                   <span>Telefono</span>
                   <input type="tel" id="phone" placeholder="+52 000 000 0000">
                 </label>
@@ -230,48 +254,13 @@
                 </label>
 
                 <label class="field">
-                  <span>Cirujano dentista a cargo</span>
-                  <input type="text" id="dentistName">
+                  <span>Doctor o cirujano dentista (opcional)</span>
+                  <input type="text" id="dentistName" placeholder="Nombre del profesional a cargo">
                 </label>
 
-                <label class="field">
-                  <span>Nombre del medico familiar</span>
-                  <input type="text" id="familyDoctorName">
-                </label>
-
-                <label class="field">
-                  <span>Telefono de oficina</span>
-                  <input type="tel" id="officePhone" placeholder="+52 000 000 0000">
-                </label>
-
-                <label class="field">
-                  <span>Telefono del medico familiar</span>
-                  <input type="tel" id="familyDoctorPhone" placeholder="+52 000 000 0000">
-                </label>
-
-                <label class="field">
-                  <span>Fecha de consulta</span>
-                  <input type="date" id="consultationDate">
-                </label>
-
-                <label class="field">
-                  <span>Proxima fecha de consulta</span>
-                  <input type="date" id="nextConsultationDate">
-                </label>
-
-                <label class="field">
-                  <span>Inicio de tratamiento</span>
-                  <input type="date" id="treatmentStart">
-                </label>
-
-                <label class="field">
-                  <span>Fecha de ultima consulta medica</span>
-                  <input type="date" id="lastMedicalConsultDate">
-                </label>
-
-                <label class="field">
-                  <span>Motivo de ultima consulta medica</span>
-                  <input type="text" id="lastMedicalConsultReason" placeholder="Ejemplo: control general">
+                <label class="field field-span-2">
+                  <span>Motivo de consulta</span>
+                  <input type="text" id="lastMedicalConsultReason" placeholder="Ejemplo: dolor, revisión o control">
                 </label>
               </div>
 
@@ -313,12 +302,30 @@
                 </div>
               </section>
 
-              <div class="field-group">
-                <label class="field field-full">
-                  <span>Medicamentos que toma</span>
-                  <textarea id="medications" rows="2" placeholder="Ejemplo: ibuprofeno, anticoagulantes, etc."></textarea>
-                </label>
+              <section class="card medication-card">
+                <h3>Medicación actual</h3>
+                <p class="card-help">Registra el medicamento y cómo debe tomarlo. Si no aplica, deja el apartado en blanco.</p>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Nombre del medicamento</span>
+                    <input type="text" id="medicationName" placeholder="Ejemplo: ibuprofeno">
+                  </label>
+                  <label class="field">
+                    <span>Dosis</span>
+                    <input type="text" id="medicationDose" placeholder="Ejemplo: 400 mg">
+                  </label>
+                  <label class="field field-span-2">
+                    <span>Posología</span>
+                    <input type="text" id="medicationPosology" placeholder="Ejemplo: una tableta cada 8 horas durante 5 días">
+                  </label>
+                  <label class="field field-full">
+                    <span>Observaciones de medicación</span>
+                    <textarea id="medicationObservations" rows="2" placeholder="Indicaciones, motivo, reacción o información adicional"></textarea>
+                  </label>
+                </div>
+              </section>
 
+              <div class="field-group">
                 <label class="field field-full">
                   <span>Alergias</span>
                   <textarea id="allergies" rows="2" placeholder="Ejemplo: penicilina, latex, anestesicos, etc."></textarea>
@@ -398,9 +405,9 @@
                 <div class="status-picker">
                   <label for="odontogramTemplateSelect">Plantilla</label>
                   <select id="odontogramTemplateSelect">
-                    <option value="anatomic">Anatomico por pieza</option>
-                    <option value="grid">Indice de higiene (cuadros)</option>
-                    <option value="classic">Clinico lineal</option>
+                    <option value="anatomic">Periodontograma dental con raíces</option>
+                    <option value="grid">Periodontograma por superficies</option>
+                    <option value="classic">Odontograma clinico por superficies</option>
                   </select>
                 </div>
 
@@ -428,14 +435,9 @@
                   </div>
                 </div>
                 <p class="jaw-help">
-                  Haz clic sobre una pieza para agregar/quitar el color seleccionado. En modo <strong>Limpiar</strong> se borra toda la pieza.
+                  Marca directamente una superficie del dibujo. Mesial apunta a la linea media; palatina corresponde al maxilar y lingual a la mandibula. La zona oclusal solo aparece en premolares y molares. En el periodontograma dental también puedes marcar la raíz.
                 </p>
                 <p class="jaw-standard" id="dentitionStandardHint">Formato comun FDI: adulto de 32 piezas.</p>
-              </section>
-
-              <section>
-                <h3 class="group-title">Zonas generales</h3>
-                <div id="zoneList" class="zone-grid"></div>
               </section>
             </div>
 
@@ -516,10 +518,11 @@
               <h3>Historia clinica imprimible</h3>
               <div class="doc-actions">
                 <button type="button" id="printClinicalDocBtn" class="btn btn-secondary">Imprimir PDF</button>
-                <button type="button" id="exportClinicalDocBtn" class="btn btn-primary">Descargar PDF oficial</button>
+                <button type="button" id="exportClinicalDocBtn" class="btn btn-primary">Descargar cuestionario actual</button>
+                <button type="button" id="exportAllClinicalDocsBtn" class="btn btn-primary">Descargar historial PDF completo</button>
               </div>
             </div>
-            <p class="card-help">Selecciona el tipo y rellena automaticamente el formato oficial UV en PDF para guardar o imprimir.</p>
+            <p class="card-help">Descarga solo el cuestionario seleccionado o reúne los 11 formatos en un único historial PDF.</p>
             <div class="form-grid">
               <label class="field">
                 <span>Tipo de historia clinica</span>
@@ -554,31 +557,19 @@
             <div id="clinicalFormatFields" class="format-fields-grid"></div>
           </section>
 
-          <div class="card-title-row">
-            <h3>Historial clinico del paciente</h3>
-            <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Agregar nota</button>
-          </div>
-          <p class="card-help">Puedes guardar notas clinicas y tambien ver el historial automatico de cambios de color en la boca.</p>
-
-          <div class="form-grid">
-            <label class="field">
-              <span>Fecha de nota</span>
-              <input type="date" id="clinicalNoteDate">
-            </label>
-
-            <label class="field">
-              <span>Titulo de la nota</span>
-              <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
-            </label>
-          </div>
-
-          <label class="field field-full">
-            <span>Nota clinica</span>
-            <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clinico del paciente"></textarea>
-          </label>
-
-          <div id="patientHistoryList" class="history-list"></div>
         </section>
+        </section>
+
+        <section class="patient-subview" data-patient-subview="updates">
+          <section class="panel panel-history">
+            <div class="panel-header">
+              <div>
+                <h2>Actualizaciones del paciente</h2>
+                <p class="panel-subtitle">Movimientos automáticos del odontograma, ciclos clínicos y notas guardadas.</p>
+              </div>
+            </div>
+            <div id="patientHistoryList" class="history-list"></div>
+          </section>
         </section>
       </section>
 
@@ -618,7 +609,8 @@
             <span id="upcomingCount" class="badge-count">0</span>
           </div>
 
-          <nav class="upcoming-subtabs" aria-label="Citas">
+          <nav class="upcoming-subtabs" aria-label="Secciones de citas">
+            <span class="subtabs-label">Secciones de citas</span>
             <button type="button" class="patient-subtab" data-upcoming-tab="overview">Resumen</button>
             <button type="button" class="patient-subtab is-active" data-upcoming-tab="planner">Agenda y calendario</button>
           </nav>
@@ -712,6 +704,36 @@
                 <div id="upcomingDayList" class="appointment-list"></div>
               </section>
 
+              <section class="card calendar-notes-card">
+                <div class="card-title-row">
+                  <div>
+                    <h3>Notas clínicas</h3>
+                    <p class="card-help">Guarda una nota del paciente sin salir de la agenda.</p>
+                  </div>
+                  <button type="button" id="addClinicalNoteBtn" class="btn btn-secondary">Guardar nota</button>
+                </div>
+                <label class="field field-full">
+                  <span>Paciente</span>
+                  <input type="text" id="clinicalNotePatient" list="clinicalNotePatientOptions" placeholder="Selecciona un paciente registrado">
+                  <datalist id="clinicalNotePatientOptions"></datalist>
+                </label>
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Fecha de nota</span>
+                    <input type="date" id="clinicalNoteDate">
+                  </label>
+                  <label class="field">
+                    <span>Título de la nota</span>
+                    <input type="text" id="clinicalNoteTitle" placeholder="Ejemplo: Control postoperatorio">
+                  </label>
+                </div>
+                <label class="field field-full">
+                  <span>Nota clínica</span>
+                  <textarea id="clinicalNoteText" rows="3" placeholder="Escribe el detalle clínico del paciente"></textarea>
+                </label>
+                <div id="clinicalNoteList" class="history-list"></div>
+              </section>
+
             </section>
           </section>
 
@@ -724,14 +746,17 @@
     </footer>
   </div>
 
+  <script src="./assets/js/config/runtime-config.js"></script>
   <script src="./assets/js/config/constants.js"></script>
   <script src="./assets/js/core/helpers.js"></script>
+  <script src="./assets/js/services/appwrite-client.js"></script>
   <script src="./assets/js/data/state-models.js"></script>
   <script src="./assets/js/features/navigation.js"></script>
-  <script src="./assets/js/features/events.js"></script>
-  <script src="./assets/js/render/render.js"></script>
+  <script src="./assets/js/features/events.js?v=patient-search-v1"></script>
+  <script src="./assets/js/render/render.js?v=patient-search-v1"></script>
   <script src="./assets/js/features/patient-actions.js"></script>
   <script src="./assets/js/pdf/clinical-pdf.js"></script>
-  <script src="./assets/js/bootstrap.js"></script>
+  <script src="./assets/js/core/pwa.js"></script>
+  <script src="./assets/js/bootstrap.js?v=patient-search-v1"></script>
 </body>
 </html>

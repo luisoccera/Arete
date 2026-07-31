@@ -22,6 +22,8 @@
   authUserBadge: document.getElementById("authUserBadge"),
   authUserLabel: document.getElementById("authUserLabel"),
   logoutBtn: document.getElementById("logoutBtn"),
+  storageModeTitle: document.getElementById("storageModeTitle"),
+  storageModeDescription: document.getElementById("storageModeDescription"),
   newPatientBtn: document.getElementById("newPatientBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importFile: document.getElementById("importFile"),
@@ -30,6 +32,9 @@
   homeSection: document.querySelector('[data-view-section="home"]'),
   patientSubTabs: Array.from(document.querySelectorAll("[data-patient-tab]")),
   patientSubSections: Array.from(document.querySelectorAll("[data-patient-subview]")),
+  patientSwitcherInput: document.getElementById("patientSwitcherInput"),
+  patientSwitcherOptions: document.getElementById("patientSwitcherOptions"),
+  openSelectedPatientBtn: document.getElementById("openSelectedPatientBtn"),
   searchInput: document.getElementById("searchInput"),
   upcomingCount: document.getElementById("upcomingCount"),
   upcomingList: document.getElementById("upcomingList"),
@@ -83,7 +88,6 @@
   jawBackdrop: document.getElementById("jawBackdrop"),
   upperJawArc: document.getElementById("upperJawArc"),
   lowerJawArc: document.getElementById("lowerJawArc"),
-  zoneList: document.getElementById("zoneList"),
   dentitionLabel: document.getElementById("dentitionLabel"),
   dentitionStandardHint: document.getElementById("dentitionStandardHint"),
   dentitionSwitchButtons: Array.from(document.querySelectorAll("[data-dentition]")),
@@ -96,6 +100,9 @@
   newStatusColor: document.getElementById("newStatusColor"),
   addStatusBtn: document.getElementById("addStatusBtn"),
   addClinicalNoteBtn: document.getElementById("addClinicalNoteBtn"),
+  clinicalNotePatient: document.getElementById("clinicalNotePatient"),
+  clinicalNotePatientOptions: document.getElementById("clinicalNotePatientOptions"),
+  clinicalNoteList: document.getElementById("clinicalNoteList"),
   openClinicalHistoryBtn: document.getElementById("openClinicalHistoryBtn"),
   renewClinicalHistoryBtn: document.getElementById("renewClinicalHistoryBtn"),
   clinicalCycleSummary: document.getElementById("clinicalCycleSummary"),
@@ -105,6 +112,7 @@
   clinicalFormatTitle: document.getElementById("clinicalFormatTitle"),
   clinicalFormatFields: document.getElementById("clinicalFormatFields"),
   exportClinicalDocBtn: document.getElementById("exportClinicalDocBtn"),
+  exportAllClinicalDocsBtn: document.getElementById("exportAllClinicalDocsBtn"),
   printClinicalDocBtn: document.getElementById("printClinicalDocBtn"),
   clinicalNoteDate: document.getElementById("clinicalNoteDate"),
   clinicalNoteTitle: document.getElementById("clinicalNoteTitle"),
@@ -119,7 +127,6 @@
   patientSex: document.getElementById("patientSex"),
   patientLocation: document.getElementById("patientLocation"),
   birthDate: document.getElementById("birthDate"),
-  birthPlace: document.getElementById("birthPlace"),
   phone: document.getElementById("phone"),
   occupation: document.getElementById("occupation"),
   educationLevel: document.getElementById("educationLevel"),
@@ -132,16 +139,12 @@
   delegation: document.getElementById("delegation"),
   stateName: document.getElementById("stateName"),
   cityName: document.getElementById("cityName"),
-  medications: document.getElementById("medications"),
+  medicationName: document.getElementById("medicationName"),
+  medicationDose: document.getElementById("medicationDose"),
+  medicationPosology: document.getElementById("medicationPosology"),
+  medicationObservations: document.getElementById("medicationObservations"),
   dentistName: document.getElementById("dentistName"),
-  familyDoctorName: document.getElementById("familyDoctorName"),
-  officePhone: document.getElementById("officePhone"),
-  familyDoctorPhone: document.getElementById("familyDoctorPhone"),
   allergies: document.getElementById("allergies"),
-  consultationDate: document.getElementById("consultationDate"),
-  nextConsultationDate: document.getElementById("nextConsultationDate"),
-  treatmentStart: document.getElementById("treatmentStart"),
-  lastMedicalConsultDate: document.getElementById("lastMedicalConsultDate"),
   lastMedicalConsultReason: document.getElementById("lastMedicalConsultReason"),
   appointmentDate: document.getElementById("appointmentDate"),
   appointmentTime: document.getElementById("appointmentTime"),
@@ -178,6 +181,14 @@ let authToken = stringOrEmpty(localStorage.getItem(AUTH_TOKEN_KEY));
 let currentAuthUser = null;
 let authBackendEnabled = false;
 let authView = "login";
+let authMode = "local";
+let appwriteRecoveryUserId = "";
+let appwriteRecoverySecret = "";
+let backendRuntime = {
+  reachable: false,
+  deploymentMode: "local",
+  storage: "browser-local"
+};
 
 
 async function init() {

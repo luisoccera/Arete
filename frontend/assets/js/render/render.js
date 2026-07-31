@@ -12,6 +12,7 @@ function renderAll() {
   renderPatientMedia();
   renderPatientTable();
   renderUpcomingPlannerForm();
+  renderClinicalNotesInCalendar();
   renderUpcomingAppointments();
   renderUpcomingPlannerCalendar();
   renderScannedDocuments();
@@ -75,6 +76,7 @@ function renderHomeOverview() {
 }
 
 function renderPatientTable() {
+  renderPatientSwitcher();
   const query = el.searchInput.value.trim().toLowerCase();
   const patients = state.patients
     .filter((patient) => {
@@ -158,6 +160,31 @@ function renderPatientTable() {
   renderUpcomingPlannerForm();
   renderUpcomingAppointments();
   renderUpcomingPlannerCalendar();
+}
+
+function renderPatientSwitcher() {
+  if (!el.patientSwitcherInput || !el.patientSwitcherOptions) {
+    return;
+  }
+  const patients = state.patients
+    .slice()
+    .sort((a, b) => getPatientFullName(a).localeCompare(getPatientFullName(b), "es", { sensitivity: "base" }));
+  el.patientSwitcherOptions.innerHTML = patients
+    .map((patient) => `<option value="${escapeHtml(getPatientFullName(patient) || "Sin nombre")}"></option>`)
+    .join("");
+
+  const currentPatient = editingPatientId
+    ? patients.find((patient) => patient.id === editingPatientId)
+    : null;
+  if (currentPatient) {
+    el.patientSwitcherInput.value = getPatientFullName(currentPatient);
+  } else if (!findPatientByPlannerName(el.patientSwitcherInput.value)) {
+    el.patientSwitcherInput.value = "";
+  }
+
+  if (el.openSelectedPatientBtn) {
+    el.openSelectedPatientBtn.disabled = patients.length === 0;
+  }
 }
 
 function getAppointmentStartTime(appointment) {
@@ -361,6 +388,11 @@ function renderUpcomingPlannerForm() {
       .map((patient) => `<option value="${escapeHtml(getPatientFullName(patient) || "Sin nombre")}"></option>`)
       .join("");
   }
+  if (el.clinicalNotePatientOptions) {
+    el.clinicalNotePatientOptions.innerHTML = patients
+      .map((patient) => `<option value="${escapeHtml(getPatientFullName(patient) || "Sin nombre")}"></option>`)
+      .join("");
+  }
 
   if (previous) {
     el.globalAppointmentPatient.value = previous;
@@ -369,6 +401,17 @@ function renderUpcomingPlannerForm() {
     el.globalAppointmentPatient.value = current ? getPatientFullName(current) : "";
   } else {
     el.globalAppointmentPatient.value = "";
+  }
+  if (el.clinicalNotePatient) {
+    const previousNotePatient = stringOrEmpty(el.clinicalNotePatient.value);
+    if (previousNotePatient) {
+      el.clinicalNotePatient.value = previousNotePatient;
+    } else if (editingPatientId && patients.some((patient) => patient.id === editingPatientId)) {
+      const current = patients.find((patient) => patient.id === editingPatientId);
+      el.clinicalNotePatient.value = current ? getPatientFullName(current) : "";
+    } else {
+      el.clinicalNotePatient.value = "";
+    }
   }
 
   if (el.globalAppointmentDate && !stringOrEmpty(el.globalAppointmentDate.value)) {
@@ -403,6 +446,7 @@ function renderUpcomingPlannerForm() {
   } else if (el.quickAppointmentDate) {
     el.quickAppointmentDate.value = getTodayInputDate();
   }
+  renderClinicalNotesInCalendar();
 }
 
 function normalizePatientNameToken(value) {
@@ -1056,6 +1100,39 @@ function renderPatientHistory() {
     .join("");
 }
 
+function renderClinicalNotesInCalendar() {
+  if (!el.clinicalNoteList) {
+    return;
+  }
+  const selectedPatient = findPatientByPlannerName(el.clinicalNotePatient?.value)
+    || (editingPatientId ? state.patients.find((entry) => entry.id === editingPatientId) : null);
+  if (!selectedPatient) {
+    el.clinicalNoteList.innerHTML = "<div class=\"history-empty\">Selecciona un paciente para consultar sus notas recientes.</div>";
+    return;
+  }
+
+  const notes = normalizeHistoryEntries(selectedPatient.historyEntries)
+    .filter((entry) => entry.type === "clinical-note")
+    .slice(0, 8);
+  if (notes.length === 0) {
+    el.clinicalNoteList.innerHTML = `<div class="history-empty">${escapeHtml(getPatientFullName(selectedPatient))} aun no tiene notas clinicas.</div>`;
+    return;
+  }
+
+  el.clinicalNoteList.innerHTML = notes
+    .map((entry) => `
+      <article class="history-item compact">
+        <div class="history-head">
+          <span class="history-type">Nota clinica</span>
+          <span class="history-date">${escapeHtml(formatDateTime(entry.createdAt))}</span>
+        </div>
+        <div class="history-title">${escapeHtml(entry.title || "Nota clinica")}</div>
+        <div class="history-body">${escapeHtml(entry.description || "")}</div>
+      </article>
+    `)
+    .join("");
+}
+
 function ensureDraftClinicalFormData() {
   if (!draftPatient.clinicalFormData || typeof draftPatient.clinicalFormData !== "object") {
     draftPatient.clinicalFormData = createEmptyClinicalFormData();
@@ -1098,7 +1175,7 @@ function renderClinicalFormatFields() {
   const html = [];
   let currentSection = "";
 
-  for (const field of schema.fields) {
+  for (const field of schema.fields.filter((entry) => !entry.uiHidden)) {
     const fieldValue = getClinicalFieldDisplayValue(field, values);
     const inputType = field.type || "text";
     const section = stringOrEmpty(field.section);
@@ -1261,24 +1338,6 @@ function renderOdontogram() {
 
   renderJawArc(el.upperJawArc, layout.upper, "upper", mode, template);
   renderJawArc(el.lowerJawArc, layout.lower, "lower", mode, template);
-
-  el.zoneList.innerHTML = ODONTO_ZONES.map((zone) => {
-    const statusIds = getMarkIds("zones", zone.id);
-    const colors = statusIds
-      .map((statusId) => getStatusById(statusId)?.color)
-      .filter(Boolean);
-
-    const colorStyle = buildMultiColorBackground(colors);
-    const label = statusIds.length > 0
-      ? statusIds.map((id) => getStatusById(id)?.name).filter(Boolean).join(", ")
-      : "sin marca";
-
-    return `
-      <button type="button" class="zone-btn ${statusIds.length > 0 ? "has-marks" : ""}" data-zone-id="${zone.id}" style="--mark-color:${colorStyle}" title="${escapeHtml(zone.name)}: ${escapeHtml(label)}">
-        <span>${escapeHtml(zone.name)}</span>
-      </button>
-    `;
-  }).join("");
 }
 
 function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
@@ -1289,7 +1348,10 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
   const renderToothNode = (toothNumber) => {
     const toothId = String(toothNumber);
     const wholeStatusIds = getMarkIds("teeth", toothId);
-    const partStates = ODONTO_TOOTH_PARTS.map((part) => {
+    const toothParts = template === "anatomic"
+      ? getPeriodontalToothParts(toothNumber)
+      : getOdontoSurfaceParts(toothNumber);
+    const partStates = toothParts.map((part) => {
       const markKey = buildOdontoToothMarkKey(toothId, part.id);
       const statusIds = getMarkIds("teeth", markKey);
       return {
@@ -1300,9 +1362,10 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
     });
     const hasAnyPartMarks = partStates.some((part) => part.statusIds.length > 0);
     if (!hasAnyPartMarks && wholeStatusIds.length > 0) {
-      const centerPart = partStates.find((part) => part.id === "center");
-      if (centerPart) {
-        centerPart.statusIds = wholeStatusIds.slice();
+      const fallbackPart = partStates.find((part) => part.id === "center")
+        || partStates.find((part) => part.id === "top");
+      if (fallbackPart) {
+        fallbackPart.statusIds = wholeStatusIds.slice();
       }
     }
     const partStatusIds = partStates.flatMap((part) => part.statusIds);
@@ -1313,18 +1376,24 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
       ? Math.max(0, statusIds.length - previewIds.length)
       : 0;
     const toothSpec = getToothRenderSpec(toothNumber, mode);
+    const morphologyKind = getToothMorphologyKind(toothNumber);
     const gradientId = `grad-${mode}-${arcPosition}-${toothId}`;
     // La base del diente se mantiene neutra para evitar mezcla visual con marcas por superficie.
     const fillConfig = buildToothFill([], gradientId);
     const nodeTemplate = template === "grid" ? "grid" : (template === "classic" ? "classic" : "anatomic");
     const isGridTemplate = nodeTemplate === "grid";
+    const isAnatomicTemplate = nodeTemplate === "anatomic";
     const sizeScale = mode === "child" ? 1.26 : 1.22;
     const widthOverride = isGridTemplate
       ? (mode === "child" ? 43 : 46)
-      : Math.round(toothSpec.width * sizeScale);
+      : isAnatomicTemplate
+        ? Math.max(mode === "child" ? 42 : 46, Math.round(toothSpec.width * 1.18))
+        : Math.round(toothSpec.width * sizeScale);
     const heightOverride = isGridTemplate
       ? (mode === "child" ? 54 : 58)
-      : Math.round(toothSpec.height * sizeScale);
+      : isAnatomicTemplate
+        ? (mode === "child" ? 112 : 124)
+        : Math.round(toothSpec.height * sizeScale);
 
     const chips = previewIds
       .map((statusId) => {
@@ -1358,16 +1427,15 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
 
     const isClassicTemplate = nodeTemplate === "classic";
     const toothArt = isGridTemplate
-      ? buildGridToothArt(fillConfig)
+      ? buildGridToothArt(fillConfig, morphologyKind)
       : isClassicTemplate
-        ? buildClassicToothArt(toothSpec.path, fillConfig, `clip-${mode}-${arcPosition}-${toothId}`)
-        : `
-            <svg viewBox="0 0 48 52" class="tooth-svg">
-              ${fillConfig.defs}
-              <path class="tooth-fill-shape" d="${TOOTH_PATHS[toothSpec.path]}" fill="${fillConfig.fill}"></path>
-              <path class="tooth-outline-shape" d="${TOOTH_PATHS[toothSpec.path]}"></path>
-            </svg>
-          `;
+        ? buildClassicToothArt(
+          toothSpec.path,
+          fillConfig,
+          `clip-${mode}-${arcPosition}-${toothId}`,
+          morphologyKind
+        )
+        : buildAnatomicToothArt(toothSpec.path, fillConfig, arcPosition, morphologyKind);
 
     const partMarkup = partStates
       .map((part) => {
@@ -1383,6 +1451,7 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
           <span
             class="tooth-part tooth-part-${part.id} ${part.statusIds.length > 0 ? "has-marks" : ""}"
             data-tooth-part="${part.id}"
+            data-surface-short="${escapeHtml(getOdontoSurfaceAbbreviation(part.label))}"
             style="--part-mark:${colorStyle}"
             title="Pieza ${toothId} - ${escapeHtml(part.label)}: ${escapeHtml(partStatusLabelText)}"
           ></span>
@@ -1393,7 +1462,7 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
     return `
       <button
         type="button"
-        class="tooth-node ${mode === "child" ? "child" : ""} template-${nodeTemplate} jaw-${arcPosition} ${toothSpec.mirror ? "mirror" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
+        class="tooth-node tooth-${morphologyKind} ${mode === "child" ? "child" : ""} template-${nodeTemplate} jaw-${arcPosition} ${toothSpec.mirror ? "mirror" : ""} ${statusIds.length > 0 ? "has-marks" : ""}"
         data-tooth-id="${toothId}"
         title="Diente ${toothId}: ${escapeHtml(titleText)}"
         style="--tooth-w:${widthOverride}px; --tooth-h:${heightOverride}px;"
@@ -1422,15 +1491,107 @@ function renderJawArc(container, toothNumbers, arcPosition, mode, template) {
   `;
 }
 
-function buildGridToothArt(fillConfig) {
+function buildGridToothArt(fillConfig, morphologyKind) {
+  const hasOcclusalSurface = morphologyKind === "premolar" || morphologyKind === "molar";
+  const centerMarkup = hasOcclusalSurface
+    ? '<rect class="tooth-grid-center" x="18.5" y="20.5" width="11" height="11"></rect>'
+    : "";
+  const divisionLines = hasOcclusalSurface
+    ? "M24 8 L24 44 M8 26 L40 26 M8 8 L18.5 20.5 M40 8 L29.5 20.5 M8 44 L18.5 31.5 M40 44 L29.5 31.5"
+    : "M8 8 L24 26 L40 8 M8 44 L24 26 L40 44";
   return `
     <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-grid">
       ${fillConfig.defs}
       <rect class="tooth-grid-fill" x="8" y="8" width="32" height="36" rx="2.4" fill="${fillConfig.fill}"></rect>
       <rect class="tooth-grid-outline" x="8" y="8" width="32" height="36" rx="2.4"></rect>
-      <rect class="tooth-grid-center" x="18.5" y="20.5" width="11" height="11"></rect>
-      <path class="tooth-grid-lines" d="M24 8 L24 44 M8 26 L40 26 M8 8 L18.5 20.5 M40 8 L29.5 20.5 M8 44 L18.5 31.5 M40 44 L29.5 31.5"></path>
+      ${centerMarkup}
+      <path class="tooth-grid-lines" d="${divisionLines}"></path>
     </svg>
+  `;
+}
+
+function getOdontoSurfaceAbbreviation(label) {
+  const safeLabel = stringOrEmpty(label).toLowerCase();
+  if (safeLabel.startsWith("vestibular")) {
+    return "V";
+  }
+  if (safeLabel.startsWith("mesial")) {
+    return "M";
+  }
+  if (safeLabel.startsWith("distal")) {
+    return "D";
+  }
+  if (safeLabel.startsWith("palatina") || safeLabel.startsWith("lingual")) {
+    return "P/L";
+  }
+  if (safeLabel.startsWith("incisal")) {
+    return "I";
+  }
+  if (safeLabel.startsWith("raiz")) {
+    return "R";
+  }
+  return "O";
+}
+
+function buildAnatomicToothArt(pathId, fillConfig, arcPosition, morphologyKind) {
+  const path = TOOTH_PATHS[pathId];
+  const isUpper = arcPosition === "upper";
+  const facialTransform = isUpper
+    ? "translate(0 40) scale(1 -0.74)"
+    : "translate(0 1) scale(1 0.74)";
+  const innerTransform = isUpper
+    ? "translate(0 121) scale(1 -0.74)"
+    : "translate(0 82) scale(1 0.74)";
+  const crownLine = morphologyKind === "molar"
+    ? "M10 13 C17 17 31 17 38 13"
+    : morphologyKind === "premolar"
+      ? "M13 13 C19 16 29 16 35 13"
+      : "M15 12 C20 14 28 14 33 12";
+  const occlusalGlyph = buildToothSurfaceGlyph(morphologyKind, "anatomic");
+
+  return `
+    <svg viewBox="0 0 48 122" class="tooth-svg tooth-svg-anatomic">
+      ${fillConfig.defs}
+      <g transform="${facialTransform}">
+        <path class="tooth-anatomic-fill" d="${path}" fill="${fillConfig.fill}"></path>
+        <path class="tooth-anatomic-outline" d="${path}"></path>
+        <path class="tooth-anatomic-crown-line" d="${crownLine}"></path>
+      </g>
+      <g class="tooth-anatomic-occlusal">
+        ${occlusalGlyph}
+      </g>
+      <g transform="${innerTransform}">
+        <path class="tooth-anatomic-fill tooth-anatomic-inner" d="${path}" fill="${fillConfig.fill}"></path>
+        <path class="tooth-anatomic-outline" d="${path}"></path>
+        <path class="tooth-anatomic-crown-line" d="${crownLine}"></path>
+      </g>
+    </svg>
+  `;
+}
+
+function buildToothSurfaceGlyph(morphologyKind, variant) {
+  const classPrefix = variant === "classic" ? "tooth-classic" : "tooth-anatomic";
+  if (morphologyKind === "molar") {
+    return `
+      <rect class="${classPrefix}-surface" x="8" y="49" width="32" height="23" rx="8"></rect>
+      <path class="${classPrefix}-groove" d="M24 50 V71 M9 60.5 H39 M14 53 L34 68 M34 53 L14 68"></path>
+    `;
+  }
+  if (morphologyKind === "premolar") {
+    return `
+      <ellipse class="${classPrefix}-surface" cx="24" cy="60.5" rx="12.5" ry="11"></ellipse>
+      <path class="${classPrefix}-groove" d="M24 50 V71 M16 60.5 H32"></path>
+    `;
+  }
+  if (morphologyKind === "canine") {
+    return `
+      <path class="${classPrefix}-surface" d="M24 50 L34 60.5 L24 71 L14 60.5 Z"></path>
+      <path class="${classPrefix}-groove" d="M15 60.5 H33 M24 51 V70"></path>
+    `;
+  }
+  return `
+    <rect class="${classPrefix}-surface" x="13" y="55" width="22" height="11" rx="4"></rect>
+    <path class="${classPrefix}-groove" d="M15 60.5 H33"></path>
   `;
 }
 
@@ -1442,18 +1603,22 @@ function unwrapToothDefs(defsMarkup) {
   return raw.replace(/^<defs>/i, "").replace(/<\/defs>$/i, "");
 }
 
-function buildClassicToothArt(pathId, fillConfig, clipId) {
+function buildClassicToothArt(pathId, fillConfig, clipId, morphologyKind) {
   const path = TOOTH_PATHS[pathId];
   const mergedDefs = [unwrapToothDefs(fillConfig.defs), `<clipPath id="${clipId}"><path d="${path}"></path></clipPath>`]
     .filter(Boolean)
     .join("");
+  const isAnterior = morphologyKind === "incisor" || morphologyKind === "canine";
+  const centerShape = isAnterior
+    ? ""
+    : '<ellipse class="tooth-classic-center-shape" cx="24" cy="12.5" rx="7" ry="6"></ellipse>';
   return `
     <svg viewBox="0 0 48 52" class="tooth-svg tooth-svg-classic">
       <defs>${mergedDefs}</defs>
       <path class="tooth-fill-shape tooth-fill-classic" d="${path}" fill="${fillConfig.fill}"></path>
       <g clip-path="url(#${clipId})" class="tooth-classic-grid">
-        <path class="tooth-classic-lines" d="M8 10 H40 M8 16 H40 M8 22 H40 M8 28 H40 M8 34 H40 M8 40 H40"></path>
-        <path class="tooth-classic-midline" d="M24 8 V44"></path>
+        <path class="tooth-classic-lines" d="M24 12.5 L13 5 M24 12.5 L35 5 M24 12.5 L15 21 M24 12.5 L33 21"></path>
+        ${centerShape}
       </g>
       <path class="tooth-outline-shape tooth-outline-classic" d="${path}"></path>
     </svg>
@@ -1672,7 +1837,8 @@ function openPatient(id, preferredSubview) {
     return;
   }
 
-  const targetSubview = preferredSubview === "history" ? "history" : "profile";
+  const validSubviews = new Set(["profile", "odontogram", "pathologies", "media", "history", "updates"]);
+  const targetSubview = validSubviews.has(preferredSubview) ? preferredSubview : "profile";
   setActiveView("patient");
   setActivePatientSubview(targetSubview);
   editingPatientId = id;
@@ -1692,10 +1858,14 @@ function openPatient(id, preferredSubview) {
   resetPatientMediaInput();
   resetClinicalNoteInputs();
   updateDeleteCurrentButtonState();
-  if (targetSubview === "history") {
-    setFeedback(`Historial clinico abierto para ${getPatientFullName(found)}.`);
-  } else {
-    setFeedback(`Editando expediente de ${getPatientFullName(found)}.`);
-  }
+  const sectionLabels = {
+    profile: "ficha",
+    odontogram: "odontograma",
+    pathologies: "patologias",
+    media: "imagenes",
+    history: "historia clinica",
+    updates: "actualizaciones"
+  };
+  setFeedback(`${getPatientFullName(found)} abierto en ${sectionLabels[targetSubview] || "ficha"}.`);
 }
 

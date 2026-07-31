@@ -2,13 +2,38 @@
   "name": "arete-odonto",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "start": "node backend/src/index.js",
-    "check": "node --check backend/src/index.js && node --check backend/src/clinical_pdf.js",
-    "audit:pdf-coverage": "node scripts/clinical/audit-pdf-coverage.js"
+    "check": "node scripts/check-project.js",
+    "audit:pdf-coverage": "node scripts/clinical/audit-pdf-coverage.js",
+    "audit:pdf-semantics": "node scripts/clinical/audit-pdf-semantic-layout.js",
+    "check:pdf-layout": "node scripts/check-clinical-pdf-layout.js",
+    "smoke": "node scripts/smoke-server.js",
+    "smoke:cloud": "node scripts/smoke-cloud-server.js",
+    "verify": "npm run check && npm run audit:pdf-coverage && npm run audit:pdf-semantics && npm run check:pdf-layout && npm run smoke && npm run smoke:cloud",
+    "mobile:sync": "cap sync",
+    "mobile:add:android": "cap add android",
+    "mobile:add:ios": "cap add ios",
+    "mobile:open:android": "cap open android",
+    "mobile:open:ios": "cap open ios",
+    "native:install": "npm --prefix apps/arete-native install",
+    "native:web": "npm --prefix apps/arete-native run web",
+    "native:android": "npm --prefix apps/arete-native run android",
+    "native:ios": "npm --prefix apps/arete-native run ios",
+    "native:check": "npm --prefix apps/arete-native run check",
+    "native:build:web": "npm --prefix apps/arete-native run build:web"
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.6.205"
+  },
+  "devDependencies": {
+    "@capacitor/android": "7.6.8",
+    "@capacitor/cli": "7.6.8",
+    "@capacitor/core": "7.6.8",
+    "@capacitor/ios": "7.6.8"
   }
 }

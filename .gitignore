@@ -1,4 +1,6 @@
 node_modules/
+.pnpm-store/
+tmp/
 .DS_Store
 Thumbs.db
 *.log
@@ -6,3 +8,7 @@ backend/logs/*.log
 backend/data/users.json
 backend/data/sessions.json
 backend/data/states/
+apps/arete-native/.env
+apps/arete-native/.expo/
+apps/arete-native/dist/
+apps/arete-native/node_modules/

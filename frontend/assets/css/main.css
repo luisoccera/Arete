@@ -8,6 +8,10 @@
   --radius-ui: 14px;
 }
 
+*[hidden] {
+  display: none !important;
+}
+
 *,
 *::before,
 *::after {
@@ -153,6 +157,25 @@ body {
   justify-self: flex-start;
 }
 
+.auth-link {
+  justify-self: center;
+  border: 0;
+  padding: 0.2rem;
+  background: transparent;
+  color: #0f6f74;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
+.auth-link:hover,
+.auth-link:focus-visible {
+  color: #084d52;
+}
+
 .auth-form-separator {
   border-top: 1px solid #dfd0bb;
   margin-top: 0.32rem;
@@ -182,6 +205,30 @@ body {
   color: #4f4130;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.storage-mode-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0.85rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 14px;
+  background: rgba(13, 34, 53, 0.88);
+  color: #d5fffa;
+}
+
+.storage-mode-notice div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.storage-mode-notice span {
+  color: #b9d9dd;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
 .hero,
@@ -273,15 +320,50 @@ body {
   gap: 1rem;
 }
 
+.patient-switcher {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.75rem;
+  border: 1px solid #315872;
+  border-radius: 12px;
+  background: linear-gradient(120deg, #0b2234, #102d42);
+  box-shadow: inset 4px 0 0 #2dd4bf;
+}
+
+.patient-switcher-field {
+  min-width: 0;
+}
+
+.patient-switcher .btn {
+  min-height: 42px;
+}
+
 .patient-subtabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid #294d66;
+  border-left: 4px solid #2dd4bf;
+  border-radius: 12px;
+  background: #0a2031b8;
+}
+
+.subtabs-label {
+  flex: 0 0 100%;
+  color: #8fb7cc;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .patient-subtab {
   border: 1px solid #3b6b89;
-  background: #0f2b40;
+  background: #132e42;
   color: #d7efff;
   border-radius: 11px;
   padding: 0.56rem 0.8rem;
@@ -640,6 +722,12 @@ tbody tr.active {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+  align-items: center;
+  padding: 0.6rem;
+  border: 1px solid #294d66;
+  border-left: 4px solid #2dd4bf;
+  border-radius: 12px;
+  background: #0a2031b8;
 }
 
 .upcoming-subview {
@@ -1583,6 +1671,10 @@ tbody tr.active {
   width: 100%;
 }
 
+.field-span-2 {
+  grid-column: 1 / -1;
+}
+
 .field-group {
   display: grid;
   gap: 0.65rem;
@@ -1913,15 +2005,15 @@ tbody tr.active {
 }
 
 .tooth-node.jaw-lower .tooth-part-map {
-  transform: rotate(180deg);
+  transform: scaleY(-1);
 }
 
 .tooth-node.mirror .tooth-part-map {
-  transform: scaleX(-1);
+  transform: none;
 }
 
 .tooth-node.jaw-lower.mirror .tooth-part-map {
-  transform: rotate(180deg) scaleX(-1);
+  transform: scaleY(-1);
 }
 
 .tooth-part {
@@ -1979,59 +2071,135 @@ tbody tr.active {
 }
 
 .jaw-backdrop.template-anatomic .tooth-part-map {
-  inset: 11% 18%;
+  inset: 0;
+  transform: none;
 }
 
 .tooth-node.template-anatomic .tooth-part {
-  border: none;
-  box-shadow: none;
+  border: 1px solid transparent;
+  box-shadow: inset 0 0 0 1px #ffffff22;
   background: var(--part-mark, transparent);
-  opacity: 0.95;
+  opacity: 0.9;
 }
 
 .tooth-node.template-anatomic .tooth-part-top {
-  top: 2%;
-  left: 21%;
-  width: 58%;
-  height: 25%;
-  border-radius: 0;
-  clip-path: polygon(16% 0, 84% 0, 100% 72%, 0 72%);
+  top: 1%;
+  left: 12%;
+  width: 76%;
+  height: 32%;
+  border-radius: 45% 45% 28% 28%;
+  clip-path: polygon(20% 0, 80% 0, 100% 30%, 88% 100%, 12% 100%, 0 30%);
+}
+
+.tooth-node.template-anatomic.jaw-upper .tooth-part-top {
+  top: 20%;
+  height: 14%;
+  clip-path: polygon(10% 0, 90% 0, 100% 70%, 82% 100%, 18% 100%, 0 70%);
+}
+
+.tooth-node.template-anatomic.jaw-lower .tooth-part-top {
+  top: 1%;
+  height: 14%;
+  clip-path: polygon(18% 0, 82% 0, 100% 30%, 90% 100%, 10% 100%, 0 30%);
 }
 
 .tooth-node.template-anatomic .tooth-part-right {
-  top: 23%;
-  right: 4%;
-  width: 30%;
-  height: 54%;
-  border-radius: 0;
-  clip-path: polygon(0 10%, 100% 22%, 100% 78%, 0 90%, 12% 50%);
+  top: 40%;
+  right: 3%;
+  width: 24%;
+  height: 20%;
+  border-radius: 40%;
+  clip-path: polygon(0 15%, 100% 0, 100% 100%, 0 85%, 22% 50%);
 }
 
 .tooth-node.template-anatomic .tooth-part-bottom {
-  left: 21%;
-  bottom: 2%;
-  width: 58%;
-  height: 25%;
-  border-radius: 0;
-  clip-path: polygon(0 28%, 100% 28%, 84% 100%, 16% 100%);
+  left: 12%;
+  bottom: 1%;
+  width: 76%;
+  height: 32%;
+  border-radius: 28% 28% 45% 45%;
+  clip-path: polygon(12% 0, 88% 0, 100% 70%, 80% 100%, 20% 100%, 0 70%);
+}
+
+.tooth-node.template-anatomic.jaw-upper .tooth-part-bottom {
+  bottom: 1%;
+  height: 14%;
+  clip-path: polygon(18% 0, 82% 0, 100% 30%, 90% 100%, 10% 100%, 0 30%);
+}
+
+.tooth-node.template-anatomic.jaw-lower .tooth-part-bottom {
+  bottom: 20%;
+  height: 14%;
+  clip-path: polygon(10% 0, 90% 0, 100% 70%, 82% 100%, 18% 100%, 0 70%);
 }
 
 .tooth-node.template-anatomic .tooth-part-left {
-  top: 23%;
-  left: 4%;
-  width: 30%;
-  height: 54%;
-  border-radius: 0;
-  clip-path: polygon(100% 10%, 0 22%, 0 78%, 100% 90%, 88% 50%);
+  top: 40%;
+  left: 3%;
+  width: 24%;
+  height: 20%;
+  border-radius: 40%;
+  clip-path: polygon(0 0, 100% 15%, 78% 50%, 100% 85%, 0 100%);
 }
 
 .tooth-node.template-anatomic .tooth-part-center {
-  top: 31%;
+  top: 39%;
+  left: 28%;
+  width: 44%;
+  height: 22%;
+  border-radius: 35%;
+  clip-path: polygon(12% 0, 88% 0, 100% 22%, 100% 78%, 88% 100%, 12% 100%, 0 78%, 0 22%);
+}
+
+.tooth-node.template-anatomic .tooth-part-root {
+  z-index: 4;
+  left: 22%;
+  width: 56%;
+  border-radius: 30% 30% 48% 48%;
+  clip-path: polygon(16% 0, 84% 0, 70% 100%, 50% 82%, 30% 100%);
+}
+
+.tooth-node.template-anatomic.jaw-upper .tooth-part-root {
+  top: 1%;
+  height: 20%;
+}
+
+.tooth-node.template-anatomic.jaw-lower .tooth-part-root {
+  top: 15%;
+  height: 18%;
+  border-radius: 48% 48% 30% 30%;
+  clip-path: polygon(30% 0, 50% 18%, 70% 0, 84% 100%, 16% 100%);
+}
+
+.tooth-node.template-anatomic.tooth-incisor .tooth-part-root {
   left: 31%;
   width: 38%;
-  height: 38%;
-  border-radius: 0;
-  clip-path: polygon(12% 0, 88% 0, 100% 12%, 100% 88%, 88% 100%, 12% 100%, 0 88%, 0 12%);
+}
+
+.tooth-node.template-anatomic.tooth-canine .tooth-part-root {
+  left: 28%;
+  width: 44%;
+}
+
+.tooth-node.template-anatomic.tooth-incisor .tooth-part-center {
+  top: 44%;
+  height: 12%;
+  border-radius: 6px;
+}
+
+.tooth-node.template-anatomic.tooth-canine .tooth-part-center {
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.tooth-node.template-anatomic.tooth-premolar .tooth-part-center {
+  left: 31%;
+  width: 38%;
+}
+
+.tooth-node.template-anatomic .tooth-part:hover,
+.tooth-node.template-anatomic .tooth-part:focus-visible {
+  border-color: #0e7490;
+  background: color-mix(in srgb, var(--part-mark, transparent) 70%, #67e8f9 30%);
 }
 
 .tooth-fill-shape {
@@ -2044,7 +2212,7 @@ tbody tr.active {
   stroke-width: 1.6;
 }
 
-.tooth-node.jaw-lower .tooth-art {
+.tooth-node.jaw-upper .tooth-art {
   transform: rotate(180deg);
 }
 
@@ -2052,8 +2220,52 @@ tbody tr.active {
   transform: scaleX(-1);
 }
 
-.tooth-node.jaw-lower.mirror .tooth-art {
+.tooth-node.jaw-upper.mirror .tooth-art {
   transform: rotate(180deg) scaleX(-1);
+}
+
+.tooth-node.template-anatomic .tooth-art,
+.tooth-node.template-anatomic.mirror .tooth-art,
+.tooth-node.template-anatomic.jaw-upper .tooth-art,
+.tooth-node.template-anatomic.jaw-upper.mirror .tooth-art {
+  transform: none;
+}
+
+.tooth-anatomic-fill {
+  stroke: none;
+  fill: #fffdf9;
+}
+
+.tooth-anatomic-inner {
+  fill: #fffaf3;
+}
+
+.tooth-anatomic-outline,
+.tooth-anatomic-crown-line,
+.tooth-anatomic-surface,
+.tooth-anatomic-groove {
+  fill: none;
+  stroke: #43372f;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tooth-anatomic-outline {
+  stroke-width: 1.35;
+}
+
+.tooth-anatomic-crown-line {
+  stroke-width: 0.9;
+}
+
+.tooth-anatomic-surface {
+  fill: #fffdf9;
+  stroke-width: 1.25;
+}
+
+.tooth-anatomic-groove {
+  stroke-width: 0.7;
+  opacity: 0.75;
 }
 
 .tooth-node .tooth-id {
@@ -2148,8 +2360,33 @@ tbody tr.active {
 }
 
 .jaw-backdrop.template-anatomic {
-  background: radial-gradient(circle at 50% 42%, #ffe2ce, #f5cdba);
-  border-color: #d7b999;
+  background: #fffdf8;
+  border-color: #83766b;
+  box-shadow: inset 0 0 0 1px #ded6ce;
+}
+
+.jaw-backdrop.template-anatomic .jaw-heading-row {
+  color: #2c2621;
+}
+
+.jaw-backdrop.template-anatomic .jaw-divider-horizontal,
+.jaw-backdrop.template-anatomic .jaw-divider-vertical {
+  background: #51473f;
+  box-shadow: none;
+}
+
+.jaw-backdrop.template-anatomic .jaw-quadrant {
+  gap: 0.18rem;
+}
+
+.jaw-backdrop.template-anatomic .tooth-node .tooth-id {
+  color: #2c2621;
+  text-shadow: none;
+  font-size: 0.65rem;
+}
+
+.jaw-backdrop.template-anatomic .tooth-art {
+  filter: none;
 }
 
 .jaw-backdrop.template-grid {
@@ -2230,6 +2467,72 @@ tbody tr.active {
   border-radius: 2px;
 }
 
+.tooth-node.template-grid.tooth-incisor .tooth-part-top,
+.tooth-node.template-grid.tooth-canine .tooth-part-top,
+.tooth-node.template-classic.tooth-incisor .tooth-part-top,
+.tooth-node.template-classic.tooth-canine .tooth-part-top {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.tooth-node.template-grid.tooth-incisor .tooth-part-right,
+.tooth-node.template-grid.tooth-canine .tooth-part-right,
+.tooth-node.template-classic.tooth-incisor .tooth-part-right,
+.tooth-node.template-classic.tooth-canine .tooth-part-right {
+  top: 0;
+  right: 0;
+  width: 50%;
+  height: 100%;
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+
+.tooth-node.template-grid.tooth-incisor .tooth-part-bottom,
+.tooth-node.template-grid.tooth-canine .tooth-part-bottom,
+.tooth-node.template-classic.tooth-incisor .tooth-part-bottom,
+.tooth-node.template-classic.tooth-canine .tooth-part-bottom {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 50%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.tooth-node.template-grid.tooth-incisor .tooth-part-left,
+.tooth-node.template-grid.tooth-canine .tooth-part-left,
+.tooth-node.template-classic.tooth-incisor .tooth-part-left,
+.tooth-node.template-classic.tooth-canine .tooth-part-left {
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+.tooth-node.template-grid .tooth-part::after {
+  content: attr(data-surface-short);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #273240;
+  font-size: 0.42rem;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.tooth-node.template-grid .tooth-part.has-marks::after {
+  color: #07131f;
+  text-shadow: 0 1px 1px #ffffffa8;
+}
+
+.tooth-node.jaw-lower.template-grid .tooth-part::after {
+  transform: scaleY(-1);
+}
+
 .jaw-backdrop.template-grid .tooth-node .tooth-id {
   color: #0b0b0b;
   text-shadow: none;
@@ -2262,14 +2565,8 @@ tbody tr.active {
   position: absolute;
   inset: 12px;
   border-radius: 8px;
-  background:
-    linear-gradient(90deg, transparent 49.8%, #303030 49.8%, #303030 50.2%, transparent 50.2%),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0 12px,
-      #d5d8dc 12px 13px
-    );
-  opacity: 0.85;
+  background: linear-gradient(90deg, transparent 49.8%, #303030 49.8%, #303030 50.2%, transparent 50.2%);
+  opacity: 0.45;
   pointer-events: none;
   z-index: 0;
 }
@@ -2298,7 +2595,31 @@ tbody tr.active {
 }
 
 .jaw-backdrop.template-classic .tooth-part-map {
-  inset: 9% 16%;
+  transform: none;
+}
+
+.tooth-node.template-classic.jaw-lower .tooth-part-map {
+  inset: 3% 16% 51%;
+}
+
+.tooth-node.template-classic.jaw-upper .tooth-part-map {
+  inset: 51% 16% 3%;
+}
+
+.tooth-node.template-classic.tooth-incisor.jaw-upper .tooth-part-map,
+.tooth-node.template-classic.tooth-canine.jaw-upper .tooth-part-map {
+  clip-path: polygon(25% 0, 75% 0, 100% 100%, 0 100%);
+}
+
+.tooth-node.template-classic.tooth-incisor.jaw-lower .tooth-part-map,
+.tooth-node.template-classic.tooth-canine.jaw-lower .tooth-part-map {
+  clip-path: polygon(0 0, 100% 0, 75% 100%, 25% 100%);
+}
+
+.tooth-node.template-classic.tooth-premolar .tooth-part-map,
+.tooth-node.template-classic.tooth-molar .tooth-part-map {
+  border-radius: 42%;
+  overflow: hidden;
 }
 
 .jaw-backdrop.template-classic .tooth-fill-shape {
@@ -2318,20 +2639,26 @@ tbody tr.active {
 .tooth-classic-lines {
   fill: none;
   stroke: #6d6254;
-  stroke-width: 1.12;
+  stroke-width: 0.9;
   stroke-linecap: round;
 }
 
-.tooth-classic-midline {
-  fill: none;
+.tooth-classic-center-shape {
+  fill: #fffdf8;
   stroke: #3f3a33;
-  stroke-width: 1.25;
+  stroke-width: 1.05;
 }
 
 .tooth-node.template-classic .tooth-part {
-  border-color: #6b6153;
+  border-color: transparent;
   border-radius: 0;
   box-shadow: none;
+}
+
+.tooth-node.template-classic .tooth-part:hover,
+.tooth-node.template-classic .tooth-part:focus-visible,
+.tooth-node.template-classic .tooth-part.has-marks {
+  border-color: #6b6153;
 }
 
 .tooth-node.template-classic .tooth-part-top,
@@ -2801,6 +3128,10 @@ select {
 }
 
 @media (max-width: 575.98px) {
+  .storage-mode-notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
   .auth-shell {
     width: min(97vw, 100%);
     margin-top: 0.75rem;
@@ -2847,6 +3178,14 @@ select {
   .patient-subtabs {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .patient-switcher {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-switcher .btn {
+    width: 100%;
   }
 
   .patient-subtab {
